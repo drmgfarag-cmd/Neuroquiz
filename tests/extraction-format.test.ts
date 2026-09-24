@@ -248,9 +248,27 @@ describe("layouts of books 05, 07, 08 and 09", () => {
   });
 
   it("keeps answer images from a mixed images list out of the question", () => {
-    const [q] = parse([{ question: "Q?", answers: { A: "a", B: "b" }, correct_answer: "A", images: ["Book05_Ch01_Q28_image1.jpg", "Book05_Ch01_Q28_answer_image1.jpg"] }]).chapters[0].questions;
+    const [q] = parse([{ question: "What is shown in this image?", answers: { A: "a", B: "b" }, correct_answer: "A", images: ["Book05_Ch01_Q28_image1.jpg", "Book05_Ch01_Q28_answer_image1.jpg"] }]).chapters[0].questions;
     expect(q.stemMedia.map((m) => m.file)).toEqual(["Book05_Ch01_Q28_image1.jpg"]);
     expect(q.explanationMedia.map((m) => m.file)).toEqual(["Book05_Ch01_Q28_answer_image1.jpg"]);
+  });
+
+  it("shows unlabelled generic art only after the answer, and overrides a mislabelled question image", () => {
+    const qs = parse([
+      { question: "What is the diagnosis?", answers: { A: "a", B: "b" }, correct_answer: "A", images: ["unlabelled.jpg"] },
+      { question: "Which lesion is shown?", answers: { A: "a", B: "b" }, correct_answer: "A", question_images: ["chapter/images/answer/figA.png", "chapter/images/question/figQ.png"] }
+    ]).chapters[0].questions;
+    expect(qs[0].stemMedia).toEqual([]);
+    expect(qs[0].explanationMedia.map((m) => m.file)).toEqual(["unlabelled.jpg"]);
+    expect(qs[1].stemMedia.map((m) => m.file)).toEqual(["chapter/images/question/figQ.png"]);
+    expect(qs[1].explanationMedia.map((m) => m.file)).toEqual(["chapter/images/answer/figA.png"]);
+  });
+
+  it("defers answer-marked images embedded in the stem or an option", () => {
+    const [q] = parse([{ question: "What is shown? ![](images/answer/figA.png)", answers: { A: { text: "A", images: ["images/answer/tableA.png"] }, B: "B" }, correct_answer: "B" }]).chapters[0].questions;
+    expect(q.stem).not.toContain("figA.png");
+    expect(q.options[0].media).toEqual([]);
+    expect(q.explanationMedia.map((m) => m.file).sort()).toEqual(["images/answer/figA.png", "images/answer/tableA.png"]);
   });
 
   it("adds shared directions and answer context once, and labels picture options", () => {

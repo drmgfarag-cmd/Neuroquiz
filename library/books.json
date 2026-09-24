@@ -2,12 +2,12 @@
   "books": [
     {
       "id": "01",
-      "title": "Neurology & Neurosurgery MCQs (Book 01)",
+      "title": "MCQs in Neurology and Neurosurgery for Medical Students",
       "source": "sources/01.zip"
     },
     {
       "id": "02",
-      "title": "Spine Self-Assessment (Book 02)",
+      "title": "AAOS Adult Spine Self-Assessment Examination (2015)",
       "source": "sources/02.zip"
     },
     {
@@ -17,29 +17,30 @@
     },
     {
       "id": "05",
-      "title": "Neurosurgery Self-Assessment (Book 05)",
+      "title": "The Comprehensive Neurosurgery Board Preparation Book: Illustrated Questions and Answers",
       "source": [
         "sources/05.json",
         "sources/05_images.zip.001"
       ],
+      "referencedAssetsOnly": true,
       "webMaxPx": 900,
       "webQuality": 45
     },
     {
       "id": "07",
-      "title": "Spine Surgery Review (Book 07)",
+      "title": "MCQs in Spine Surgery",
       "source": "sources/07.zip.001"
     },
     {
       "id": "08",
-      "title": "Neuroanatomy Review (Book 08)",
+      "title": "Thieme Test Prep for the USMLE: Medical Neuroscience Q&A",
       "source": "sources/08.zip.001",
       "webMaxPx": 1000,
       "webQuality": 50
     },
     {
       "id": "09",
-      "title": "Neurosurgery Board Questions (Book 09)",
+      "title": "Neurosurgery: Board and Certification Review, 2023 Edition",
       "source": "sources/09.zip",
       "questionImages": "referenced-only"
     },
@@ -50,10 +51,35 @@
     },
     {
       "id": "inbr",
-      "title": "Intensive Neurosurgery Board Review (INBR)",
+      "title": "Intensive Neurosurgery Board Review",
       "source": "sources/INBR.zip.001",
       "webMaxPx": 720,
       "webQuality": 38
+    },
+    {
+      "id": "neurosurgery-rounds-2e",
+      "title": "Neurosurgery Rounds: Questions and Answers, 2nd Edition",
+      "source": "sources/Neurosurgery-Rounds-QA2.zip",
+      "webMaxPx": 1100,
+      "webQuality": 60
+    },
+    {
+      "id": "nbr3",
+      "title": "Neurosurgery Board Review: Questions and Answers for Self-Assessment, Third Edition",
+      "source": "sources/NBR3.zip.001",
+      "primaryJson": "NBR3_extraction.json",
+      "referencedAssetsOnly": true,
+      "webMaxPx": 1000,
+      "webQuality": 58
+    },
+    {
+      "id": "nper",
+      "title": "Neurosurgery Primary Examination Review",
+      "source": "sources/NBER.zip.001",
+      "primaryJson": "NPER_extraction.json",
+      "referencedAssetsOnly": true,
+      "webMaxPx": 1000,
+      "webQuality": 58
     }
   ]
 }

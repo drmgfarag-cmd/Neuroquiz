@@ -18,8 +18,8 @@ export default function Home() {
       db.sessions.orderBy("startedAt").reverse().limit(50).toArray(),
       allFlashcards(),
       db.cardStates.toArray(),
-      db.cases.count(),
-      db.userCases.count()
+      db.cases.toArray(),
+      db.userCases.toArray()
     ]);
     const seen = states.filter((s) => s.timesSeen > 0);
     const correct = seen.reduce((n, s) => n + s.timesCorrect, 0);
@@ -36,11 +36,11 @@ export default function Home() {
     const active = new Set<string>();
     states.forEach((s) => s.lastSeenAt && active.add(day(s.lastSeenAt)));
     cardStates.forEach((c) => c.srs.reps + c.srs.lapses > 0 && active.add(day(c.updatedAt)));
-    sessions.forEach((s) => Object.keys(s.answers).length && active.add(day(s.updatedAt)));
+    sessions.forEach((s) => s.finishedAt && Object.keys(s.answers).length && active.add(day(s.finishedAt)));
     let streak = 0;
     for (let d = active.has(day(now)) ? now : now - 86_400_000; active.has(day(d)); d -= 86_400_000) streak++;
     const today = states.filter((s) => s.lastSeenAt && day(s.lastSeenAt) === day(now)).length;
-    return { streak, today, books, questions, seen: seen.length, correct, total, dueQ, dueCards, cards: cards.length, unfinished, cases: cases + userCases, flagged: states.filter((s) => s.flagged).length };
+    return { streak, today, books, questions, seen: seen.length, correct, total, dueQ, dueCards, cards: cards.length, unfinished, cases: cases.filter((c) => c.kind !== "qa").length + userCases.filter((c) => c.kind !== "qa").length, qa: [...cases, ...userCases].filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0), flagged: states.filter((s) => s.flagged).length };
   });
 
   if (!data) return null;
@@ -79,15 +79,17 @@ export default function Home() {
   return (
     <div>
       <section className="hero">
-        <h1>{greeting}</h1>
+        <span className="hero-kicker">YOUR STUDY DESK</span>
+        <h1>{greeting}. Ready for a focused session?</h1>
         <div className="sub">
-          {data.questions.toLocaleString()} questions in {data.books} books · {pct(data.seen, data.questions)} done so far
+          {data.questions.toLocaleString()} test questions · {data.qa.toLocaleString()} short answers · {data.books} books
         </div>
         <div className="hero-stats">
           <span className="pill">🔥 {data.streak} day{data.streak === 1 ? "" : "s"} streak</span>
           <span className="pill">✎ {data.today} answered today</span>
           <span className="pill">⏳ {data.dueQ + data.dueCards} reviews due</span>
         </div>
+        <div className="hero-progress"><div className="row between small"><span>Question bank explored</span><strong>{pct(data.seen, data.questions)}</strong></div><div className="progress"><div style={{ width: pct(data.seen, data.questions) }} /></div></div>
         <div className="row" style={{ marginTop: 14 }}>
           {data.unfinished ? (
             <Link className="btn light" to={`/quiz/${data.unfinished.id}`}>
@@ -153,7 +155,7 @@ export default function Home() {
         </div>
       </div>
 
-      <h2>Quick start</h2>
+      <div className="section-head"><div><span className="eyebrow">CHOOSE YOUR NEXT STEP</span><h2>Quick start</h2></div></div>
       <div className="row quick-row">
         <Link className="btn primary" to="/quiz">
           <Icon.quiz /> Create a test
@@ -167,17 +169,17 @@ export default function Home() {
           <Icon.timer /> Mock exam
         </Link>
         <Link className="btn" to="/cases">
-          <Icon.cases /> Cases ({data.cases})
+          <Icon.cases /> Cases & Q&A ({data.cases} cases · {data.qa.toLocaleString()} answers)
         </Link>
       </div>
 
-      <h2>All sections</h2>
+      <div className="section-head"><div><span className="eyebrow">YOUR WORKSPACE</span><h2>Explore the library</h2></div><Link to="/library" className="small">View books →</Link></div>
       <div className="grid">
         {[
           ["/library", "Library", "Books & chapters", Icon.book],
           ["/mock", "Mock exam", "Timed exam mixing several books", Icon.timer],
           ["/flashcards", "Flashcards", "Flip cards with spaced repetition", Icon.cards],
-          ["/cases", "Cases", "Step-by-step clinical scenarios", Icon.cases],
+          ["/cases", "Cases & Q&A", "Clinical cases and short-answer books", Icon.cases],
           ["/atlas", "Image atlas", "Every figure and scan, with its question", Icon.image],
           ["/reference", "Lab values & scales", "Normal values and grading scales", Icon.lab],
           ["/answer-check", "Answer check", "Let the AI flag suspicious answer keys", Icon.sparkle],

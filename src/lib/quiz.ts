@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { canShuffle, formatOf, isCorrect } from "./grading";
 import { newSrs, review } from "./srs";
+import { unscorableReason } from "./quality";
 import type { Confidence, Difficulty, Question, QuestionFormat, QuestionState, QuizMode, QuizSession, SessionAnswer } from "./types";
 import { shuffle, uid } from "./util";
 
@@ -33,12 +34,20 @@ export const emptyFilter = (): PoolFilter => ({
   highYieldOnly: false
 });
 
-export async function buildPool(f: PoolFilter): Promise<Question[]> {
+export async function buildPool(f: PoolFilter, includeUnscorable = false): Promise<Question[]> {
   let qs: Question[];
   if (f.ids?.length) qs = (await db.questions.bulkGet(f.ids)).filter((q): q is Question => !!q);
-  else if (f.chapterIds.length) qs = await db.questions.where("chapterId").anyOf(f.chapterIds).toArray();
+  else if (f.chapterIds.length && f.bookIds.length) {
+    const [chapters, books] = await Promise.all([
+      db.questions.where("chapterId").anyOf(f.chapterIds).toArray(),
+      db.questions.where("bookId").anyOf(f.bookIds).toArray()
+    ]);
+    qs = Array.from(new Map([...chapters, ...books].map((q) => [q.id, q])).values());
+  } else if (f.chapterIds.length) qs = await db.questions.where("chapterId").anyOf(f.chapterIds).toArray();
   else if (f.bookIds.length) qs = await db.questions.where("bookId").anyOf(f.bookIds).toArray();
   else qs = await db.questions.toArray();
+
+  if (!includeUnscorable) qs = qs.filter((q) => !unscorableReason(q));
 
   if (f.withImagesOnly) qs = qs.filter(hasQuestionImage);
   if (f.formats?.length) qs = qs.filter((q) => f.formats!.includes(formatOf(q)));
@@ -135,7 +144,9 @@ export function toUnits(pool: Question[], sortByOrder = true): Question[][] {
 
 export async function createSession(pool: Question[], o: SessionOptions): Promise<QuizSession> {
   // linked questions move as one unit and aren't split by the count limit
-  const units = toUnits(pool, !o.preserveOrder);
+  const eligible = o.mode === "review" ? pool : pool.filter((q) => !unscorableReason(q));
+  if (!eligible.length) throw new Error("No questions with complete answer keys in this selection. Use Read/review to inspect and correct them.");
+  const units = toUnits(eligible, !o.preserveOrder);
   const chosen: Question[] = [];
   for (const unit of o.shuffleQuestions && !o.preserveOrder ? shuffle(units) : units) {
     if (o.count > 0 && chosen.length >= o.count) break;
@@ -175,14 +186,20 @@ export async function getState(questionId: string): Promise<QuestionState> {
   return (await db.questionStates.get(questionId)) ?? freshState(questionId);
 }
 
+async function updateQuestionState(questionId: string, change: (state: QuestionState) => QuestionState): Promise<void> {
+  await db.transaction("rw", db.questionStates, async () => {
+    const current = await getState(questionId);
+    await db.questionStates.put(change(current));
+  });
+}
+
 /** Persist a graded answer into the long-term per-question state (+ revision schedule). */
 export async function recordResult(q: Question, correct: boolean, confidence?: Confidence): Promise<void> {
-  const s = await getState(q.id);
+  if (unscorableReason(q)) return;
   const now = Date.now();
   // a lucky guess comes back sooner
   const grade = !correct ? "again" : confidence === 1 ? "hard" : "good";
-  await db.questionStates.put({
-    ...s,
+  await updateQuestionState(q.id, (s) => ({ ...s,
     timesSeen: s.timesSeen + 1,
     timesCorrect: s.timesCorrect + (correct ? 1 : 0),
     lastCorrect: correct,
@@ -190,43 +207,54 @@ export async function recordResult(q: Question, correct: boolean, confidence?: C
     lastConfidence: confidence,
     srs: review(s.srs, grade, now),
     updatedAt: now
-  });
+  }));
 }
 
 export async function setFlag(questionId: string, flagged: boolean): Promise<void> {
-  const s = await getState(questionId);
-  await db.questionStates.put({ ...s, flagged, updatedAt: Date.now() });
+  await updateQuestionState(questionId, (s) => ({ ...s, flagged, updatedAt: Date.now() }));
 }
 
 export async function setIssue(questionId: string, issue: string): Promise<void> {
-  const s = await getState(questionId);
-  await db.questionStates.put({ ...s, issue: issue.trim() || undefined, updatedAt: Date.now() });
+  await updateQuestionState(questionId, (s) => ({ ...s, issue: issue.trim() || undefined, updatedAt: Date.now() }));
 }
 
 export async function setNote(questionId: string, note: string): Promise<void> {
-  const s = await getState(questionId);
-  await db.questionStates.put({ ...s, note, updatedAt: Date.now() });
+  await updateQuestionState(questionId, (s) => ({ ...s, note, updatedAt: Date.now() }));
 }
 
 export async function saveSession(s: QuizSession): Promise<void> {
-  await db.sessions.put({ ...s, updatedAt: Date.now() });
+  await db.transaction("rw", db.sessions, async () => {
+    const current = await db.sessions.get(s.id);
+    // Autosaves can finish after a cancel, a result, or a profile switch.
+    if (!current || current.finishedAt) return;
+    await db.sessions.put({ ...s, updatedAt: Date.now() });
+  });
 }
 
 /** Grades all answers of an exam/timed session and writes per-question results. */
 export async function finishSession(s: QuizSession): Promise<QuizSession> {
   const qs = (await db.questions.bulkGet(s.questionIds)).filter((q): q is Question => !!q);
-  const answers: Record<string, SessionAnswer> = { ...s.answers };
-  let score = 0;
-  for (const q of qs) {
-    const a = answers[q.id];
-    if (!a || !a.selected.length) continue;
-    const already = a.correct !== undefined;
-    const c = isCorrect(q, a.selected);
-    answers[q.id] = { ...a, correct: c };
-    if (c) score++;
-    if (!already && s.mode !== "review") await recordResult(q, c, a.confidence);
-  }
-  const done: QuizSession = { ...s, answers, score, finishedAt: Date.now(), updatedAt: Date.now() };
-  await db.sessions.put(done);
-  return done;
+  return db.transaction("rw", db.sessions, db.questionStates, async () => {
+    const current = await db.sessions.get(s.id);
+    if (current?.finishedAt) return current;
+    if (!current) throw new Error("This test was discarded or belongs to another profile.");
+    const answers: Record<string, SessionAnswer> = { ...current.answers, ...s.answers };
+    let score = 0;
+    for (const q of qs) {
+      const a = answers[q.id];
+      if (!a || !a.selected.length) continue;
+      if (unscorableReason(q)) {
+        answers[q.id] = { ...a, correct: undefined, pendingResult: false, unscoredSubmitted: true };
+        continue;
+      }
+      const already = a.correct !== undefined && !a.pendingResult;
+      const c = isCorrect(q, a.selected);
+      answers[q.id] = { ...a, correct: c, pendingResult: false };
+      if (c) score++;
+      if (!already && current.mode !== "review") await recordResult(q, c, a.confidence);
+    }
+    const done: QuizSession = { ...current, ...s, answers, score, finishedAt: Date.now(), updatedAt: Date.now() };
+    await db.sessions.put(done);
+    return done;
+  });
 }

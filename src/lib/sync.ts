@@ -12,6 +12,7 @@
 import { db, getMeta, setMeta, SYNC_KEY, SYNC_TABLES, type SyncTable, type Tombstone } from "./db";
 import { reapplyCorrections } from "./corrections";
 import { getSettings } from "./settings";
+import { activeProfile } from "./profiles";
 
 export interface SyncRecord {
   table: SyncTable;
@@ -26,18 +27,21 @@ function rowTime(row: Record<string, unknown>): number {
 }
 
 export async function collectChanges(sinceLocal: number): Promise<SyncRecord[]> {
-  const out: SyncRecord[] = [];
-  for (const table of SYNC_TABLES) {
-    const key = SYNC_KEY[table];
-    const rows = (await db.table(table).toArray()) as Record<string, unknown>[];
-    for (const row of rows) {
-      const t = rowTime(row);
-      if (t > sinceLocal) out.push({ table, id: String(row[key]), updatedAt: t, row });
+  return db.transaction("r", [...SYNC_TABLES.map((table) => db.table(table)), db.tombstones, db.meta], async () => {
+    if ((await getMeta("profile:active", "default")) !== "default") throw new Error("Switch to My profile before syncing progress.");
+    const out: SyncRecord[] = [];
+    for (const table of SYNC_TABLES) {
+      const key = SYNC_KEY[table];
+      const rows = (await db.table(table).toArray()) as Record<string, unknown>[];
+      for (const row of rows) {
+        const t = rowTime(row);
+        if (t > sinceLocal) out.push({ table, id: String(row[key]), updatedAt: t, row });
+      }
     }
-  }
-  const tombs = await db.tombstones.where("updatedAt").above(sinceLocal).toArray();
-  for (const t of tombs) out.push({ table: t.table, id: t.id, updatedAt: t.updatedAt, deleted: true });
-  return out;
+    const tombs = await db.tombstones.where("updatedAt").above(sinceLocal).toArray();
+    for (const t of tombs) out.push({ table: t.table, id: t.id, updatedAt: t.updatedAt, deleted: true });
+    return out;
+  });
 }
 
 /** Merge remote records; returns how many rows changed locally. */
@@ -45,7 +49,8 @@ export async function applyChanges(records: SyncRecord[]): Promise<number> {
   let changed = 0;
   const tables = SYNC_TABLES.map((t) => db.table(t));
   const correctionIds: string[] = [];
-  await db.transaction("rw", [...tables, db.tombstones, db.questions], async () => {
+  await db.transaction("rw", [...tables, db.tombstones, db.questions, db.meta], async () => {
+    if ((await getMeta("profile:active", "default")) !== "default") throw new Error("Profile changed during sync; retry from My profile.");
     for (const r of records) {
       if (!SYNC_TABLES.includes(r.table)) continue;
       const table = db.table(r.table);
@@ -84,12 +89,14 @@ export interface SyncOutcome {
 }
 
 export async function syncWithServer(): Promise<SyncOutcome> {
+  if ((await activeProfile()).id !== "default") throw new Error("Sync is available for the main profile only. Switch to My profile to sync.");
   const { syncUrl, syncToken, deviceName } = getSettings();
   if (!syncUrl) throw new Error("Set a sync server URL in Settings first.");
   const lastPush = await getMeta<number>("sync.lastPushLocal", 0);
   const lastSeq = await getMeta<number>("sync.lastSeq", 0);
   const startedAt = Date.now();
   const changes = await collectChanges(lastPush);
+  if ((await activeProfile()).id !== "default") throw new Error("Profile changed during sync; retry from My profile.");
 
   const res = await fetch(`${syncUrl.replace(/\/+$/, "")}/sync`, {
     method: "POST",
@@ -108,12 +115,14 @@ export async function syncWithServer(): Promise<SyncOutcome> {
 }
 
 export async function exportBackup(): Promise<Blob> {
+  if ((await activeProfile()).id !== "default") throw new Error("Progress export is available for the main profile only.");
   const records = await collectChanges(-1);
   const payload = { format: "neuroquiz-backup", version: 1, exportedAt: Date.now(), device: getSettings().deviceName, records };
   return new Blob([JSON.stringify(payload)], { type: "application/json" });
 }
 
 export async function importBackup(file: Blob): Promise<number> {
+  if ((await activeProfile()).id !== "default") throw new Error("Switch to My profile before merging a progress file.");
   const data = JSON.parse(await file.text());
   if (data?.format !== "neuroquiz-backup" || !Array.isArray(data.records)) throw new Error("Not a NeuroQuiz backup file.");
   return applyChanges(data.records as SyncRecord[]);

@@ -21,6 +21,7 @@ export default function Cases() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
+  const [kind, setKind] = useState<"all" | "case" | "qa">("all");
   const online = useOnline();
 
   const generate = async () => {
@@ -58,11 +59,12 @@ export default function Cases() {
 
   if (!data) return null;
   const f = filter.toLowerCase();
-  const list = data.cases.filter((c) => !f || c.title.toLowerCase().includes(f) || c.presentation.toLowerCase().includes(f) || data.anns.get(c.id)?.topic.toLowerCase().includes(f));
+  const list = data.cases.filter((c) => (kind === "all" || (c.kind === "qa" ? "qa" : "case") === kind) && (!f || c.title.toLowerCase().includes(f) || c.presentation.toLowerCase().includes(f) || c.stages.some((s) => s.question?.toLowerCase().includes(f)) || data.anns.get(c.id)?.topic.toLowerCase().includes(f)));
+  const qaCount = data.cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0);
 
   return (
     <div>
-      <h1>Case scenarios</h1>
+      <div className="section-head"><div><span className="eyebrow">Study library</span><h1>Cases & short answers</h1><p className="muted">Work through clinical scenarios and read Q&A books one question at a time.</p></div><Link className="btn primary" to="/import">Add a book</Link></div>
       <div className="card stack">
         <h2 className="card-title" style={{ margin: 0 }}>Generate a case with AI</h2>
         <div className="row">
@@ -86,16 +88,16 @@ export default function Cases() {
       </div>
 
       <div className="card">
-        <input type="search" placeholder="Filter cases…" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: "100%" }} />
-        {!list.length && <p className="muted">No cases yet. Import books containing cases or generate one.</p>}
+        <div className="row between" style={{ marginBottom: 12 }}><div className="segmented" role="group" aria-label="Content type">{([ ["all", "All"], ["case", "Clinical cases"], ["qa", `Short answers (${qaCount})`] ] as const).map(([value, label]) => <button key={value} className={kind === value ? "active" : ""} aria-pressed={kind === value} onClick={() => setKind(value)}>{label}</button>)}</div><input type="search" aria-label="Search cases and questions" placeholder="Search cases & questions…" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
+        {!list.length && <p className="muted">No matching items. Import a Q&A book or generate a clinical case.</p>}
         {list.map((c) => (
           <div className="list-item" key={c.id}>
             <Link to={`/cases/${encodeURIComponent(c.id)}`} style={{ flex: 1, color: "inherit", textDecoration: "none" }}>
               <strong>{c.title}</strong>
               <div className="small muted">
-                {c.bookId ? data.books.get(c.bookId) : c.origin === "generated" ? "AI-generated" : "Custom"} · {data.anns.get(c.id)?.topic ?? ""} · {c.stages.length} stages
+                {c.bookId ? data.books.get(c.bookId) : c.origin === "generated" ? "AI-generated" : "Custom"} · {c.kind === "qa" ? `${c.stages.length} short-answer questions` : `${c.stages.length} stages`}
               </div>
-              <div className="small">{plain(c.presentation, 160)}</div>
+              <div className="small">{plain(c.kind === "qa" ? c.stages[0]?.question ?? "" : c.presentation, 160)}</div>
             </Link>
             {c.origin !== "imported" && (
               <button className="small ghost" onClick={async () => (await ask("Delete this case?", { confirmLabel: "Delete", danger: true })) && deleteSynced("userCases", c.id)}>

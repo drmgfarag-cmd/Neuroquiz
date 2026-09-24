@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { ask } from "../components/Dialog";
+import { ask, choose } from "../components/Dialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { aiChat, describeAiError } from "../ai/claude";
@@ -14,10 +14,11 @@ import { useViewer } from "../components/ImageViewer";
 import { Explanation, QuestionView } from "../components/QuestionView";
 import { MediaList, Rich } from "../components/Rich";
 import { addAiCards, addQuestionCard } from "../lib/cards";
-import { db } from "../lib/db";
+import { db, deleteSynced } from "../lib/db";
 import { applyChoice, canShuffle, correctSelection, formatOf, isComplete, isItemised, pickable, selectionSummary } from "../lib/grading";
 import { useOnline } from "../lib/platform";
-import { finishSession, isCorrect, recordResult, saveSession, setFlag, setNote } from "../lib/quiz";
+import { finishSession, isCorrect, saveSession, setFlag, setNote } from "../lib/quiz";
+import { unscorableReason } from "../lib/quality";
 import type { Confidence, Question, QuizSession, SessionAnswer } from "../lib/types";
 import { formatDuration } from "../lib/util";
 
@@ -115,6 +116,24 @@ export default function QuizRunner() {
     [session, nav]
   );
 
+  const cancel = async () => {
+    if (!session || finishing.current) return;
+    const legacyGraded = session.mode === "tutor" && Object.values(session.answers).some((a) => a.correct !== undefined && !a.pendingResult);
+    const choice = await choose(legacyGraded
+      ? "Leave this older test? Some answers were already counted under the previous version. Discarding the test cannot undo those past statistics; use Reset this profile's stats in Settings if needed."
+      : "Leave this test? Scores are recorded when you finish. Save your answers for later or discard this test without counting it.", [
+      { label: "Save for later", value: "save" },
+      { label: legacyGraded ? "Discard test" : "Discard uncounted", value: "discard", danger: true }
+    ]);
+    if (!choice) return;
+    finishing.current = true;
+    viewer.close();
+    if (choice === "save") await saveSession(session);
+    else await deleteSynced("sessions", session.id);
+    sessionRef.current = null;
+    nav("/history", { replace: true });
+  };
+
   const remainingMs = session?.timeLimitSec ? session.timeLimitSec * 1000 - (session.elapsedMs ?? 0) : null;
   useEffect(() => {
     if (remainingMs !== null && remainingMs <= 0 && session && !session.finishedAt) finish(true);
@@ -137,7 +156,7 @@ export default function QuizRunner() {
   const ans: SessionAnswer = session.answers[current.id] ?? { questionId: current.id, selected: [], timeMs: 0 };
   const tutor = session.mode === "tutor";
   const review = session.mode === "review";
-  const revealed = review || (tutor && ans.correct !== undefined);
+  const revealed = review || (tutor && (ans.correct !== undefined || !!ans.unscoredSubmitted));
   const itemised = isItemised(current);
   const fmt = formatOf(current);
   // recall mode: answer in your head first (only for questions with a list of options)
@@ -160,9 +179,12 @@ export default function QuizRunner() {
 
   const submit = async () => {
     if (!complete) return;
+    if (unscorableReason(current)) {
+      update({ ...ans, correct: undefined, unscoredSubmitted: true, timeMs: ans.timeMs + spent() });
+      return;
+    }
     const correct = isCorrect(current, ans.selected);
-    update({ ...ans, correct, timeMs: ans.timeMs + spent() });
-    await recordResult(current, correct, ans.confidence);
+    update({ ...ans, correct, pendingResult: true, timeMs: ans.timeMs + spent() });
   };
 
   const go = (i: number) => {
@@ -258,6 +280,7 @@ export default function QuizRunner() {
         <button className="small" onClick={() => setShowRef(!showRef)} title="Lab values & grading scales">
           <Icon.lab size={14} /> Lab values
         </button>
+        <button className="small" onClick={cancel}>Cancel test</button>
         <button className="small primary" onClick={() => finish()}>
           {review ? "Close" : "Finish"}
         </button>
@@ -328,7 +351,7 @@ export default function QuizRunner() {
               <QuestionView
                 q={current}
                 selected={review ? correctSelection(current) : ans.selected}
-                revealed={revealed}
+                revealed={revealed && !unscorableReason(current)}
                 onSelect={select}
                 struck={ans.struck}
                 onStrike={review || !canShuffle(current) ? undefined : strike}

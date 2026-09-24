@@ -86,11 +86,11 @@ export default function QuizSetup() {
 
   useEffect(() => {
     let live = true;
-    buildPool(filter).then((p) => live && setAvailable(p.length));
+    buildPool(filter, mode === "review").then((p) => live && setAvailable(p.length));
     return () => {
       live = false;
     };
-  }, [filter]);
+  }, [filter, mode]);
 
   const topicList = useMemo(() => (lib ? Array.from(lib.topics.entries()).sort((a, b) => a[0].localeCompare(b[0])) : []), [lib]);
 
@@ -102,7 +102,7 @@ export default function QuizSetup() {
   };
 
   const start = async () => {
-    const pool = await buildPool(filter);
+    const pool = await buildPool(filter, mode === "review");
     if (!pool.length) return void notify("No questions match these filters.");
     const s = await createSession(pool, {
       mode,
@@ -188,7 +188,7 @@ export default function QuizSetup() {
               );
             })}
           </div>
-          <p className="small muted">Nothing ticked = all books. Ticking chapters narrows to those chapters.</p>
+          <p className="small muted">Nothing ticked = all books. Selected books include every chapter; selected chapters from other books are included too.</p>
         </div>
       )}
 

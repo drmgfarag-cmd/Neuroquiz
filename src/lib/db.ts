@@ -27,6 +27,18 @@ export interface MetaRow {
   value: unknown;
 }
 
+export interface StudyProfile {
+  id: string;
+  name: string;
+  createdAt: number;
+  guest?: boolean;
+}
+
+export interface ProfileSnapshot {
+  key: string;
+  rows: unknown[];
+}
+
 /** Tables whose rows are exchanged with other devices. */
 export const SYNC_TABLES = [
   "annotations",
@@ -61,6 +73,8 @@ export class NeuroQuizDB extends Dexie {
 
   tombstones!: Table<Tombstone, string>;
   meta!: Table<MetaRow, string>;
+  profiles!: Table<StudyProfile, string>;
+  profileSnapshots!: Table<ProfileSnapshot, string>;
 
   constructor(name = "neuroquiz") {
     super(name);
@@ -85,6 +99,7 @@ export class NeuroQuizDB extends Dexie {
       corrections: "questionId, updatedAt",
       aiReviews: "questionId, verdict, updatedAt"
     });
+    this.version(3).stores({ profiles: "id", profileSnapshots: "key" });
   }
 }
 
@@ -123,6 +138,11 @@ export async function setMeta(key: string, value: unknown): Promise<void> {
 
 /** Delete a synced row and leave a tombstone so other devices delete it too. */
 export async function deleteSynced(table: SyncTable, id: string): Promise<void> {
+  // Other profiles' test IDs must never leak into the main profile's sync stream.
+  if (table === "sessions" && (await getMeta("profile:active", "default")) !== "default") {
+    await db.sessions.delete(id);
+    return;
+  }
   await db.transaction("rw", db.table(table), db.tombstones, async () => {
     await db.table(table).delete(id);
     await db.tombstones.put({ key: `${table}:${id}`, table, id, updatedAt: Date.now() });

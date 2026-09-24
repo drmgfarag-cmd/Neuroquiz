@@ -1,9 +1,11 @@
 import JSZip from "jszip";
 import { reapplyCorrections } from "../lib/corrections";
-import { db } from "../lib/db";
-import type { Annotation, Book, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question } from "../lib/types";
+import { db, getMeta } from "../lib/db";
+import { questionToCard } from "../lib/cards";
+import type { Annotation, Book, CardState, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question, QuestionState, QuizSession } from "../lib/types";
 import { hash, IMAGE_EXT, normaliseFileName, slugify } from "../lib/util";
 import { normalizeBookJson, type ParsedFile } from "./normalize";
+import { auditBook } from "../lib/quality";
 
 /** A file from a picker, a dropped folder or a zip entry. */
 export interface SourceFile {
@@ -52,7 +54,7 @@ const MIME: Record<string, string> = {
 };
 
 /** Reports that travel with an extraction but hold no questions (audit, OCR dumps). */
-const NOT_A_BOOK = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest|answer_key)[^/]*\.json$|contact_sheet/i;
+const NOT_A_BOOK = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest|answer_key|review_queue|review_card_index|validation_report)[^/]*\.json$|contact_sheet/i;
 
 function folderOf(path: string): string {
   const parts = path.replace(/\\/g, "/").split("/");
@@ -163,6 +165,10 @@ export async function planImport(
   for (const img of images) {
     const folder = folderOf(img.path);
     const owners = plans.filter((b) => b.sources.some((s) => s.folder && (folder === s.folder || folder.startsWith(s.folder + "/"))));
+    if (!owners.length && plans.length > 1) {
+      errors.push(`${img.path}: image ownership is ambiguous across books; place it inside its book folder or import that book separately`);
+      continue;
+    }
     (owners.length ? owners : plans).forEach((b) => b.images.push(img));
   }
   return { books: plans, images, errors };
@@ -174,9 +180,15 @@ export interface ImportResult {
   questions: number;
   flashcards: number;
   cases: number;
+  shortAnswers: number;
+  clinicalCases: number;
   images: number;
   missingImages: string[];
   warnings: string[];
+  unscorable: string[];
+  noExplanation: string[];
+  unreferencedImages: string[];
+  conflictingImageRoles: string[];
   /** answer images the JSON didn't list, attached to their question by file name */
   linked?: number;
   /** questions whose progress moved to a new id (the source text changed) */
@@ -196,7 +208,7 @@ function inlineRefs(text: string): string[] {
 }
 
 export async function executeImport(plan: ImportPlan, onProgress?: (msg: string) => void): Promise<ImportResult> {
-  const res: ImportResult = { books: 0, chapters: 0, questions: 0, flashcards: 0, cases: 0, images: 0, missingImages: [], warnings: [] };
+  const res: ImportResult = { books: 0, chapters: 0, questions: 0, flashcards: 0, cases: 0, shortAnswers: 0, clinicalCases: 0, images: 0, missingImages: [], warnings: [], unscorable: [], noExplanation: [], unreferencedImages: [], conflictingImageRoles: [] };
   const now = Date.now();
 
   for (const bp of plan.books) {
@@ -249,7 +261,7 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
           const id = uniqueId(`${bookId}:c:${hash(c.title + "|" + c.presentation)}`);
           cases.push({ ...c, id, bookId, chapterId, origin: "imported", createdAt: now });
           if (annotation) carriedTags.push({ ...annotation, id, kind: "case" });
-          [...refs(c.presentationMedia), ...c.stages.flatMap((s) => refs(s.media)), ...inlineRefs(c.presentation), ...inlineRefs(c.discussion)].forEach((r) => referenced.add(r));
+          [...refs(c.presentationMedia), ...c.stages.flatMap((s) => [...refs(s.media), ...refs(s.answerMedia ?? []), ...inlineRefs(s.content), ...inlineRefs(s.question ?? ""), ...inlineRefs(s.answer ?? "")]), ...inlineRefs(c.presentation), ...inlineRefs(c.discussion)].forEach((r) => referenced.add(r));
         });
       }
     }
@@ -258,6 +270,11 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       const name = normaliseFileName(img.path);
       return { id: `${bookId}/${name}`, bookId, name, blob: img.blob };
     });
+    const names = new Set<string>();
+    for (const m of media) {
+      if (names.has(m.name)) throw new Error(`Ambiguous image name in “${bp.title}”: ${m.name}. Rename or separate same-named files before importing.`);
+      names.add(m.name);
+    }
     res.linked = (res.linked ?? 0) + linkOrphanAnswerImages(media, questions, referenced);
     const available = new Set(media.map((m) => m.name));
     const availableNoExt = new Set(media.map((m) => m.name.replace(/\.[a-z0-9]+$/, "")));
@@ -277,6 +294,8 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       flashcardCount: flashcards.length,
       caseCount: cases.length
     };
+    res.shortAnswers += cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0);
+    res.clinicalCases += cases.filter((c) => c.kind !== "qa").length;
 
     const previous = await previousQuestions(bookId);
 
@@ -320,6 +339,12 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
     res.flashcards += flashcards.length;
     res.cases += cases.length;
     res.images += media.length;
+    const allMedia = (await db.media.where("bookId").equals(bookId).primaryKeys()).map((k) => String(k).slice(bookId.length + 1));
+    const quality = auditBook(questions, allMedia, referenced);
+    res.unscorable.push(...quality.unscorable.map((q) => `${bp.title} / ${chapters.find((c) => c.id === q.chapterId)?.title ?? ""} / Q${q.number}: ${q.sourceId ?? q.id}`));
+    res.noExplanation.push(...quality.noExplanation.map((q) => `${bp.title} / Q${q.number}`));
+    res.unreferencedImages.push(...quality.unreferencedImages.map((n) => `${bp.title}: ${n}`));
+    res.conflictingImageRoles.push(...quality.conflictingImageRoles.map((n) => `${bp.title}: ${n}`));
   }
   return res;
 }
@@ -397,7 +422,25 @@ export async function carryProgress(previous: PrevQuestion[], questions: Questio
 
   const to = [...moves.keys()];
   const from = to.map((id) => moves.get(id)!);
-  await db.transaction("rw", [db.questionStates, db.annotations, db.corrections, db.aiReviews, db.sessions], async () => {
+  const back = new Map(to.map((id, i) => [from[i], id]));
+  const newQuestion = new Map(questions.map((q) => [q.id, q]));
+  const remapSession = (s: QuizSession): QuizSession => {
+    const map = (id: string) => back.get(id) ?? id;
+    return { ...s, questionIds: s.questionIds.map(map),
+      answers: Object.fromEntries(Object.entries(s.answers).map(([k, a]) => [map(k), { ...a, questionId: map(k) }])),
+      ...(s.optionOrder ? { optionOrder: Object.fromEntries(Object.entries(s.optionOrder).map(([k, v]) => [map(k), v])) } : {}),
+      updatedAt: Date.now() };
+  };
+  const remapCard = (card: Flashcard): Flashcard | null => {
+    const target = card.questionId && back.get(card.questionId);
+    if (!target) return null;
+    const id = card.id === `gen:${card.questionId}` ? `gen:${target}`
+      : card.id.startsWith(`ai:${card.questionId}:`) ? `ai:${target}:${card.id.slice(`ai:${card.questionId}:`.length)}` : card.id;
+    const refreshed = card.id.startsWith("gen:") && newQuestion.has(target) ? questionToCard(newQuestion.get(target)!) : null;
+    return { ...card, ...(refreshed ? { front: refreshed.front, back: refreshed.back, frontMedia: refreshed.frontMedia, backMedia: refreshed.backMedia } : {}), id, questionId: target, updatedAt: Date.now() };
+  };
+  await db.transaction("rw", [db.questionStates, db.annotations, db.corrections, db.aiReviews, db.sessions, db.userFlashcards, db.cardStates, db.profileSnapshots, db.tombstones, db.meta], async () => {
+    const activeDefault = (await getMeta("profile:active", "default")) === "default";
     const copy = async <T extends object>(table: import("dexie").Table<T, string>, field: keyof T) => {
       const [olds, existing] = await Promise.all([table.bulkGet(from), table.bulkGet(to)]);
       const rows = olds.flatMap((row, i) => (row && !existing[i] ? [{ ...row, [field]: to[i], updatedAt: Date.now() } as T] : []));
@@ -407,18 +450,57 @@ export async function carryProgress(previous: PrevQuestion[], questions: Questio
     await copy(db.annotations, "id");
     await copy(db.corrections, "questionId");
     await copy(db.aiReviews, "questionId");
-    const back = new Map(to.map((id, i) => [from[i], id]));
     const sessions = await db.sessions.toArray();
     for (const s of sessions) {
       if (!s.questionIds.some((id) => back.has(id))) continue;
-      const map = (id: string) => back.get(id) ?? id;
-      await db.sessions.put({
-        ...s,
-        questionIds: s.questionIds.map(map),
-        answers: Object.fromEntries(Object.entries(s.answers).map(([k, a]) => [map(k), { ...a, questionId: map(k) }])),
-        ...(s.optionOrder ? { optionOrder: Object.fromEntries(Object.entries(s.optionOrder).map(([k, v]) => [map(k), v])) } : {}),
-        updatedAt: Date.now()
-      });
+      await db.sessions.put(remapSession(s));
+    }
+    const oldCards = await db.userFlashcards.where("questionId").anyOf(from).toArray();
+    for (const old of oldCards) {
+      const card = remapCard(old);
+      if (!card) continue;
+      await db.userFlashcards.put(card);
+      if (card.id !== old.id) {
+        const state = await db.cardStates.get(old.id);
+        if (state && !(await db.cardStates.get(card.id))) await db.cardStates.put({ ...state, cardId: card.id, updatedAt: Date.now() });
+        await db.userFlashcards.delete(old.id);
+        await db.cardStates.delete(old.id);
+        if (activeDefault) for (const [table, id] of [["userFlashcards", old.id], ["cardStates", old.id]] as const)
+          await db.tombstones.put({ key: `${table}:${id}`, table, id, updatedAt: Date.now() });
+      }
+    }
+    // Inactive profiles live in snapshots; apply the same identity move before a
+    // later switch restores their rows. They contain progress, not the book media.
+    for (const snapshot of await db.profileSnapshots.toArray()) {
+      const type = snapshot.key.split(":").at(-1);
+      if (type === "questionStates") {
+        const rows = snapshot.rows as QuestionState[];
+        const existing = new Set(rows.map((r) => r.questionId));
+        const additional = rows.flatMap((r) => {
+          const target = back.get(r.questionId);
+          return target && !existing.has(target) ? [{ ...r, questionId: target, updatedAt: Date.now() }] : [];
+        });
+        if (additional.length) await db.profileSnapshots.put({ ...snapshot, rows: [...rows, ...additional] });
+      } else if (type === "sessions") {
+        const rows = snapshot.rows as QuizSession[];
+        if (rows.some((s) => s.questionIds.some((id) => back.has(id))))
+          await db.profileSnapshots.put({ ...snapshot, rows: rows.map((s) => s.questionIds.some((id) => back.has(id)) ? remapSession(s) : s) });
+      } else if (type === "userFlashcards") {
+        const rows = snapshot.rows as Flashcard[];
+        if (rows.some((c) => c.questionId && back.has(c.questionId)))
+          await db.profileSnapshots.put({ ...snapshot, rows: rows.map((c) => remapCard(c) ?? c) });
+      } else if (type === "cardStates") {
+        const rows = snapshot.rows as CardState[];
+        const mapCardId = (id: string) => {
+          for (const [old, target] of back) {
+            if (id === `gen:${old}`) return `gen:${target}`;
+            if (id.startsWith(`ai:${old}:`)) return `ai:${target}:${id.slice(`ai:${old}:`.length)}`;
+          }
+          return id;
+        };
+        if (rows.some((r) => mapCardId(r.cardId) !== r.cardId))
+          await db.profileSnapshots.put({ ...snapshot, rows: rows.map((r) => ({ ...r, cardId: mapCardId(r.cardId), updatedAt: Date.now() })) });
+      }
     }
   });
   return moves.size;

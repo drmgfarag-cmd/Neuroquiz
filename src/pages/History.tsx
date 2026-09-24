@@ -33,7 +33,7 @@ export default function History() {
                     {s.mode === "review" ? "Open" : "Resume"}
                   </Link>
                 )}
-                <button className="small ghost" onClick={async () => (await ask("Delete this test from history?", { confirmLabel: "Delete", danger: true })) && deleteSynced("sessions", s.id)}>
+                <button className="small ghost" title="Remove this test from history; completed scores remain in statistics" onClick={async () => (await ask("Delete this test from history? Completed scores remain in statistics.", { confirmLabel: "Delete", danger: true })) && deleteSynced("sessions", s.id)}>
                   ✕
                 </button>
               </div>

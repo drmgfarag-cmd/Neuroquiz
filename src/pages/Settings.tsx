@@ -6,6 +6,7 @@ import { db, getMeta } from "../lib/db";
 import { updateSettings, useSettings } from "../lib/settings";
 import { isNative, saveFile } from "../lib/platform";
 import { exportBackup, importBackup, syncWithServer } from "../lib/sync";
+import { activeProfile, addProfile, listProfiles, removeProfile, resetProfileStats, switchProfile } from "../lib/profiles";
 
 
 
@@ -14,6 +15,10 @@ export default function SettingsPage() {
   const s = useSettings();
   const [syncMsg, setSyncMsg] = useState("");
   const [storage, setStorage] = useState("");
+  const [newProfile, setNewProfile] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const profiles = useLiveQuery(() => listProfiles());
+  const currentProfile = useLiveQuery(() => activeProfile());
   const lastSync = useLiveQuery(() => getMeta<number>("sync.lastAt", 0));
 
   useEffect(() => {
@@ -29,6 +34,27 @@ export default function SettingsPage() {
   return (
     <div>
       <h1>Settings</h1>
+
+      <div className="card stack">
+        <h2 className="card-title" style={{ margin: 0 }}>Study profiles</h2>
+        <p className="small muted" style={{ margin: 0 }}>Current: <strong>{currentProfile?.name ?? "Loading…"}</strong>. Each profile keeps its own test history, scores, flags, notes and flashcard progress. Books, images and editorial corrections are shared. Guest study data is removed when you leave Guest.</p>
+        <div className="row">
+          {(profiles ?? []).filter((p) => !p.guest).map((p) => <button key={p.id} className={p.id === currentProfile?.id ? "primary" : ""} disabled={p.id === currentProfile?.id} onClick={() => switchProfile(p.id).catch((e) => setProfileError((e as Error).message))}>{p.name}</button>)}
+          <button disabled={currentProfile?.guest} onClick={() => switchProfile("guest").catch((e) => setProfileError((e as Error).message))}>Use Guest</button>
+        </div>
+        {(profiles ?? []).filter((p) => p.id !== "default" && !p.guest).length > 0 && <details>
+          <summary className="small">Manage profiles</summary>
+          <div className="row">{(profiles ?? []).filter((p) => p.id !== "default" && !p.guest).map((p) => <button key={p.id} className="small danger" disabled={p.id === currentProfile?.id} onClick={async () => {
+            if (await ask(`Delete “${p.name}” and its saved progress? Shared books stay.`, { confirmLabel: "Delete profile", danger: true })) await removeProfile(p.id);
+          }}>Delete {p.name}</button>)}</div>
+        </details>}
+        <div className="row">
+          <input aria-label="New profile name" placeholder="New profile name" value={newProfile} maxLength={60} onChange={(e) => setNewProfile(e.target.value)} />
+          <button onClick={async () => { try { const p = await addProfile(newProfile); setNewProfile(""); await switchProfile(p.id); } catch (e) { setProfileError((e as Error).message); } }}>Create profile</button>
+        </div>
+        {currentProfile?.id !== "default" && <div className="small muted">Automatic sync and progress backups are available from My profile only. Guest changes to shared book content or editorial corrections are retained.</div>}
+        {profileError && <div className="banner source-warning small">{profileError}</div>}
+      </div>
 
       <AiSettings />
 
@@ -52,7 +78,7 @@ export default function SettingsPage() {
         <div className="row">
           <button
             className="primary"
-            disabled={!s.syncUrl}
+            disabled={!s.syncUrl || currentProfile?.id !== "default"}
             onClick={async () => {
               setSyncMsg("Syncing…");
               try {
@@ -72,13 +98,14 @@ export default function SettingsPage() {
         </p>
         <hr style={{ margin: "4px 0" }} />
         <div className="row">
-          <button onClick={async () => saveFile(await exportBackup(), `neuroquiz-progress-${new Date().toISOString().slice(0, 10)}.json`)}>Export progress file</button>
-          <label className="btn">
+          <button disabled={currentProfile?.id !== "default"} onClick={async () => saveFile(await exportBackup(), `neuroquiz-progress-${new Date().toISOString().slice(0, 10)}.json`)}>Export progress file</button>
+          <label className="btn" style={currentProfile?.id !== "default" ? { opacity: 0.5 } : undefined}>
             Merge progress file
             <input
               type="file"
               accept=".json,application/json"
               hidden
+              disabled={currentProfile?.id !== "default"}
               onChange={async (e) => {
                 const f = e.target.files?.[0];
                 if (!f) return;
@@ -142,11 +169,11 @@ export default function SettingsPage() {
           <button
             className="danger"
             onClick={async () => {
-              if (!(await ask("Erase all progress, tags and history on this device? Your books stay.", { confirmLabel: "Erase progress", danger: true }))) return;
-              await Promise.all([db.questionStates.clear(), db.cardStates.clear(), db.sessions.clear(), db.annotations.clear(), db.tombstones.clear(), db.meta.clear()]);
+              if (!(await ask("Reset scores, revision schedules and test history for this profile? Flags and notes stay.", { confirmLabel: "Reset stats", danger: true }))) return;
+              await resetProfileStats();
             }}
           >
-            Reset progress
+            Reset this profile's stats and test history
           </button>
           <button
             className="danger"

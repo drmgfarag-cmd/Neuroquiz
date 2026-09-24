@@ -87,10 +87,12 @@ export default function ImportPage() {
           a.q += c.questions.length;
           a.f += c.flashcards.length;
           a.c += c.cases.length;
+          a.clinical += c.cases.filter((x) => x.kind !== "qa").length;
+          a.qa += c.cases.filter((x) => x.kind === "qa").reduce((n, x) => n + x.stages.length, 0);
         });
         return a;
       },
-      { ch: 0, q: 0, f: 0, c: 0 }
+      { ch: 0, q: 0, f: 0, c: 0, clinical: 0, qa: 0 }
     );
 
   return (
@@ -98,7 +100,7 @@ export default function ImportPage() {
       <h1>Import books</h1>
       <div className="card stack">
         <p className="muted small" style={{ margin: 0 }}>
-          Select JSON files and their image files (or a whole folder, or a ZIP). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name.
+          Select JSON files and their image files (or a whole folder, or a ZIP). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name. Short-answer books with <code>qa_pairs</code> appear in Cases & Q&A with answers hidden until reveal.
         </p>
         <div
           className={`dropzone ${over ? "over" : ""}`}
@@ -196,7 +198,7 @@ export default function ImportPage() {
                     <input type="text" value={titles[b.key] ?? ""} onChange={(e) => setTitles({ ...titles, [b.key]: e.target.value })} />
                   </label>
                   <div className="small">
-                    {b.sources.length} file(s) · {c.ch} chapters · <strong>{c.q}</strong> questions · {c.f} flashcards · {c.c} cases · {b.images.length} images
+                    {b.sources.length} file(s) · {c.ch} chapters · <strong>{c.q}</strong> test questions · {c.qa} short answers · {c.f} flashcards · {c.clinical} clinical cases · {b.images.length} images
                   </div>
                   <details>
                     <summary className="small clickable">Chapters & files</summary>
@@ -245,7 +247,7 @@ export default function ImportPage() {
             Import complete
           </h2>
           <p>
-            {result.books} book(s), {result.chapters} chapters, {result.questions} questions, {result.flashcards} flashcards, {result.cases} cases, {result.images} images.
+            {result.books} book(s), {result.chapters} sections, {result.questions} test questions, {result.shortAnswers} short answers, {result.flashcards} flashcards, {result.clinicalCases} clinical cases, {result.images} images.
           </p>
           {!!result.remapped && <p className="small">{result.remapped} question(s) changed in the source; your progress on them was kept.</p>}
           <p className="small muted">Questions were given quick offline topic tags. For accurate context-aware categorisation run AI tagging.</p>
@@ -262,6 +264,20 @@ export default function ImportPage() {
               <p className="small">Import the missing images again together with the same book title – they will attach automatically.</p>
             </details>
           )}
+          {([
+            ["Unresolved answer keys (excluded from scored tests)", result.unscorable],
+            ["Images not linked to a question", result.unreferencedImages],
+            ["Question/answer image role conflicts", result.conflictingImageRoles],
+            ["Questions without a source explanation", result.noExplanation],
+            ["Source extraction warnings", result.warnings]
+          ] as [string, string[]][]).filter(([, items]) => items.length).map(([label, items]) => (
+            <details key={label}>
+              <summary className="clickable" style={{ color: "var(--warn)" }}>{items.length} {label.toLowerCase()}</summary>
+              <div className="small muted" style={{ maxHeight: 200, overflow: "auto" }}>
+                {items.map((item, i) => <div key={`${item}-${i}`}>{item}</div>)}
+              </div>
+            </details>
+          ))}
           <div className="row">
             <Link className="btn primary" to="/tagging">
               Run AI tagging

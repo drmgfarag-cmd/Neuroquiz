@@ -7,7 +7,7 @@ import { DialogHost } from "./components/Dialog";
 import { closeOpenViewer } from "./components/ImageViewer";
 import { installBackButton, requestPersistentStorage, useOnline, webPreview } from "./lib/platform";
 import { onPwaEvent, applyPwaUpdate } from "./pwa";
-import { installBundledIfEmpty } from "./lib/library";
+import { installBundledIfEmpty, installNewStudyBooks, retireIncompleteQbne, syncBundledBookTitles } from "./lib/library";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
 import ImportPage from "./pages/Import";
@@ -28,15 +28,16 @@ import MockExam from "./pages/MockExam";
 import ImageAtlas from "./pages/ImageAtlas";
 import ReferencePage from "./components/Reference";
 import { SECTION_HUE } from "./lib/colors";
+import { activeProfile } from "./lib/profiles";
 
 const NAV = [
   { to: "/", label: "Home", icon: Icon.home, end: true, mobile: true },
-  { to: "/library", label: "Library", icon: Icon.book, mobile: false },
+  { to: "/library", label: "Library", icon: Icon.book, mobile: true },
   { to: "/quiz", label: "Tests", icon: Icon.quiz, mobile: true },
   { to: "/mock", label: "Mock exam", icon: Icon.timer, mobile: false },
   { to: "/flashcards", label: "Flashcards", icon: Icon.cards, mobile: true },
   { to: "/cases", label: "Cases", icon: Icon.cases, mobile: true },
-  { to: "/search", label: "Search", icon: Icon.search, mobile: true },
+  { to: "/search", label: "Search", icon: Icon.search, mobile: false },
   { to: "/atlas", label: "Image atlas", icon: Icon.image, mobile: false },
   { to: "/reference", label: "Lab values & scales", icon: Icon.lab, mobile: false },
   { to: "/tagging", label: "AI tagging", icon: Icon.tag, mobile: false },
@@ -52,12 +53,26 @@ export default function App() {
   const online = useOnline();
   const [pwa, setPwa] = useState<"" | "offline-ready" | "update">("");
   const [setup, setSetup] = useState("");
+  const [profileName, setProfileName] = useState("My profile");
+  const [profileId, setProfileId] = useState("");
+  useEffect(() => { activeProfile().then((p) => { setProfileName(p.name); setProfileId(p.id); }); }, []);
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel("neuroquiz-profile");
+    channel.onmessage = () => location.reload();
+    return () => channel.close();
+  }, []);
 
   // First launch: copy the books that ship with the app into the library.
   useEffect(() => {
-    installBundledIfEmpty(setSetup)
-      .catch((e) => setSetup(`Could not set up the built-in books: ${(e as Error).message}`))
-      .then((ran) => ran !== undefined && setSetup(""));
+    (async () => {
+      await retireIncompleteQbne();
+      const failures: string[] = [];
+      try { await installBundledIfEmpty(setSetup); } catch (error) { failures.push((error as Error).message); }
+      try { await installNewStudyBooks(setSetup); } catch (error) { failures.push((error as Error).message); }
+      try { await syncBundledBookTitles(); } catch (error) { failures.push((error as Error).message); }
+      setSetup(failures.length ? `${failures.join(" ")} Open Library → Included books to retry.` : "");
+    })().catch((e) => setSetup(`Could not set up the built-in books: ${(e as Error).message}`));
   }, []);
 
   useEffect(() => {
@@ -75,7 +90,7 @@ export default function App() {
 
   // Background sync every 5 minutes and when the app regains focus.
   useEffect(() => {
-    if (!settings.syncUrl) return;
+    if (!settings.syncUrl || profileId !== "default") return;
     // offline changes stay queued locally and go out on the next sync
     const run = () => navigator.onLine && syncWithServer().catch(() => undefined);
     run();
@@ -88,15 +103,14 @@ export default function App() {
       document.removeEventListener("visibilitychange", vis);
       window.removeEventListener("online", run);
     };
-  }, [settings.syncUrl, settings.syncToken]);
+  }, [settings.syncUrl, settings.syncToken, profileId]);
 
   return (
     <div className="app">
       <nav className="sidebar" aria-label="Main">
-        <div className="brand">
-          <img src="./icon.svg" alt="" /> NeuroQuiz
-        </div>
-        {NAV.map((n) => (
+        <div className="brand"><img src="./icon.svg" alt="" /><span>NeuroQuiz<small>Neurosurgery study</small></span></div>
+        <div className="nav-heading">STUDY</div>
+        {NAV.filter((n) => ["/", "/library", "/quiz", "/mock", "/flashcards", "/cases", "/search"].includes(n.to)).map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className="nav-link" style={{ ["--h" as string]: SECTION_HUE[n.to] ?? 212 }}>
             <span className="nav-ico">
               <n.icon />
@@ -104,8 +118,14 @@ export default function App() {
             {n.label}
           </NavLink>
         ))}
+        <div className="nav-heading">EXPLORE & MANAGE</div>
+        {NAV.filter((n) => !["/", "/library", "/quiz", "/mock", "/flashcards", "/cases", "/search"].includes(n.to)).map((n) => (
+          <NavLink key={n.to} to={n.to} className="nav-link" style={{ ["--h" as string]: SECTION_HUE[n.to] ?? 212 }}><span className="nav-ico"><n.icon /></span>{n.label}</NavLink>
+        ))}
+        <NavLink to="/settings" className="nav-profile" title="Switch study profile"><span aria-hidden="true">◉</span><span>{profileName}<small>Study profile</small></span><span aria-hidden="true">›</span></NavLink>
       </nav>
       <main className="main">
+        <header className="topbar"><span className="topbar-title">NEUROSURGERY / STUDY</span><div className="topbar-actions"><NavLink to="/search" className="topbar-search" aria-label="Search questions, books and cases"><Icon.search /> <span>Search questions, books & cases</span><span aria-hidden="true">⌕</span></NavLink><NavLink to="/settings" className="mobile-profile" title="Switch study profile">◉ {profileName} <span aria-hidden="true">›</span></NavLink></div></header>
         {webPreview && (
           <div className="banner accent small">
             Web preview: your books and progress are saved in this browser only. Install the Windows or Android app to keep them for real use and to export.

@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { caseText } from "../ai/tagger";
 import { AiChat } from "../components/AiChat";
 import { Annotations } from "../components/Annotations";
@@ -14,9 +14,35 @@ export default function CaseView() {
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
   const [mine, setMine] = useState<Record<number, string>>({});
   const [showAll, setShowAll] = useState(false);
+  useEffect(() => { setStep(0); setRevealed({}); setMine({}); setShowAll(false); }, [id]);
 
   if (c === undefined) return null;
   if (c === null) return <div className="card">Case not found.</div>;
+
+  if (c.kind === "qa") {
+    const index = Math.min(step, c.stages.length - 1);
+    const item = c.stages[index];
+    const reveal = !!revealed[index];
+    return (
+      <div className="reading-page" data-gallery="">
+        <div className="row between"><Link to="/cases" className="small">← Cases & Q&A</Link><span className="chip accent">Q&A book · {c.stages.length} questions</span></div>
+        <h1>{c.title}</h1>
+        <div className="card reading-card">
+          <div className="row between"><span className="eyebrow">Question {index + 1} of {c.stages.length}</span><strong>{item.title}</strong></div>
+          <div className="progress" role="progressbar" aria-label="Reading progress" aria-valuenow={index + 1} aria-valuemin={1} aria-valuemax={c.stages.length}><div style={{ width: `${(index + 1) / c.stages.length * 100}%` }} /></div>
+          <div className="reading-question"><Rich text={item.question ?? ""} bookId={c.bookId} /><MediaList media={item.media} bookId={c.bookId} /></div>
+          {!reveal ? <button className="primary" onClick={() => setRevealed((v) => ({ ...v, [index]: true }))}>Reveal answer</button> : (
+            <section className="reading-answer" aria-label="Answer"><span className="eyebrow">Book answer</span><Rich text={item.answer ?? ""} bookId={c.bookId} /><MediaList media={item.answerMedia ?? []} bookId={c.bookId} /></section>
+          )}
+        </div>
+        <div className="row between reading-controls">
+          <button disabled={index === 0} onClick={() => setStep(index - 1)}>← Previous</button>
+          <label className="field">Jump to question<select aria-label="Jump to question" value={index} onChange={(e) => setStep(Number(e.target.value))}>{c.stages.map((s, i) => <option value={i} key={i}>{s.title}</option>)}</select></label>
+          <button className="primary" disabled={index === c.stages.length - 1} onClick={() => setStep(index + 1)}>Next →</button>
+        </div>
+      </div>
+    );
+  }
 
   const visible = showAll ? c.stages.length : step;
   const finished = visible >= c.stages.length;
@@ -74,6 +100,7 @@ export default function CaseView() {
                       </p>
                     )}
                     <Rich text={s.answer} bookId={c.bookId} />
+                    <MediaList media={s.answerMedia ?? []} bookId={c.bookId} />
                   </div>
                 )}
               </div>

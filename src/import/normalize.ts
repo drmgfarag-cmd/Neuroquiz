@@ -38,9 +38,20 @@ export interface NormalizeOptions {
 /** The question text points at an image or a study the reader is meant to look at. */
 export function refersToImage(stem: string): boolean {
   return (
-    /\b(shown|below|above|pictured|picture|figure|image|images|illustrat\w*|labell?ed|arrows?|arrowheads?|see the|following (?:scan|film|study|radiograph|image))\b/i.test(stem) ||
+    /\b(shown|below|above|pictured|picture|figure|image|images|illustrat\w*|labell?ed|arrows?|arrowheads?|see the|diagram|depicted|angiogram|following (?:scan|film|study|radiograph|image))\b/i.test(stem) ||
     /\b(CT|MRI|MR|radiographs?|x-rays?|scan|angiogram|angiography|imaging|myelogram|ultrasound|EEG|EMG|histology|biopsy|smear|slide)\b[^.?!]{0,60}\b(performed|obtained|done|shows?|showed|reveals?|revealed|demonstrates?|demonstrated)\b/i.test(stem)
   );
+}
+
+/** Names and source folders can reveal an answer figure even when JSON puts it in question_images. */
+export function imageRole(file: string): "question" | "answer" | "unknown" {
+  const path = file.replace(/\\/g, "/").toLowerCase();
+  if (/(?:^|\/)(?:answer|answers|explanation|explanations)\//.test(path) ||
+      /(?:^|[_\-/])(?:answer|ans|explanation|expl)(?:[_\-.]|$)/.test(path) ||
+      /(?:^|[_\-])(?:fig|tbl|table|ill)a(?:[_\-.]|$)/.test(path)) return "answer";
+  if (/(?:^|\/)(?:question|questions)\//.test(path) ||
+      /(?:^|[_\-])(?:fig|tbl|table|ill)q(?:[_\-.]|$)/.test(path)) return "question";
+  return "unknown";
 }
 
 export interface ParsedQuestion {
@@ -69,6 +80,7 @@ export interface ParsedQuestion {
   section?: string;
   /** warning from the source about this question (unresolved mismatch, needs review…) */
   sourceWarning?: string;
+  sourceReviewRequired?: boolean;
 }
 
 export interface ParsedFlashcard {
@@ -82,6 +94,7 @@ export interface ParsedFlashcard {
 
 export interface ParsedCase {
   title: string;
+  kind?: "qa";
   presentation: string;
   presentationMedia: MediaRef[];
   stages: CaseStage[];
@@ -133,6 +146,7 @@ const F = {
   questions: ["questions", "mcqs", "mcq", "items", "qbank", "question_bank", "questionbank"],
   flashcards: ["flashcards", "flash_cards", "cards", "flashcard"],
   cases: ["cases", "case_scenarios", "casescenarios", "clinical_cases", "scenarios", "case_studies"],
+  qa: ["qa_pairs", "question_answers", "short_answers", "qa", "q_and_a"],
   front: ["front", "term", "prompt", "question", "q", "cue"],
   back: ["back", "definition", "answer", "a", "response"],
   keyMap: ["answer_key_map", "key_map", "matching_key", "matches"],
@@ -747,6 +761,10 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   } else if (!format && answer.length > 1) format = "multi";
 
   let explanation = reflow(toText(pick(o, F.explanation)));
+  if (!options.length && toText(pick(o, ["question_type"])).toUpperCase() === "VISUAL_LABEL") {
+    const printedLabel = toText(pick(o, F.answer));
+    if (/^[A-Z]$/i.test(printedLabel)) explanation = `**Printed figure label: ${printedLabel.toUpperCase()}**${explanation ? `\n\n${explanation}` : ""}`;
+  }
   const sharedAnswer = reflow(toText(pick(o, ["shared_answer_context", "shared_explanation"])));
   if (sharedAnswer && !squash(explanation).includes(squash(sharedAnswer))) explanation = [sharedAnswer, explanation].filter(Boolean).join("\n\n");
   if (!explanation && isObj(ansRaw)) explanation = reflow(toText(pick(ansRaw, F.explanation)));
@@ -764,16 +782,21 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
 
   // Question images: prefer explicit question-image fields; a generic "images"
   // list can contain answer images too, which must not be shown before answering.
-  const answerFiles = new Set(explanationMedia.map((m) => m.file));
+  const answerFiles = new Set(explanationMedia.map((m) => m.file.toLowerCase()));
   let stemMedia: MediaRef[];
   if (hasKey(o, F.questionMedia)) stemMedia = toMedia(pick(o, F.questionMedia));
   else {
-    // a mixed list: "…_answer_image1.jpg" belongs to the answer
-    const generic = toMedia(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file));
-    const isAnswer = (f: string) => /(^|[_\-\s/])(answer|ans|explanation|expl)[_\-\s]?(image|img|fig|figure|pic)/i.test(f);
-    stemMedia = generic.filter((m) => !isAnswer(m.file));
-    explanationMedia = explanationMedia.concat(generic.filter((m) => isAnswer(m.file)));
+    // A generic list has no trusted question/answer role. Require question
+    // evidence; otherwise show it only after the answer is revealed.
+    const generic = toMedia(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file.toLowerCase()));
+    stemMedia = generic.filter((m) => imageRole(m.file) === "question" || (imageRole(m.file) === "unknown" && refersToImage(stem)));
+    explanationMedia = explanationMedia.concat(generic.filter((m) => !stemMedia.includes(m)));
   }
+
+  // An answer-page marker overrides even an erroneous explicit question_images field.
+  const mislabeledAnswers = stemMedia.filter((m) => imageRole(m.file) === "answer");
+  stemMedia = stemMedia.filter((m) => imageRole(m.file) !== "answer");
+  explanationMedia = [...explanationMedia, ...mislabeledAnswers];
 
   // image credit printed with the figure
   const credit = toText(pick(o, ["image_attribution", "image_credit", "figure_credit"]));
@@ -784,17 +807,41 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     stemMedia = [];
   }
 
+  // Inline markdown/HTML and option media are visible before answering too.
+  // Move anything explicitly named as an answer asset behind the reveal.
+  const deferred = new Set<string>();
+  const defer = (file: string) => { if (imageRole(file) === "answer") deferred.add(file); return imageRole(file) === "answer"; };
+  const safeInline = (text: string) => linkInlineImages(text)
+    .replace(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g, (match, file: string) => defer(file) ? "" : match)
+    .replace(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi, (match, file: string) => defer(file) ? "" : match);
+  const safeStem = safeInline(stem);
+  const safeOptions = options.map((option) => ({
+    ...option,
+    text: safeInline(option.text),
+    media: option.media.filter((m) => !defer(m.file))
+  }));
+  options.splice(0, options.length, ...safeOptions);
+  const safeExplanation = linkInlineImages(explanation);
+  const shownInExplanation = new Set([
+    ...explanationMedia.map((m) => m.file.toLowerCase()),
+    ...Array.from(safeExplanation.matchAll(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g), (m) => m[1].toLowerCase())
+  ]);
+  for (const file of deferred) if (!shownInExplanation.has(file.toLowerCase())) explanationMedia.push({ file });
+
   const num = pick(o, F.number);
   const tags = pick(o, F.tags);
   const group = pick(o, ["group_id", "parent_vignette_id", "emi_set_id", "case_group_id", "vignette_id", "shared_stem_id"]);
   const emi = pick(o, ["emi_set_id", "emi_set", "emi_group_id"]);
   const srcId = pick(o, ["question_id", "qid", "id"]);
   const section = pick(o, ["section_id", "section_name"]);
-  const warning = toText(pick(o, ["source_warning", "extraction_warning"]));
+  const review = toText(pick(o, ["verification_status"])).toUpperCase() === "REQUIRES_SOURCE_REVIEW" ||
+    (Array.isArray(o.review_required) && o.review_required.length > 0);
+  const warning = toText(pick(o, ["source_warning", "extraction_warning"])) ||
+    (review ? "Source extraction requires visual comparison with the printed book before scored use." : "");
   const groupId = typeof group === "string" || typeof group === "number" ? String(group) : undefined;
   return {
     number: num !== undefined && (typeof num === "string" || typeof num === "number") ? String(num) : String(idx + 1),
-    stem: linkInlineImages(stem),
+    stem: safeStem,
     options,
     answer,
     ...(format ? { format } : {}),
@@ -804,7 +851,7 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     ...(accepted ? { accepted } : {}),
     ...(regions ? { regions } : {}),
     ...(panel ? { panel } : {}),
-    explanation: linkInlineImages(explanation),
+    explanation: safeExplanation,
     annotation: parseAnnotation(o),
     stemMedia,
     explanationMedia,
@@ -813,7 +860,8 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     ...(typeof emi === "string" || typeof emi === "number" ? { emiSet: String(emi) } : {}),
     ...(typeof srcId === "string" || typeof srcId === "number" ? { sourceId: String(srcId) } : {}),
     ...(typeof section === "string" ? { section } : {}),
-    ...(warning ? { sourceWarning: warning } : {})
+    ...(warning ? { sourceWarning: warning } : {}),
+    ...(review ? { sourceReviewRequired: true } : {})
   };
 }
 
@@ -874,29 +922,83 @@ function parseCase(o: Obj, opts: NormalizeOptions): ParsedCase | null {
         const answer = asQ
           ? [asQ.answer.length ? `**Answer: ${asQ.answer.join(", ")}**` : "", asQ.explanation].filter(Boolean).join("\n\n")
           : toText(pick(s, ["answer", "solution", "explanation", "discussion", "reveal"]));
+        const rawMedia = toMedia(pick(s, ["images", "image", "figures", "figure", "media", "imaging"]));
+        const questionMedia = [...(asQ?.stemMedia ?? []), ...toMedia(pick(s, F.questionMedia)), ...(o.kind === "qa" ? toMedia(pick(s, ["media"])) : [])];
+        const stageAnswerMedia = [...(asQ?.explanationMedia ?? []), ...toMedia(pick(s, ["answer_media", "answer_images", "explanation_media"]))];
+        const media = [...questionMedia.filter((m) => imageRole(m.file) !== "answer"), ...rawMedia.filter((m) => imageRole(m.file) === "question" || (imageRole(m.file) === "unknown" && refersToImage(`${content} ${question}`)))];
+        stageAnswerMedia.push(...questionMedia.filter((m) => imageRole(m.file) === "answer"), ...rawMedia.filter((m) => !media.some((q) => q.file === m.file)));
+        const uniqueMedia = (list: MediaRef[]) => list.filter((m, i) => list.findIndex((x) => x.file === m.file) === i);
+        const safeInline = (text: string) => linkInlineImages(text).replace(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g, (match, file: string) => {
+          if (imageRole(file) !== "answer") return match;
+          if (!stageAnswerMedia.some((m) => m.file === file)) stageAnswerMedia.push({ file });
+          return "";
+        });
         stages.push({
           title: toText(pick(s, ["title", "name", "stage", "heading"])) || `Step ${i + 1}`,
-          content: linkInlineImages(asQ && content === asQ.stem ? "" : content),
-          question: question ? linkInlineImages(question) : undefined,
+          content: safeInline(asQ && content === asQ.stem ? "" : content),
+          question: question ? safeInline(question) : undefined,
           answer: answer ? linkInlineImages(answer) : undefined,
-          media: toMedia(pick(s, ["images", "image", "figures", "figure", "media", "imaging"]))
+          media: uniqueMedia(media),
+          answerMedia: uniqueMedia(stageAnswerMedia)
         });
       } else if (toText(s)) {
         stages.push({ title: `Step ${i + 1}`, content: linkInlineImages(toText(s)), media: [] });
       }
     });
   }
-  const discussion = toText(pick(o, F.caseDiscussion));
+  let discussion = toText(pick(o, F.caseDiscussion));
   if (!presentation && !stages.length) return null;
+  const presentationMedia = toMedia(pick(o, ["presentation_media", "images", "image", "figures", "figure", "media", "imaging"]));
+  const deferredPresentation = presentationMedia.filter((m) => imageRole(m.file) === "answer");
+  const safePresentation = linkInlineImages(presentation).replace(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g, (match, file: string) => {
+    if (imageRole(file) !== "answer") return match;
+    if (!deferredPresentation.some((m) => m.file === file)) deferredPresentation.push({ file });
+    return "";
+  });
+  if (deferredPresentation.length && stages.length) stages[0].answerMedia = [...(stages[0].answerMedia ?? []), ...deferredPresentation];
+  else if (deferredPresentation.length) discussion = [discussion, ...deferredPresentation.map((m) => `![](${m.file})`)].filter(Boolean).join("\n\n");
   return {
     title,
-    presentation: linkInlineImages(presentation),
+    ...(o.kind === "qa" ? { kind: "qa" as const } : {}),
+    presentation: safePresentation,
     annotation: parseAnnotation(o),
-    presentationMedia: toMedia(pick(o, ["presentation_media", "images", "image", "figures", "figure", "media", "imaging"])),
+    presentationMedia: presentationMedia.filter((m) => imageRole(m.file) !== "answer"),
     stages,
     discussion: linkInlineImages(discussion),
     sourceTags: tagList(pick(o, F.tags))
   };
+}
+
+/** Keep an optionless Q&A chapter in its original order, with answers and figures hidden. */
+function parseQaChapter(items: Json[], title: string, warnings: string[]): ParsedCase | null {
+  const stages: CaseStage[] = [];
+  items.forEach((item, i) => {
+    if (!isObj(item)) return;
+    const question = reflow(toText(pick(item, ["question", "question_text", "prompt", "q"])));
+    const answer = reflow(toText(pick(item, ["answer", "response", "solution", "a"])));
+    if (!question || !answer) {
+      warnings.push(`${title} Q&A ${i + 1}: question or answer missing – skipped`);
+      return;
+    }
+    const explanation = reflow(toText(pick(item, F.explanation)));
+    const answerMedia = toMedia(pick(item, F.explanationMedia));
+    const explicit = toMedia(pick(item, F.questionMedia));
+    const generic = toMedia(pick(item, F.stemMedia));
+    // Unlabelled figures remain behind the answer. An answer marker overrides
+    // even a mistaken question_images field, as it does for MCQs.
+    const media = explicit.filter((m) => imageRole(m.file) !== "answer");
+    answerMedia.push(...explicit.filter((m) => imageRole(m.file) === "answer"), ...generic.filter((m) => !media.some((q) => q.file === m.file)));
+    const safeQuestion = linkInlineImages(question)
+      .replace(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g, (match, file: string) => {
+        if (imageRole(file) !== "answer") return match;
+        if (!answerMedia.some((m) => m.file === file)) answerMedia.push({ file });
+        return "";
+      });
+    const number = toText(pick(item, F.number)) || String(i + 1);
+    stages.push({ title: `Question ${number}`, content: "", question: safeQuestion, answer: linkInlineImages([answer, explanation].filter(Boolean).join("\n\n")), media, answerMedia });
+  });
+  if (!stages.length) return null;
+  return { title, kind: "qa", presentation: "", presentationMedia: [], stages, discussion: "", sourceTags: [] };
 }
 
 // --------------------------------------------------------------------------
@@ -964,6 +1066,7 @@ export function mergeEmiSets(questions: ParsedQuestion[], groups: Obj[] = []): P
       stemMedia: sharedMedia,
       explanationMedia: set.flatMap((x) => x.explanationMedia).filter((m, i, all) => all.findIndex((y) => y.file === m.file) === i),
       sourceTags: Array.from(new Set(set.flatMap((x) => x.sourceTags))),
+      ...(set.some((x) => x.sourceReviewRequired) ? { sourceReviewRequired: true, sourceWarning: set.find((x) => x.sourceWarning)?.sourceWarning ?? "Source transcription pending review." } : {}),
       annotation: set[0].annotation
     });
   }
@@ -1146,7 +1249,8 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
     const qs = pick(node, F.questions);
     const fcs = pick(node, F.flashcards);
     const cs = pick(node, F.cases);
-    if (Array.isArray(qs) || Array.isArray(fcs) || Array.isArray(cs)) {
+    const qa = pick(node, F.qa);
+    if (Array.isArray(qs) || Array.isArray(fcs) || Array.isArray(cs) || Array.isArray(qa)) {
       const t = subChapters ? titleHint : toText(pick(node, F.title)) || titleHint;
       const ch = emptyChapter(t);
       const no = chapterNo(node);
@@ -1154,6 +1258,10 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
       if (Array.isArray(qs)) addItems(qs, ch);
       if (Array.isArray(fcs)) fcs.forEach((f) => isObj(f) && (() => { const p = parseFlashcard(f); if (p) ch.flashcards.push(p); })());
       if (Array.isArray(cs)) cs.forEach((c) => isObj(c) && (() => { const p = parseCase(c, opts); if (p) ch.cases.push(p); })());
+      if (Array.isArray(qa)) {
+        const p = parseQaChapter(qa, t, warnings);
+        if (p) ch.cases.push(p);
+      }
       if (ch.questions.length || ch.flashcards.length || ch.cases.length) chapters.push(ch);
       return;
     }

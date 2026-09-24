@@ -83,6 +83,8 @@ export interface Question {
   sourceId?: string;
   /** warning from the book's extraction (unresolved mismatch, needs review…) */
   sourceWarning?: string;
+  /** Source transcription is pending verification; excluded from scored tests until corrected. */
+  sourceReviewRequired?: boolean;
   explanation: string;
   stemMedia: MediaRef[];
   explanationMedia: MediaRef[];
@@ -113,6 +115,8 @@ export interface CaseStage {
   question?: string;
   answer?: string;
   media: MediaRef[];
+  /** Figures shown only after revealing the answer. */
+  answerMedia?: MediaRef[];
 }
 
 export interface CaseScenario {
@@ -120,6 +124,8 @@ export interface CaseScenario {
   bookId?: string;
   chapterId?: string;
   title: string;
+  /** Book chapters of short-answer questions are read in the Cases area. */
+  kind?: "qa";
   presentation: string;
   presentationMedia: MediaRef[];
   stages: CaseStage[];
@@ -203,6 +209,10 @@ export interface SessionAnswer {
   questionId: string;
   selected: string[];
   correct?: boolean;
+  /** The response was submitted even though the source has no verified key. */
+  unscoredSubmitted?: boolean;
+  /** Tutor feedback has been shown, but study statistics are pending until finish. */
+  pendingResult?: boolean;
   timeMs: number;
   flagged?: boolean;
   /** Eliminated options (strike-through) in the UI */

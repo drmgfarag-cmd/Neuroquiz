@@ -53,7 +53,7 @@ export default function Stats() {
     const due = states.filter((s) => s.timesSeen > 0 && s.srs.due <= now).length;
     const unsure = states.filter((s) => s.lastCorrect === true && (s.lastConfidence ?? 3) < 3).length;
     const sureWrong = states.filter((s) => s.lastCorrect === false && s.lastConfidence === 3).length;
-    const times = sessions.flatMap((x) => Object.values(x.answers).map((a) => a.timeMs).filter((t) => t > 0 && t < 30 * 60_000));
+    const times = sessions.filter((x) => x.finishedAt).flatMap((x) => Object.values(x.answers).map((a) => a.timeMs).filter((t) => t > 0 && t < 30 * 60_000));
     const avgTime = times.length ? times.reduce((a, b) => a + b, 0) / times.length : 0;
     return { books, byBook, byTopic, weak, days, sessions: sessions.filter((s) => s.finishedAt).length, due, unsure, sureWrong, avgTime };
   });

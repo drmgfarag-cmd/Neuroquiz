@@ -7,7 +7,9 @@ async function lookup(bookId: string | undefined, file: string): Promise<string 
   if (/^(data:|https?:|blob:)/i.test(file)) return file;
   const name = normaliseFileName(file);
   let m = bookId ? await db.media.get(`${bookId}/${name}`) : undefined;
-  if (!m) m = await db.media.where("name").equals(name).first();
+  // A question's book is authoritative: a same-named scan in a different
+  // book can depict a different patient or finding.
+  if (!m && !bookId) m = await db.media.where("name").equals(name).first();
   if (!m && bookId) {
     // same image in another format ("fig1.png" in the book, "fig1.webp" shipped)
     const base = stripExt(name);

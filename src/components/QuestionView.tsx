@@ -2,6 +2,7 @@ import { answerSummary, choiceLabel, formatOf, isCorrect, pairs, score } from ".
 import { Hotspot, Ordering, Sct, TextAnswer } from "./NewFormats";
 import type { Question } from "../lib/types";
 import { MediaList, Rich } from "./Rich";
+import { unscorableReason } from "../lib/quality";
 
 interface Props {
   q: Question;
@@ -24,6 +25,7 @@ export function QuestionView(props: Props) {
   return (
     <div>
       {q.sourceWarning && !q.edited && <div className="banner small source-warning">⚠ {q.sourceWarning}</div>}
+      {unscorableReason(q) && <div className="banner small source-warning">Answer key incomplete: {unscorableReason(q)}. This question is available for review but excluded from scored tests.</div>}
       <Rich text={q.stem} bookId={q.bookId} highlights={props.highlights} onUnhighlight={props.onUnhighlight} className="stem" />
       {/* the hotspot image is the answer area */}
       <MediaList media={f === "hotspot" ? q.stemMedia.slice(1) : q.stemMedia} bookId={q.bookId} />
@@ -79,6 +81,12 @@ function Choices({ q, selected, revealed, onSelect, struck = [], onStrike, order
               aria-checked={isSel}
               tabIndex={0}
               onClick={() => !revealed && onSelect?.(o.key)}
+              onKeyDown={(e) => {
+                if (!revealed && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  onSelect?.(o.key);
+                }
+              }}
               onContextMenu={(e) => {
                 if (onStrike && !revealed) {
                   e.preventDefault();
@@ -194,7 +202,8 @@ function Matching({ q, selected, revealed, onSelect }: Props) {
 
 export function Explanation({ q, selected }: { q: Question; selected: string[] }) {
   const answered = selected.length > 0;
-  const correct = answered ? isCorrect(q, selected) : null;
+  const invalid = unscorableReason(q);
+  const correct = answered && !invalid ? isCorrect(q, selected) : null;
   const sc = score(q, selected);
   const itemised = ["truefalse", "matching", "ordering", "sct"].includes(formatOf(q));
   return (
@@ -204,7 +213,7 @@ export function Explanation({ q, selected }: { q: Question; selected: string[] }
         {correct === false && (
           <span className={`chip ${sc.right > 0 ? "warn" : "bad"}`}>{formatOf(q) === "sct" ? `${Math.round(sc.right * 100)}% credit` : itemised ? `${sc.right} / ${sc.total} correct` : "Incorrect"}</span>
         )}
-        {correct === null && <span className="chip">Not answered</span>}
+        {correct === null && <span className="chip">{invalid ? "Answer unverified · unscored" : "Not answered"}</span>}
         <span>
           Answer: <strong>{answerSummary(q, formatOf(q) === "truefalse" || formatOf(q) === "matching")}</strong>
         </span>
