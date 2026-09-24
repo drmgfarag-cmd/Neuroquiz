@@ -30,6 +30,7 @@ const refs = (q: Question) => [
 
 export interface BookQuality {
   unscorable: Question[];
+  sourceWarnings: Question[];
   noExplanation: Question[];
   missingImages: string[];
   unreferencedImages: string[];
@@ -54,6 +55,7 @@ export function auditBook(questions: Question[], mediaNames: string[]): BookQual
   }
   return {
     unscorable: questions.filter((q) => unscorableReason(q)),
+    sourceWarnings: questions.filter((q) => q.sourceWarning && !q.edited),
     noExplanation: questions.filter((q) => !q.explanation.trim()),
     missingImages: [...missing],
     unreferencedImages: mediaNames.filter((n) => !referenced.has(stripExt(normaliseFileName(n)))),
