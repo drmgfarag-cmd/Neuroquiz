@@ -36,7 +36,7 @@ export default function Home() {
     const active = new Set<string>();
     states.forEach((s) => s.lastSeenAt && active.add(day(s.lastSeenAt)));
     cardStates.forEach((c) => c.srs.reps + c.srs.lapses > 0 && active.add(day(c.updatedAt)));
-    sessions.forEach((s) => Object.keys(s.answers).length && active.add(day(s.updatedAt)));
+    sessions.forEach((s) => s.finishedAt && Object.keys(s.answers).length && active.add(day(s.finishedAt)));
     let streak = 0;
     for (let d = active.has(day(now)) ? now : now - 86_400_000; active.has(day(d)); d -= 86_400_000) streak++;
     const today = states.filter((s) => s.lastSeenAt && day(s.lastSeenAt) === day(now)).length;
