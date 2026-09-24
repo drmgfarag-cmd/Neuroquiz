@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { canShuffle, formatOf, isCorrect } from "./grading";
 import { newSrs, review } from "./srs";
+import { unscorableReason } from "./quality";
 import type { Confidence, Difficulty, Question, QuestionFormat, QuestionState, QuizMode, QuizSession, SessionAnswer } from "./types";
 import { shuffle, uid } from "./util";
 
@@ -33,7 +34,7 @@ export const emptyFilter = (): PoolFilter => ({
   highYieldOnly: false
 });
 
-export async function buildPool(f: PoolFilter): Promise<Question[]> {
+export async function buildPool(f: PoolFilter, includeUnscorable = false): Promise<Question[]> {
   let qs: Question[];
   if (f.ids?.length) qs = (await db.questions.bulkGet(f.ids)).filter((q): q is Question => !!q);
   else if (f.chapterIds.length && f.bookIds.length) {
@@ -45,6 +46,8 @@ export async function buildPool(f: PoolFilter): Promise<Question[]> {
   } else if (f.chapterIds.length) qs = await db.questions.where("chapterId").anyOf(f.chapterIds).toArray();
   else if (f.bookIds.length) qs = await db.questions.where("bookId").anyOf(f.bookIds).toArray();
   else qs = await db.questions.toArray();
+
+  if (!includeUnscorable) qs = qs.filter((q) => !unscorableReason(q));
 
   if (f.withImagesOnly) qs = qs.filter(hasQuestionImage);
   if (f.formats?.length) qs = qs.filter((q) => f.formats!.includes(formatOf(q)));
@@ -141,7 +144,9 @@ export function toUnits(pool: Question[], sortByOrder = true): Question[][] {
 
 export async function createSession(pool: Question[], o: SessionOptions): Promise<QuizSession> {
   // linked questions move as one unit and aren't split by the count limit
-  const units = toUnits(pool, !o.preserveOrder);
+  const eligible = o.mode === "review" ? pool : pool.filter((q) => !unscorableReason(q));
+  if (!eligible.length) throw new Error("No questions with complete answer keys in this selection. Use Read/review to inspect and correct them.");
+  const units = toUnits(eligible, !o.preserveOrder);
   const chosen: Question[] = [];
   for (const unit of o.shuffleQuestions && !o.preserveOrder ? shuffle(units) : units) {
     if (o.count > 0 && chosen.length >= o.count) break;
@@ -183,6 +188,7 @@ export async function getState(questionId: string): Promise<QuestionState> {
 
 /** Persist a graded answer into the long-term per-question state (+ revision schedule). */
 export async function recordResult(q: Question, correct: boolean, confidence?: Confidence): Promise<void> {
+  if (unscorableReason(q)) return;
   const s = await getState(q.id);
   const now = Date.now();
   // a lucky guess comes back sooner
@@ -226,6 +232,10 @@ export async function finishSession(s: QuizSession): Promise<QuizSession> {
   for (const q of qs) {
     const a = answers[q.id];
     if (!a || !a.selected.length) continue;
+    if (unscorableReason(q)) {
+      answers[q.id] = { ...a, correct: undefined, unscoredSubmitted: true };
+      continue;
+    }
     const already = a.correct !== undefined;
     const c = isCorrect(q, a.selected);
     answers[q.id] = { ...a, correct: c };
