@@ -51,11 +51,23 @@ for the web preview only, with `"webMaxPx": 720, "webQuality": 38` (as for
 INBR). Standalone answer-key files (`*answer_key*.json`) are skipped when the
 questions already carry their answers.
 
-## Waiting for files
+## Source titles
 
-- `sources/05_images.zip.001/.002`: images for book 05 (10 chapters plus a
-  5-section practice exam, 353 images). Its question JSON hasn't been
-  uploaded yet, so it isn't listed in `books.json`.
+The numbered uploads were compared with their source PDFs and publisher
+catalogs. Books 01, 05, 07, and 08 have identifiable published titles; book
+NBR3 names its full title and edition in the extracted JSON. The abbreviated
+INBR suffix has been removed from its display title. These title changes do
+not change book or question IDs, so saved study activity stays attached.
+
+The supplied PDFs for **02** (100 spine questions) and **09** (1,000
+neurosurgery questions) start with questions and do not contain a title page,
+ISBN or embedded title. Their current names are descriptive placeholders;
+replace them when a cover or original bibliographic details are supplied.
+Book 09's own extraction README also explicitly notes the absent title.
+
+Publisher records used for matching: [Thieme book 05](https://shop.thieme.de/en/The-Comprehensive-Neurosurgery-Board-Preparation-Book/9781626232808),
+[Springer book 07](https://link.springer.com/book/10.1007/978-3-031-69332-8),
+[Thieme book 08](https://shop.thieme.com/en/Thieme-Test-Prep-for-the-USMLE-Medical-Neuroscience-Q-A/9781626235373).
 
 The web preview link holds at most about 60 MB of books in total. Past that,
 use the Android/Windows apps for the full library.

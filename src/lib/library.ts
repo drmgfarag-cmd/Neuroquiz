@@ -32,6 +32,30 @@ function dataUriToBlob(uri: string): Blob {
 
 export type BundledState = "not-installed" | "installed" | "update";
 
+// Earlier bundled display names. An exact match means the reader has not
+// renamed that book; other titles are treated as their own choice.
+const formerTitles: Record<string, string> = {
+  "01": "Neurology & Neurosurgery MCQs (Book 01)",
+  "05": "Neurosurgery Self-Assessment (Book 05)",
+  "07": "Spine Surgery Review (Book 07)",
+  "08": "Neuroanatomy Review (Book 08)",
+  inbr: "Intensive Neurosurgery Board Review (INBR)",
+  nbr3: "Neurosurgery Board Review, Third Edition"
+};
+
+function updatedTitle(id: string, existing: string | undefined, catalog: string): string {
+  return existing && existing !== formerTitles[id] ? existing : catalog;
+}
+
+/** Refresh old default names without changing a reader's custom book names. */
+export async function syncBundledBookTitles(): Promise<void> {
+  for (const book of await bundledBooks()) {
+    if (!formerTitles[book.id]) continue;
+    const installed = await db.books.get(book.id);
+    if (installed?.title === formerTitles[book.id]) await db.books.update(book.id, { title: book.title });
+  }
+}
+
 let manifest: Promise<BundledBook[]> | null = null;
 
 export function bundledBooks(): Promise<BundledBook[]> {
@@ -65,7 +89,7 @@ export async function installBundled(b: BundledBook, onProgress?: (msg: string) 
   const existing = await db.books.get(b.id);
   plan.books.forEach((p) => {
     p.id = b.id;
-    p.title = existing?.title ?? b.title; // keep a name the user chose
+    p.title = updatedTitle(b.id, existing?.title, b.title);
   });
   onProgress?.(`Importing “${b.title}”…`);
   const res = await executeImport(plan);

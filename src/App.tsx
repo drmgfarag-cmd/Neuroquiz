@@ -7,7 +7,7 @@ import { DialogHost } from "./components/Dialog";
 import { closeOpenViewer } from "./components/ImageViewer";
 import { installBackButton, requestPersistentStorage, useOnline, webPreview } from "./lib/platform";
 import { onPwaEvent, applyPwaUpdate } from "./pwa";
-import { installBundledIfEmpty, installNewStudyBooks, retireIncompleteQbne } from "./lib/library";
+import { installBundledIfEmpty, installNewStudyBooks, retireIncompleteQbne, syncBundledBookTitles } from "./lib/library";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
 import ImportPage from "./pages/Import";
@@ -69,6 +69,7 @@ export default function App() {
       await retireIncompleteQbne();
       await installBundledIfEmpty(setSetup);
       await installNewStudyBooks(setSetup);
+      await syncBundledBookTitles();
       setSetup("");
     })().catch((e) => setSetup(`Could not set up the built-in books: ${(e as Error).message}`));
   }, []);
