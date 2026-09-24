@@ -4,6 +4,27 @@ An offline-first quiz app for question banks extracted from neurosurgery books. 
 
 **Study profiles.** Settings → Study profiles creates separate local scores, test histories, flags, notes and card schedules over one shared book and image library. Guest progress is discarded when you switch away from Guest. Library tags and editorial corrections are shared. Device sync and progress backup currently apply to **My profile** only. In an unfinished test, **Cancel test** offers Save for later or Discard uncounted; tutor statistics are committed when you finish. Settings can reset only the active profile's scores, schedules and test history while keeping its flags and notes.
 
+**Short-answer books.** Import JSON with a `qa_pairs` array in each chapter. The book appears in **Cases & Q&A** as a chapter reader with ordered questions, revealable answers, search, and question/answer figures kept on their respective sides. For example:
+
+```json
+{
+  "book_title": "Short-answer review",
+  "chapters": [{
+    "title": "Chapter 1",
+    "qa_pairs": [{
+      "number": "1",
+      "question": "Question from the book",
+      "answer": "Answer from the book",
+      "explanation": "Optional discussion",
+      "question_images": ["question-1.png"],
+      "answer_images": ["answer-1.png"]
+    }]
+  }]
+}
+```
+
+Import the JSON with its images, or place them together in a ZIP. The app does not extract or verify raw PDF/Word text; convert the source to structured JSON and check its figures and medical content before importing.
+
 ## Features
 
 | Area | What you get |

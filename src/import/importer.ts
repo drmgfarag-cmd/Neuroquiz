@@ -259,7 +259,7 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
           const id = uniqueId(`${bookId}:c:${hash(c.title + "|" + c.presentation)}`);
           cases.push({ ...c, id, bookId, chapterId, origin: "imported", createdAt: now });
           if (annotation) carriedTags.push({ ...annotation, id, kind: "case" });
-          [...refs(c.presentationMedia), ...c.stages.flatMap((s) => refs(s.media)), ...inlineRefs(c.presentation), ...inlineRefs(c.discussion)].forEach((r) => referenced.add(r));
+          [...refs(c.presentationMedia), ...c.stages.flatMap((s) => [...refs(s.media), ...refs(s.answerMedia ?? []), ...inlineRefs(s.content), ...inlineRefs(s.question ?? ""), ...inlineRefs(s.answer ?? "")]), ...inlineRefs(c.presentation), ...inlineRefs(c.discussion)].forEach((r) => referenced.add(r));
         });
       }
     }
@@ -336,7 +336,7 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
     res.cases += cases.length;
     res.images += media.length;
     const allMedia = (await db.media.where("bookId").equals(bookId).primaryKeys()).map((k) => String(k).slice(bookId.length + 1));
-    const quality = auditBook(questions, allMedia);
+    const quality = auditBook(questions, allMedia, referenced);
     res.unscorable.push(...quality.unscorable.map((q) => `${bp.title} / ${chapters.find((c) => c.id === q.chapterId)?.title ?? ""} / Q${q.number}: ${q.sourceId ?? q.id}`));
     res.noExplanation.push(...quality.noExplanation.map((q) => `${bp.title} / Q${q.number}`));
     res.unreferencedImages.push(...quality.unreferencedImages.map((n) => `${bp.title}: ${n}`));

@@ -6,6 +6,31 @@ const load = (f: string) => JSON.parse(readFileSync(new URL(`../samples/sample-b
 const opts = (fileName: string) => ({ fileName, numericAnswerBase: 1 as const });
 
 describe("normalizeBookJson", () => {
+  it("imports a chapter of short answers without making unscorable MCQs or exposing answer figures", () => {
+    const r = normalizeBookJson({ book_title: "Oral review", chapters: [{ title: "Vascular", qa_pairs: [
+      { number: 1, question: "Describe the scan ![](answer_fig1.png)", answer: "The source answer", question_images: ["question_1.png", "answer_2.png"], answer_images: ["answer_3.png"] },
+      { question: "Second?", answer: "Second answer", images: ["unknown.png"] },
+      { question: "Incomplete" }
+    ] }] }, opts("qa.json"));
+    const chapter = r.chapters[0];
+    expect(chapter.questions).toHaveLength(0);
+    expect(chapter.flashcards).toHaveLength(0);
+    expect(chapter.cases[0].kind).toBe("qa");
+    expect(chapter.cases[0].stages).toHaveLength(2);
+    expect(chapter.cases[0].stages[0].question).not.toContain("answer_fig1.png");
+    expect(chapter.cases[0].stages[0].media.map((m) => m.file)).toEqual(["question_1.png"]);
+    expect(chapter.cases[0].stages[0].answerMedia?.map((m) => m.file)).toEqual(["answer_3.png", "answer_2.png", "answer_fig1.png"]);
+    expect(chapter.cases[0].stages[1].answerMedia?.map((m) => m.file)).toEqual(["unknown.png"]);
+    expect(r.warnings).toHaveLength(1);
+  });
+
+  it("keeps answer-labelled clinical case figures behind the reveal", () => {
+    const r = normalizeBookJson({ cases: [{ title: "Case", presentation: "Clinical presentation", images: ["answer_final.png"], stages: [{ question: "What next?", images: ["answer_stage.png", "unknown.png"], answer: "Book answer" }] }] }, opts("case.json"));
+    const c = r.chapters[0].cases[0];
+    expect(c.presentationMedia).toEqual([]);
+    expect(c.stages[0].media).toEqual([]);
+    expect(c.stages[0].answerMedia?.map((m) => m.file)).toEqual(["answer_stage.png", "unknown.png", "answer_final.png"]);
+  });
   it("reads a book/chapter object with letter-keyed options", () => {
     const r = normalizeBookJson(load("01-vascular.json"), opts("01-vascular.json"));
     expect(r.bookTitle).toBe("Sample Neurosurgery Review");

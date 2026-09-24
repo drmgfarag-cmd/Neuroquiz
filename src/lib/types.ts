@@ -113,6 +113,8 @@ export interface CaseStage {
   question?: string;
   answer?: string;
   media: MediaRef[];
+  /** Figures shown only after revealing the answer. */
+  answerMedia?: MediaRef[];
 }
 
 export interface CaseScenario {
@@ -120,6 +122,8 @@ export interface CaseScenario {
   bookId?: string;
   chapterId?: string;
   title: string;
+  /** Book chapters of short-answer questions are read in the Cases area. */
+  kind?: "qa";
   presentation: string;
   presentationMedia: MediaRef[];
   stages: CaseStage[];

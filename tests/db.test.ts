@@ -79,6 +79,26 @@ describe("import → tag → search → quiz → sync", () => {
 });
 
 describe("book export", () => {
+  it("round-trips a short-answer book with separate question and answer figures", async () => {
+    const content = { book_title: "Oral review", chapters: [{ title: "Chapter 1", qa_pairs: [{ number: 1, question: "What does this show?", answer: "Book answer", question_images: ["question_1.png"], answer_images: ["answer_1.png"] }] }] };
+    const files: SourceFile[] = [
+      { path: "review/book.json", blob: new Blob([JSON.stringify(content)]) },
+      { path: "review/question_1.png", blob: new Blob(["question figure"]) },
+      { path: "review/answer_1.png", blob: new Blob(["answer figure"]) }
+    ];
+    const result = await executeImport(await planImport(files, "auto", 1));
+    expect(result).toMatchObject({ cases: 1, questions: 0, missingImages: [], unreferencedImages: [] });
+    const original = (await db.cases.toArray())[0];
+    expect(original.kind).toBe("qa");
+    const { blob, name } = await exportBookZip("oral-review");
+    await Promise.all(db.tables.map((t) => t.clear()));
+    const restored = await executeImport(await planImport(await collectFiles([new File([blob], name)]), "auto", 1));
+    expect(restored).toMatchObject({ cases: 1, missingImages: [], unreferencedImages: [] });
+    const copy = (await db.cases.toArray())[0];
+    expect(copy.kind).toBe("qa");
+    expect(copy.stages[0].media.map((m) => m.file)).toEqual(["question_1.png"]);
+    expect(copy.stages[0].answerMedia?.map((m) => m.file)).toEqual(["answer_1.png"]);
+  });
   it("round-trips a book through a ZIP with stable ids, images and tags", async () => {
     await executeImport(await planImport(sampleFiles(), "auto", 1));
     const before = await db.questions.toArray();

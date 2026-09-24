@@ -72,9 +72,10 @@ export async function exportBookZip(bookId: string): Promise<{ blob: Blob; name:
         .filter((c) => c.chapterId === ch.id)
         .map((c) => ({
           title: c.title,
+          ...(c.kind ? { kind: c.kind } : {}),
           presentation: c.presentation,
           presentation_media: refs(c.presentationMedia),
-          stages: c.stages.map((s) => ({ title: s.title, content: s.content, question: s.question, answer: s.answer, media: refs(s.media) })),
+          stages: c.stages.map((s) => ({ title: s.title, content: s.content, question: s.question, answer: s.answer, media: refs(s.media), answer_media: refs(s.answerMedia ?? []) })),
           discussion: c.discussion,
           tags: c.sourceTags,
           annotation: tag(c.id)

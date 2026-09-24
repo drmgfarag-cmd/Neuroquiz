@@ -38,7 +38,7 @@ export interface BookQuality {
 }
 
 /** Inspect media keys only; callers need not load image blobs into memory. */
-export function auditBook(questions: Question[], mediaNames: string[]): BookQuality {
+export function auditBook(questions: Question[], mediaNames: string[], additionalRefs: Iterable<string> = []): BookQuality {
   const names = new Set(mediaNames.map(normaliseFileName));
   const bases = new Set([...names].map(stripExt));
   const referenced = new Set<string>();
@@ -52,6 +52,12 @@ export function auditBook(questions: Question[], mediaNames: string[]): BookQual
       if (!names.has(n) && !bases.has(stripExt(n))) missing.add(`${q.number}: ${f}`);
     }
     for (const m of q.stemMedia) if (imageRole(m.file) === "answer") conflicting.add(`${q.number}: answer image shown with question: ${m.file}`);
+  }
+  for (const f of additionalRefs) {
+    if (/^(?:data:|https?:|blob:)/i.test(f)) continue;
+    const n = normaliseFileName(f);
+    referenced.add(stripExt(n));
+    if (!names.has(n) && !bases.has(stripExt(n))) missing.add(f);
   }
   return {
     unscorable: questions.filter((q) => unscorableReason(q)),

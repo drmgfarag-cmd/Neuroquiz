@@ -87,10 +87,12 @@ export default function ImportPage() {
           a.q += c.questions.length;
           a.f += c.flashcards.length;
           a.c += c.cases.length;
+          a.clinical += c.cases.filter((x) => x.kind !== "qa").length;
+          a.qa += c.cases.filter((x) => x.kind === "qa").reduce((n, x) => n + x.stages.length, 0);
         });
         return a;
       },
-      { ch: 0, q: 0, f: 0, c: 0 }
+      { ch: 0, q: 0, f: 0, c: 0, clinical: 0, qa: 0 }
     );
 
   return (
@@ -98,7 +100,7 @@ export default function ImportPage() {
       <h1>Import books</h1>
       <div className="card stack">
         <p className="muted small" style={{ margin: 0 }}>
-          Select JSON files and their image files (or a whole folder, or a ZIP). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name.
+          Select JSON files and their image files (or a whole folder, or a ZIP). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name. Short-answer books with <code>qa_pairs</code> appear in Cases & Q&A with answers hidden until reveal.
         </p>
         <div
           className={`dropzone ${over ? "over" : ""}`}
@@ -196,7 +198,7 @@ export default function ImportPage() {
                     <input type="text" value={titles[b.key] ?? ""} onChange={(e) => setTitles({ ...titles, [b.key]: e.target.value })} />
                   </label>
                   <div className="small">
-                    {b.sources.length} file(s) · {c.ch} chapters · <strong>{c.q}</strong> questions · {c.f} flashcards · {c.c} cases · {b.images.length} images
+                    {b.sources.length} file(s) · {c.ch} chapters · <strong>{c.q}</strong> test questions · {c.qa} short answers · {c.f} flashcards · {c.clinical} clinical cases · {b.images.length} images
                   </div>
                   <details>
                     <summary className="small clickable">Chapters & files</summary>
