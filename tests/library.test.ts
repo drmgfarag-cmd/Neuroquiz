@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { collectFiles, executeImport, planImport } from "../src/import/importer";
 import { db } from "../src/lib/db";
 import { formatOf } from "../src/lib/grading";
+import { auditBook } from "../src/lib/quality";
 
 const LIB = new URL("../library/", import.meta.url);
 const list: { id: string; title: string; source: string | string[]; questionImages?: string }[] = existsSync(new URL("books.json", LIB))
@@ -71,6 +72,7 @@ describe.skipIf(!list.length)("built-in library", () => {
         expect(hemangioblastoma?.options.find((o) => o.key === "B")?.text).toBe("Hemangioblastoma");
         expect(hemangioblastoma?.answer).toEqual(["B"]);
         expect(res.unscorable).toEqual([]);
+        expect(auditBook(qs, media.map((m) => m.name)).sourceWarnings.length).toBeGreaterThanOrEqual(2);
       }
     }, 120_000);
   }
