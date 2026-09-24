@@ -28,7 +28,7 @@ import MockExam from "./pages/MockExam";
 import ImageAtlas from "./pages/ImageAtlas";
 import ReferencePage from "./components/Reference";
 import { SECTION_HUE } from "./lib/colors";
-import { resumeProfile } from "./lib/profiles";
+import { activeProfile } from "./lib/profiles";
 
 const NAV = [
   { to: "/", label: "Home", icon: Icon.home, end: true, mobile: true },
@@ -55,17 +55,11 @@ export default function App() {
   const [setup, setSetup] = useState("");
   const [profileName, setProfileName] = useState("My profile");
   const [profileId, setProfileId] = useState("");
-  useEffect(() => { resumeProfile().then((p) => { setProfileName(p.name); setProfileId(p.id); }); }, []);
+  useEffect(() => { activeProfile().then((p) => { setProfileName(p.name); setProfileId(p.id); }); }, []);
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
     const channel = new BroadcastChannel("neuroquiz-profile");
-    channel.onmessage = (event) => {
-      // sessionStorage belongs to each tab; carry Guest's session marker to
-      // other open tabs before they reload the shared IndexedDB profile.
-      if (event.data === "guest") sessionStorage.setItem("neuroquiz.guestSession", "1");
-      else sessionStorage.removeItem("neuroquiz.guestSession");
-      location.reload();
-    };
+    channel.onmessage = () => location.reload();
     return () => channel.close();
   }, []);
 
