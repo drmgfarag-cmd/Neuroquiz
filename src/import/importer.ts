@@ -4,6 +4,7 @@ import { db } from "../lib/db";
 import type { Annotation, Book, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question } from "../lib/types";
 import { hash, IMAGE_EXT, normaliseFileName, slugify } from "../lib/util";
 import { normalizeBookJson, type ParsedFile } from "./normalize";
+import { auditBook } from "../lib/quality";
 
 /** A file from a picker, a dropped folder or a zip entry. */
 export interface SourceFile {
@@ -163,6 +164,10 @@ export async function planImport(
   for (const img of images) {
     const folder = folderOf(img.path);
     const owners = plans.filter((b) => b.sources.some((s) => s.folder && (folder === s.folder || folder.startsWith(s.folder + "/"))));
+    if (!owners.length && plans.length > 1) {
+      errors.push(`${img.path}: image ownership is ambiguous across books; place it inside its book folder or import that book separately`);
+      continue;
+    }
     (owners.length ? owners : plans).forEach((b) => b.images.push(img));
   }
   return { books: plans, images, errors };
@@ -177,6 +182,10 @@ export interface ImportResult {
   images: number;
   missingImages: string[];
   warnings: string[];
+  unscorable: string[];
+  noExplanation: string[];
+  unreferencedImages: string[];
+  conflictingImageRoles: string[];
   /** answer images the JSON didn't list, attached to their question by file name */
   linked?: number;
   /** questions whose progress moved to a new id (the source text changed) */
@@ -196,7 +205,7 @@ function inlineRefs(text: string): string[] {
 }
 
 export async function executeImport(plan: ImportPlan, onProgress?: (msg: string) => void): Promise<ImportResult> {
-  const res: ImportResult = { books: 0, chapters: 0, questions: 0, flashcards: 0, cases: 0, images: 0, missingImages: [], warnings: [] };
+  const res: ImportResult = { books: 0, chapters: 0, questions: 0, flashcards: 0, cases: 0, images: 0, missingImages: [], warnings: [], unscorable: [], noExplanation: [], unreferencedImages: [], conflictingImageRoles: [] };
   const now = Date.now();
 
   for (const bp of plan.books) {
@@ -258,6 +267,11 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       const name = normaliseFileName(img.path);
       return { id: `${bookId}/${name}`, bookId, name, blob: img.blob };
     });
+    const names = new Set<string>();
+    for (const m of media) {
+      if (names.has(m.name)) throw new Error(`Ambiguous image name in “${bp.title}”: ${m.name}. Rename or separate same-named files before importing.`);
+      names.add(m.name);
+    }
     res.linked = (res.linked ?? 0) + linkOrphanAnswerImages(media, questions, referenced);
     const available = new Set(media.map((m) => m.name));
     const availableNoExt = new Set(media.map((m) => m.name.replace(/\.[a-z0-9]+$/, "")));
@@ -320,6 +334,12 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
     res.flashcards += flashcards.length;
     res.cases += cases.length;
     res.images += media.length;
+    const allMedia = (await db.media.where("bookId").equals(bookId).primaryKeys()).map((k) => String(k).slice(bookId.length + 1));
+    const quality = auditBook(questions, allMedia);
+    res.unscorable.push(...quality.unscorable.map((q) => `${bp.title} / ${chapters.find((c) => c.id === q.chapterId)?.title ?? ""} / Q${q.number}: ${q.sourceId ?? q.id}`));
+    res.noExplanation.push(...quality.noExplanation.map((q) => `${bp.title} / Q${q.number}`));
+    res.unreferencedImages.push(...quality.unreferencedImages.map((n) => `${bp.title}: ${n}`));
+    res.conflictingImageRoles.push(...quality.conflictingImageRoles.map((n) => `${bp.title}: ${n}`));
   }
   return res;
 }
