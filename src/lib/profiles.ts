@@ -61,6 +61,11 @@ export async function switchProfile(targetId: string): Promise<void> {
     if (target.guest) sessionStorage.setItem("neuroquiz.guestSession", "1");
     else sessionStorage.removeItem("neuroquiz.guestSession");
   }
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("neuroquiz-profile");
+    channel.postMessage(target.id);
+    channel.close();
+  }
   // Invalidate all live queries and in-memory session state after the atomic swap.
   location.reload();
 }
