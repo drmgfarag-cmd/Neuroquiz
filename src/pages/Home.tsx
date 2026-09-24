@@ -18,8 +18,8 @@ export default function Home() {
       db.sessions.orderBy("startedAt").reverse().limit(50).toArray(),
       allFlashcards(),
       db.cardStates.toArray(),
-      db.cases.count(),
-      db.userCases.count()
+      db.cases.toArray(),
+      db.userCases.toArray()
     ]);
     const seen = states.filter((s) => s.timesSeen > 0);
     const correct = seen.reduce((n, s) => n + s.timesCorrect, 0);
@@ -40,7 +40,7 @@ export default function Home() {
     let streak = 0;
     for (let d = active.has(day(now)) ? now : now - 86_400_000; active.has(day(d)); d -= 86_400_000) streak++;
     const today = states.filter((s) => s.lastSeenAt && day(s.lastSeenAt) === day(now)).length;
-    return { streak, today, books, questions, seen: seen.length, correct, total, dueQ, dueCards, cards: cards.length, unfinished, cases: cases + userCases, flagged: states.filter((s) => s.flagged).length };
+    return { streak, today, books, questions, seen: seen.length, correct, total, dueQ, dueCards, cards: cards.length, unfinished, cases: cases.filter((c) => c.kind !== "qa").length + userCases.filter((c) => c.kind !== "qa").length, qa: [...cases, ...userCases].filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0), flagged: states.filter((s) => s.flagged).length };
   });
 
   if (!data) return null;
@@ -82,7 +82,7 @@ export default function Home() {
         <span className="hero-kicker">YOUR STUDY DESK</span>
         <h1>{greeting}. Ready for a focused session?</h1>
         <div className="sub">
-          {data.questions.toLocaleString()} questions in {data.books} books · {pct(data.seen, data.questions)} done so far
+          {data.questions.toLocaleString()} test questions · {data.qa.toLocaleString()} short answers · {data.books} books
         </div>
         <div className="hero-stats">
           <span className="pill">🔥 {data.streak} day{data.streak === 1 ? "" : "s"} streak</span>
@@ -169,7 +169,7 @@ export default function Home() {
           <Icon.timer /> Mock exam
         </Link>
         <Link className="btn" to="/cases">
-          <Icon.cases /> Cases & Q&A ({data.cases})
+          <Icon.cases /> Cases & Q&A ({data.cases} cases · {data.qa.toLocaleString()} answers)
         </Link>
       </div>
 

@@ -54,6 +54,13 @@
       "source": "sources/INBR.zip.001",
       "webMaxPx": 720,
       "webQuality": 38
+    },
+    {
+      "id": "neurosurgery-rounds-2e",
+      "title": "Neurosurgery Rounds: Questions and Answers, 2nd Edition",
+      "source": "sources/RoundsQA2.zip.001",
+      "webMaxPx": 1100,
+      "webQuality": 60
     }
   ]
 }

@@ -180,6 +180,8 @@ export interface ImportResult {
   questions: number;
   flashcards: number;
   cases: number;
+  shortAnswers: number;
+  clinicalCases: number;
   images: number;
   missingImages: string[];
   warnings: string[];
@@ -206,7 +208,7 @@ function inlineRefs(text: string): string[] {
 }
 
 export async function executeImport(plan: ImportPlan, onProgress?: (msg: string) => void): Promise<ImportResult> {
-  const res: ImportResult = { books: 0, chapters: 0, questions: 0, flashcards: 0, cases: 0, images: 0, missingImages: [], warnings: [], unscorable: [], noExplanation: [], unreferencedImages: [], conflictingImageRoles: [] };
+  const res: ImportResult = { books: 0, chapters: 0, questions: 0, flashcards: 0, cases: 0, shortAnswers: 0, clinicalCases: 0, images: 0, missingImages: [], warnings: [], unscorable: [], noExplanation: [], unreferencedImages: [], conflictingImageRoles: [] };
   const now = Date.now();
 
   for (const bp of plan.books) {
@@ -292,6 +294,8 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       flashcardCount: flashcards.length,
       caseCount: cases.length
     };
+    res.shortAnswers += cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0);
+    res.clinicalCases += cases.filter((c) => c.kind !== "qa").length;
 
     const previous = await previousQuestions(bookId);
 

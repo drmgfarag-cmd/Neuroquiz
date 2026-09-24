@@ -17,11 +17,12 @@ export default function Library() {
   const nav = useNavigate();
   const [exporting, setExporting] = useState("");
   const data = useLiveQuery(async () => {
-    const [books, chapters, index, states] = await Promise.all([
+    const [books, chapters, index, states, cases] = await Promise.all([
       db.books.orderBy("title").toArray(),
       db.chapters.toArray(),
       questionChapterIndex(),
-      db.questionStates.toArray()
+      db.questionStates.toArray(),
+      db.cases.toArray()
     ]);
     const st = new Map(states.map((s) => [s.questionId, s]));
     const perChapter = new Map<string, { total: number; seen: number; correct: number }>();
@@ -35,7 +36,11 @@ export default function Library() {
       }
       perChapter.set(chapterId, c);
     }
-    return { books, chapters, perChapter };
+    const perBookQa = new Map<string, number>();
+    const perBookClinical = new Map<string, number>();
+    for (const c of cases) if (c.bookId && c.kind === "qa") perBookQa.set(c.bookId, (perBookQa.get(c.bookId) ?? 0) + c.stages.length);
+    for (const c of cases) if (c.bookId && c.kind !== "qa") perBookClinical.set(c.bookId, (perBookClinical.get(c.bookId) ?? 0) + 1);
+    return { books, chapters, perChapter, perBookQa, perBookClinical };
   });
 
   const start = async (mode: QuizMode, title: string, bookIds: string[], chapterIds: string[]) => {
@@ -69,6 +74,8 @@ export default function Library() {
       <ProblemReports />
       {data.books.map((b) => {
         const chs = data.chapters.filter((c) => c.bookId === b.id).sort((a, z) => a.order - z.order);
+        const qaCount = data.perBookQa.get(b.id) ?? 0;
+        const clinicalCount = data.perBookClinical.get(b.id) ?? 0;
         const tot = chs.reduce(
           (acc, c) => {
             const p = data.perChapter.get(c.id);
@@ -86,16 +93,17 @@ export default function Library() {
               <div>
                 <BookTitle id={b.id} title={b.title} />
                 <div className="muted small">
-                  {b.questionCount} questions · {b.flashcardCount} flashcards · {b.caseCount} cases · {chs.length} chapter{chs.length === 1 ? "" : "s"} · {pct(tot.seen, tot.total)} used
+                  {b.questionCount} test questions · {qaCount} short answers · {b.flashcardCount} flashcards · {clinicalCount} cases · {chs.length} section{chs.length === 1 ? "" : "s"} · {pct(tot.seen, tot.total)} test questions used
                 </div>
               </div>
               <div className="row">
-                <button className="primary small" onClick={() => start("tutor", b.title, [b.id], [])}>
+                <button className="primary small" disabled={!b.questionCount} onClick={() => start("tutor", b.title, [b.id], [])}>
                   Tutor
                 </button>
-                <button className="small" onClick={() => start("review", `Review – ${b.title}`, [b.id], [])}>
+                <button className="small" disabled={!b.questionCount} onClick={() => start("review", `Review – ${b.title}`, [b.id], [])}>
                   Read
                 </button>
+                {!!qaCount && <Link className="btn small" to="/cases">Read Q&A</Link>}
                 <button
                   className="small"
                   disabled={!!exporting}
@@ -167,11 +175,13 @@ export default function Library() {
 /** Derived from the imported records, so fixing or re-importing a question updates this report. */
 function BookQualityReport({ bookId }: { bookId: string }) {
   const report = useLiveQuery(async () => {
-    const [questions, mediaKeys] = await Promise.all([
+    const [questions, mediaKeys, cases] = await Promise.all([
       db.questions.where("bookId").equals(bookId).toArray(),
-      db.media.where("bookId").equals(bookId).primaryKeys()
+      db.media.where("bookId").equals(bookId).primaryKeys(),
+      db.cases.where("bookId").equals(bookId).toArray()
     ]);
-    return auditBook(questions, mediaKeys.map((k) => String(k).slice(bookId.length + 1)));
+    const caseRefs = cases.flatMap((c) => [...c.presentationMedia.map((m) => m.file), ...c.stages.flatMap((s) => [...s.media, ...(s.answerMedia ?? [])].map((m) => m.file))]);
+    return auditBook(questions, mediaKeys.map((k) => String(k).slice(bookId.length + 1)), caseRefs);
   }, [bookId]);
   if (!report) return null;
   const count = report.unscorable.length + report.sourceWarnings.length + report.missingImages.length + report.unreferencedImages.length + report.conflictingImageRoles.length;

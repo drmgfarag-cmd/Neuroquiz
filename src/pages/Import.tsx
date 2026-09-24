@@ -247,7 +247,7 @@ export default function ImportPage() {
             Import complete
           </h2>
           <p>
-            {result.books} book(s), {result.chapters} chapters, {result.questions} questions, {result.flashcards} flashcards, {result.cases} cases, {result.images} images.
+            {result.books} book(s), {result.chapters} sections, {result.questions} test questions, {result.shortAnswers} short answers, {result.flashcards} flashcards, {result.clinicalCases} clinical cases, {result.images} images.
           </p>
           {!!result.remapped && <p className="small">{result.remapped} question(s) changed in the source; your progress on them was kept.</p>}
           <p className="small muted">Questions were given quick offline topic tags. For accurate context-aware categorisation run AI tagging.</p>

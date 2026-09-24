@@ -43,6 +43,7 @@ describe.skipIf(!list.length)("built-in library", () => {
       plan.books[0].id = book.id;
       const res = await executeImport(plan);
       const qs = await db.questions.toArray();
+      const cases = await db.cases.toArray();
       const types: Record<string, number> = {};
       qs.forEach((q) => (types[formatOf(q)] = (types[formatOf(q)] ?? 0) + 1));
       const noExplanation = qs.filter((q) => !q.explanation.trim()).length;
@@ -50,7 +51,10 @@ describe.skipIf(!list.length)("built-in library", () => {
       const media = await db.media.toArray();
       // references may omit the extension ("…_figQ_p0001_01")
       const base = (f: string) => f.split("/").pop()!.toLowerCase().replace(/\.[a-z0-9]+$/, "");
-      const used = new Set(qs.flatMap((q) => [...q.stemMedia, ...q.explanationMedia, ...q.options.flatMap((o) => o.media)].map((m) => base(m.file))));
+      const used = new Set([
+        ...qs.flatMap((q) => [...q.stemMedia, ...q.explanationMedia, ...q.options.flatMap((o) => o.media)]),
+        ...cases.flatMap((c) => [...c.presentationMedia, ...c.stages.flatMap((s) => [...s.media, ...(s.answerMedia ?? [])])])
+      ].map((m) => base(m.file)));
       const unused = media.filter((m) => !used.has(base(m.name))).map((m) => m.name);
       console.log(
         [
@@ -64,7 +68,7 @@ describe.skipIf(!list.length)("built-in library", () => {
           `   unscorable: ${res.unscorable.length} · unreferenced images: ${res.unreferencedImages.length} · role conflicts: ${res.conflictingImageRoles.length}`
         ].join("\n")
       );
-      expect(res.questions).toBeGreaterThan(0);
+      expect(res.questions + cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0)).toBeGreaterThan(0);
       expect(res.missingImages).toEqual([]);
       expect(res.conflictingImageRoles).toEqual([]);
       if (book.id === "05") {
@@ -73,6 +77,16 @@ describe.skipIf(!list.length)("built-in library", () => {
         expect(hemangioblastoma?.answer).toEqual(["B"]);
         expect(res.unscorable).toEqual([]);
         expect(auditBook(qs, media.map((m) => m.name)).sourceWarnings.length).toBeGreaterThanOrEqual(2);
+      }
+      if (book.id === "neurosurgery-rounds-2e") {
+        expect(cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0)).toBe(1736);
+        expect(cases.filter((c) => c.kind !== "qa")).toHaveLength(30);
+        expect(res.unreferencedImages).toEqual([]);
+        expect(unused).toEqual([]);
+        const neuro = cases.find((c) => c.kind === "qa" && c.title.includes("Vasculature"))!;
+        expect(neuro.stages[1].question).toContain("major branches of the ECA");
+        expect(neuro.stages[1].answerMedia?.[0]?.file).toBe("fig_1_1.png");
+        expect(neuro.stages[1].media).toEqual([]);
       }
     }, 120_000);
   }

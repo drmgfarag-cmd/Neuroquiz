@@ -60,7 +60,7 @@ export default function Cases() {
   if (!data) return null;
   const f = filter.toLowerCase();
   const list = data.cases.filter((c) => (kind === "all" || (c.kind === "qa" ? "qa" : "case") === kind) && (!f || c.title.toLowerCase().includes(f) || c.presentation.toLowerCase().includes(f) || c.stages.some((s) => s.question?.toLowerCase().includes(f)) || data.anns.get(c.id)?.topic.toLowerCase().includes(f)));
-  const qaCount = data.cases.filter((c) => c.kind === "qa").length;
+  const qaCount = data.cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0);
 
   return (
     <div>
@@ -88,7 +88,7 @@ export default function Cases() {
       </div>
 
       <div className="card">
-        <div className="row between" style={{ marginBottom: 12 }}><div className="segmented" role="group" aria-label="Content type">{([ ["all", "All"], ["case", "Clinical cases"], ["qa", `Q&A books (${qaCount})`] ] as const).map(([value, label]) => <button key={value} className={kind === value ? "active" : ""} aria-pressed={kind === value} onClick={() => setKind(value)}>{label}</button>)}</div><input type="search" aria-label="Search cases and questions" placeholder="Search cases & questions…" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
+        <div className="row between" style={{ marginBottom: 12 }}><div className="segmented" role="group" aria-label="Content type">{([ ["all", "All"], ["case", "Clinical cases"], ["qa", `Short answers (${qaCount})`] ] as const).map(([value, label]) => <button key={value} className={kind === value ? "active" : ""} aria-pressed={kind === value} onClick={() => setKind(value)}>{label}</button>)}</div><input type="search" aria-label="Search cases and questions" placeholder="Search cases & questions…" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
         {!list.length && <p className="muted">No matching items. Import a Q&A book or generate a clinical case.</p>}
         {list.map((c) => (
           <div className="list-item" key={c.id}>
