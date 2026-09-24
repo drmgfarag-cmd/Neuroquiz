@@ -188,7 +188,7 @@ export default function QuizSetup() {
               );
             })}
           </div>
-          <p className="small muted">Nothing ticked = all books. Ticking chapters narrows to those chapters.</p>
+          <p className="small muted">Nothing ticked = all books. Selected books include every chapter; selected chapters from other books are included too.</p>
         </div>
       )}
 
