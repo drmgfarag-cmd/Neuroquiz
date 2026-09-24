@@ -44,6 +44,13 @@ answer away (labelled diagrams, as in book 09), add
 when its text refers to it ("shown below", "pictured", "an MRI was
 performed"…). Other images move to the answer explanation.
 
+Images: the Android and Windows apps ship every image as the original file,
+untouched. Only the web preview, which has a 64 MB limit, gets smaller WebP
+copies (at most 1200 px). A book with many large scans can be squeezed further
+for the web preview only, with `"webMaxPx": 720, "webQuality": 38` (as for
+INBR). Standalone answer-key files (`*answer_key*.json`) are skipped when the
+questions already carry their answers.
+
 ## Waiting for files
 
 - `sources/05_images.zip.001/.002`: images for book 05 (10 chapters plus a

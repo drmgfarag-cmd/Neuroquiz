@@ -52,7 +52,7 @@ const MIME: Record<string, string> = {
 };
 
 /** Reports that travel with an extraction but hold no questions (audit, OCR dumps). */
-const NOT_A_BOOK = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest)[^/]*\.json$|contact_sheet/i;
+const NOT_A_BOOK = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest|answer_key)[^/]*\.json$|contact_sheet/i;
 
 function folderOf(path: string): string {
   const parts = path.replace(/\\/g, "/").split("/");
@@ -177,6 +177,8 @@ export interface ImportResult {
   images: number;
   missingImages: string[];
   warnings: string[];
+  /** answer images the JSON didn't list, attached to their question by file name */
+  linked?: number;
   /** questions whose progress moved to a new id (the source text changed) */
   remapped?: number;
 }
@@ -256,6 +258,7 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       const name = normaliseFileName(img.path);
       return { id: `${bookId}/${name}`, bookId, name, blob: img.blob };
     });
+    res.linked = (res.linked ?? 0) + linkOrphanAnswerImages(media, questions, referenced);
     const available = new Set(media.map((m) => m.name));
     const availableNoExt = new Set(media.map((m) => m.name.replace(/\.[a-z0-9]+$/, "")));
     const existing = new Set((await db.media.where("bookId").equals(bookId).primaryKeys()).map((k) => String(k).slice(bookId.length + 1)));
@@ -319,6 +322,33 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
     res.images += media.length;
   }
   return res;
+}
+
+/**
+ * Explanation figures/tables the JSON forgot to list ("Refer to Table 1.41A"
+ * with no answer_images) but that are in the book's images, named after the
+ * question: "…_ch1_q41_tblA.png", "…_ch1_q79-83_figA.png" (chapter 1,
+ * questions 79–83). Attached to the explanation of each question in range.
+ */
+export function linkOrphanAnswerImages(media: MediaFile[], questions: Question[], referenced: Set<string>): number {
+  const stem = (n: string) => normaliseFileName(n).replace(/\.[a-z0-9]+$/, "");
+  const used = new Set(Array.from(referenced, stem));
+  const bySource = new Map(questions.filter((q) => q.sourceId).map((q) => [q.sourceId!.toLowerCase(), q]));
+  let linked = 0;
+  for (const m of media) {
+    const name = stem(m.name);
+    if (used.has(name)) continue;
+    const x = /(?:^|_)ch0*(\d+)_q0*(\d+)(?:-0*(\d+))?_(?:fig|tbl|table)a(?:_?\d+)?$/i.exec(name);
+    if (!x) continue;
+    const [c, from, to] = [x[1], Number(x[2]), Number(x[3] ?? x[2])];
+    for (let n = from; n <= to && n - from < 30; n++) {
+      const q = bySource.get(`${c}.${n}`);
+      if (!q || q.explanationMedia.some((e) => stem(e.file) === name)) continue;
+      q.explanationMedia = [...q.explanationMedia, { file: m.name }];
+      linked++;
+    }
+  }
+  return linked;
 }
 
 interface PrevQuestion {

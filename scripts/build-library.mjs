@@ -6,14 +6,14 @@
  *   public/library/index.json            list of books + files + version
  *   public/library/<id>/<files…>         JSON and images, unzipped
  *
- * Photos and scans are resized to at most 2000 px and stored as WebP, which
- * cuts the library to a fraction of its size (set LIBRARY_ORIGINAL_IMAGES=1
- * to ship the original files). Books reference images by name, and the app
- * finds "fig1.png" when the file is "fig1.webp".
+ * The Android and Windows apps ship the original image files, untouched.
  *
  * LIBRARY_PACK=1 (web preview build): hosts that limit the number of files
- * get each book's images packed into a few "pack-N.json" files of data URIs,
- * at a smaller size (1600 px).
+ * and the total size get each book's images resized (at most 1200 px, or the
+ * book's "webMaxPx"), stored as WebP and packed into a few "pack-N.json" files
+ * of data URIs. Books reference images by name, and the app finds "fig1.png"
+ * when the file is "fig1.webp". LIBRARY_OPTIMIZE_IMAGES=1 also shrinks the
+ * images of an app build (at most 2000 px).
  *
  * Runs automatically before `npm run build` / `npm run dev`.
  */
@@ -29,7 +29,7 @@ const libDir = join(root, "library");
 const outDir = join(root, "public", "library");
 const KEEP = /\.(json|png|jpe?g|gif|webp|svg|avif)$/i;
 // reports that travel with an extraction but hold no questions
-const SKIP = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest)[^/]*\.json$|contact_sheet/i;
+const SKIP = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest|answer_key)[^/]*\.json$|contact_sheet/i;
 
 /**
  * Reads a source file. "book.zip.001" means a ZIP split into numbered parts
@@ -55,22 +55,25 @@ if (!existsSync(listFile)) {
 }
 const { books } = JSON.parse(readFileSync(listFile, "utf8"));
 const index = { books: [] };
-const OPTIMIZE = !process.env.LIBRARY_ORIGINAL_IMAGES;
 const PACK = !!process.env.LIBRARY_PACK;
-const MAX_PX = PACK ? 1600 : 2000;
-const QUALITY = PACK ? 78 : 82;
+// app builds keep the original images; only the size-limited web preview shrinks them
+const OPTIMIZE = PACK || !!process.env.LIBRARY_OPTIMIZE_IMAGES;
+const MAX_PX = PACK ? 1200 : 2000;
+const QUALITY = PACK ? 62 : 82;
 const PACK_BYTES = 11e6; // stay well under per-file limits
 const stats = { before: 0, after: 0 };
 
 /** Resize/re-encode a raster image; keeps the original when that is smaller. */
-async function optimise(rel, data) {
+async function optimise(rel, data, book) {
+  const maxPx = (PACK && book.webMaxPx) || MAX_PX;
+  const quality = (PACK && book.webQuality) || QUALITY;
   stats.before += data.length;
   if (!OPTIMIZE || !/\.(png|jpe?g|bmp|tiff?)$/i.test(rel)) {
     stats.after += data.length;
     return [rel, data];
   }
   try {
-    const out = await sharp(data).rotate().resize({ width: MAX_PX, height: MAX_PX, fit: "inside", withoutEnlargement: true }).webp({ quality: QUALITY }).toBuffer();
+    const out = await sharp(data).rotate().resize({ width: maxPx, height: maxPx, fit: "inside", withoutEnlargement: true }).webp({ quality }).toBuffer();
     if (out.length < data.length) {
       stats.after += out.length;
       return [rel.replace(/\.[a-z]+$/i, ".webp"), out];
@@ -113,7 +116,7 @@ for (const book of books) {
       for (const entry of Object.values(zip.files)) {
         if (entry.dir || /(^|\/)(__MACOSX|\.)/.test(entry.name) || !KEEP.test(entry.name) || SKIP.test(entry.name)) continue;
         const data = await entry.async("nodebuffer");
-        write(...(/\.json$/i.test(entry.name) ? [entry.name, data] : await optimise(entry.name, data)));
+        write(...(/\.json$/i.test(entry.name) ? [entry.name, data] : await optimise(entry.name, data, book)));
       }
     } else write(posix.basename(src), data);
   }

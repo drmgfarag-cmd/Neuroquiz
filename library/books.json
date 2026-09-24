@@ -21,7 +21,9 @@
       "source": [
         "sources/05.json",
         "sources/05_images.zip.001"
-      ]
+      ],
+      "webMaxPx": 900,
+      "webQuality": 45
     },
     {
       "id": "07",
@@ -31,7 +33,9 @@
     {
       "id": "08",
       "title": "Neuroanatomy Review (Book 08)",
-      "source": "sources/08.zip.001"
+      "source": "sources/08.zip.001",
+      "webMaxPx": 1000,
+      "webQuality": 50
     },
     {
       "id": "09",
@@ -43,6 +47,13 @@
       "id": "npqa2",
       "title": "Neurosurgery Practice Questions and Answers, 2nd Edition",
       "source": "sources/NPQA2.zip"
+    },
+    {
+      "id": "inbr",
+      "title": "Intensive Neurosurgery Board Review (INBR)",
+      "source": "sources/INBR.zip.001",
+      "webMaxPx": 720,
+      "webQuality": 38
     }
   ]
 }

@@ -1033,7 +1033,9 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
     // a chapter holding several sections (a 5-section practice exam) is split by section
     const sectionOf = (o: Obj) => {
       const v = pick(o, ["section_id", "section_name"]);
-      return typeof v === "string" && v.trim() ? v.trim() : undefined;
+      // "EMI" / "SBA" sections name a question format, not a topic
+      if (typeof v !== "string" || !v.trim() || /^(emi|emq|sba|bof|mcqs?|mtf|t\/?f|true.?false|multi(ple)?|matching|saq|short.?answer)$/i.test(v.trim())) return undefined;
+      return v.trim();
     };
     const sections = new Set(list.filter(isObj).map((o) => sectionOf(o as Obj)).filter(Boolean));
     const splitSections = sections.size >= 2;
@@ -1043,7 +1045,7 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
       const sec = splitSections ? sectionOf(o) : undefined;
       if (sec && sec !== name) name = `${name} – ${sec}`;
       if (name === chapter.title) return chapter;
-      if (!groups.has(name)) groups.set(name, emptyChapter(name));
+      if (!groups.has(name)) groups.set(name, { ...emptyChapter(name), ...(chapter.sortKey !== undefined ? { sortKey: chapter.sortKey } : {}) });
       return groups.get(name)!;
     };
     list.flatMap((x) => (isObj(x) ? expandParts(x) : [x])).forEach((item, i) => {

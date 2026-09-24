@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { exportBookZip } from "../src/import/exporter";
-import { collectFiles, executeImport, planImport, type SourceFile } from "../src/import/importer";
+import { collectFiles, executeImport, linkOrphanAnswerImages, planImport, type SourceFile } from "../src/import/importer";
 import { normalizeBookJson } from "../src/import/normalize";
 import { saveCorrection } from "../src/lib/corrections";
 import { db } from "../src/lib/db";
@@ -163,5 +163,22 @@ describe("question images printed on the question page", () => {
   it("leaves other books alone", () => {
     const [a] = normalizeBookJson({ ...book, question_images_policy: undefined }, { fileName: "b.json", numericAnswerBase: 1 }).chapters[0].questions;
     expect(a.stemMedia).toHaveLength(1);
+  });
+});
+
+describe("INBR-style books", () => {
+  it("doesn't split a chapter by format-label sections (EMI / SBA)", () => {
+    const q = (id: string, section_id: string) => ({ question_id: id, section_id, question: `Q ${id}?`, answers: { A: "a", B: "b" }, correct_answer: "A" });
+    const r = normalizeBookJson({ chapter_id: "6", chapter_name: "Neurosurgery", questions: [q("6.1", "EMI"), q("6.2", "SBA")] }, { fileName: "ch06.json", numericAnswerBase: 1 });
+    expect(r.chapters.map((c) => [c.title, c.questions.length, c.sortKey])).toEqual([["Neurosurgery", 2, 6]]);
+  });
+
+  it("attaches unlisted explanation figures to their questions by file name", () => {
+    const q = (sourceId: string) => ({ sourceId, explanationMedia: [] as { file: string }[] }) as unknown as Question;
+    const qs = [q("1.41"), q("1.79"), q("1.80"), q("1.81"), q("2.41")];
+    const media = ["inbr_ch1_q41_tbla.png", "inbr_ch1_q79-80_figa.png", "inbr_ch1_q14_figa.png", "inbr_ch1_q81_figq.png"].map((name) => ({ id: name, bookId: "b", name, blob: new Blob() }));
+    const n = linkOrphanAnswerImages(media, qs, new Set(["images/answer/INBR_ch1_q14_figA.png"]));
+    expect(n).toBe(3);
+    expect(qs.map((x) => x.explanationMedia.map((m) => m.file))).toEqual([["inbr_ch1_q41_tbla.png"], ["inbr_ch1_q79-80_figa.png"], ["inbr_ch1_q79-80_figa.png"], [], []]);
   });
 });
