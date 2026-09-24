@@ -7,6 +7,7 @@ import { DialogHost } from "./components/Dialog";
 import { closeOpenViewer } from "./components/ImageViewer";
 import { installBackButton, requestPersistentStorage, useOnline, webPreview } from "./lib/platform";
 import { onPwaEvent, applyPwaUpdate } from "./pwa";
+import { installBundledIfEmpty } from "./lib/library";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
 import ImportPage from "./pages/Import";
@@ -41,6 +42,14 @@ export default function App() {
   const settings = useSettings();
   const online = useOnline();
   const [pwa, setPwa] = useState<"" | "offline-ready" | "update">("");
+  const [setup, setSetup] = useState("");
+
+  // First launch: copy the books that ship with the app into the library.
+  useEffect(() => {
+    installBundledIfEmpty(setSetup)
+      .catch((e) => setSetup(`Could not set up the built-in books: ${(e as Error).message}`))
+      .then((ran) => ran !== undefined && setSetup(""));
+  }, []);
 
   useEffect(() => {
     requestPersistentStorage();
@@ -90,6 +99,7 @@ export default function App() {
             Web preview: your books and progress are saved in this browser only. Install the Windows or Android app to keep them for real use and to export.
           </div>
         )}
+        {setup && <div className="banner accent">Setting up your library: {setup}</div>}
         {!online && <div className="banner">Offline – everything works except AI features and sync, which resume when you reconnect.</div>}
         {pwa === "update" && (
           <div className="banner accent">

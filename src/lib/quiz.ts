@@ -1,10 +1,10 @@
 import { db } from "./db";
-import { isCorrect, isItemised } from "./grading";
+import { formatOf, isCorrect, isItemised } from "./grading";
 import { newSrs, review } from "./srs";
-import type { Difficulty, Question, QuestionState, QuizMode, QuizSession, SessionAnswer } from "./types";
+import type { Difficulty, Question, QuestionFormat, QuestionState, QuizMode, QuizSession, SessionAnswer } from "./types";
 import { shuffle, uid } from "./util";
 
-export type QuestionStatus = "all" | "unused" | "incorrect" | "flagged" | "due" | "correct";
+export type QuestionStatus = "all" | "unused" | "incorrect" | "flagged" | "due" | "correct" | "reported";
 
 export interface PoolFilter {
   bookIds: string[];
@@ -17,6 +17,8 @@ export interface PoolFilter {
   highYieldOnly: boolean;
   /** Only questions whose stem or options show an image (radiology/figure practice). */
   withImagesOnly?: boolean;
+  /** Only these question types (empty/undefined = all) */
+  formats?: QuestionFormat[];
   ids?: string[];
 }
 
@@ -39,6 +41,7 @@ export async function buildPool(f: PoolFilter): Promise<Question[]> {
   else qs = await db.questions.toArray();
 
   if (f.withImagesOnly) qs = qs.filter(hasQuestionImage);
+  if (f.formats?.length) qs = qs.filter((q) => f.formats!.includes(formatOf(q)));
 
   const needAnn = f.topics.length || f.subtopics.length || f.tags.length || f.difficulties.length || f.highYieldOnly;
   if (needAnn) {
@@ -69,6 +72,8 @@ export async function buildPool(f: PoolFilter): Promise<Question[]> {
           return !!s && s.lastCorrect === true;
         case "flagged":
           return !!s?.flagged;
+        case "reported":
+          return !!s?.issue;
         case "due":
           return !!s && s.timesSeen > 0 && s.srs.due <= now;
       }
@@ -94,9 +99,24 @@ export interface SessionOptions {
 }
 
 export async function createSession(pool: Question[], o: SessionOptions): Promise<QuizSession> {
-  let chosen = o.shuffleQuestions ? shuffle(pool) : pool.slice();
-  if (o.count > 0) chosen = chosen.slice(0, o.count);
-  if (!o.shuffleQuestions) chosen.sort((a, b) => a.order - b.order);
+  // Linked questions (shared case, EMI list, parts of one question) move as
+  // one unit, keep their internal order and aren't split by the count limit.
+  const units: Question[][] = [];
+  const byGroup = new Map<string, Question[]>();
+  for (const q of pool.slice().sort((a, b) => a.order - b.order)) {
+    if (!q.groupId) units.push([q]);
+    else if (byGroup.has(q.groupId)) byGroup.get(q.groupId)!.push(q);
+    else {
+      const unit = [q];
+      byGroup.set(q.groupId, unit);
+      units.push(unit);
+    }
+  }
+  const chosen: Question[] = [];
+  for (const unit of o.shuffleQuestions ? shuffle(units) : units) {
+    if (o.count > 0 && chosen.length >= o.count) break;
+    chosen.push(...unit);
+  }
   const now = Date.now();
   const s: QuizSession = {
     id: uid("s_"),
@@ -144,6 +164,11 @@ export async function recordResult(q: Question, correct: boolean): Promise<void>
 export async function setFlag(questionId: string, flagged: boolean): Promise<void> {
   const s = await getState(questionId);
   await db.questionStates.put({ ...s, flagged, updatedAt: Date.now() });
+}
+
+export async function setIssue(questionId: string, issue: string): Promise<void> {
+  const s = await getState(questionId);
+  await db.questionStates.put({ ...s, issue: issue.trim() || undefined, updatedAt: Date.now() });
 }
 
 export async function setNote(questionId: string, note: string): Promise<void> {

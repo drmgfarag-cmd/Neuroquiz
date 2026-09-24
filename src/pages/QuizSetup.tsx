@@ -2,9 +2,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { notify } from "../components/Dialog";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { db } from "../lib/db";
+import { db, questionChapterIndex } from "../lib/db";
 import { buildPool, createSession, emptyFilter, type PoolFilter, type QuestionStatus } from "../lib/quiz";
-import type { Difficulty, QuizMode } from "../lib/types";
+import type { Difficulty, QuestionFormat, QuizMode } from "../lib/types";
 
 const MODES: { id: QuizMode; label: string; desc: string }[] = [
   { id: "tutor", label: "Tutor", desc: "Answer shown immediately after each question, with explanation." },
@@ -13,13 +13,21 @@ const MODES: { id: QuizMode; label: string; desc: string }[] = [
   { id: "review", label: "Read / review", desc: "Browse questions with answers and explanations visible. Doesn't affect stats." }
 ];
 
+const FORMATS: [QuestionFormat, string][] = [
+  ["single", "Single best answer"],
+  ["multi", "Multiple answers"],
+  ["truefalse", "True/False statements"],
+  ["matching", "Extended matching (EMI)"]
+];
+
 const STATUSES: { id: QuestionStatus; label: string }[] = [
   { id: "all", label: "All" },
   { id: "unused", label: "Unused" },
   { id: "incorrect", label: "Incorrect" },
   { id: "correct", label: "Correct" },
   { id: "flagged", label: "Flagged" },
-  { id: "due", label: "Due for revision" }
+  { id: "due", label: "Due for revision" },
+  { id: "reported", label: "Reported problems" }
 ];
 
 export default function QuizSetup() {
@@ -40,10 +48,10 @@ export default function QuizSetup() {
       db.books.orderBy("title").toArray(),
       db.chapters.orderBy("order").toArray(),
       db.annotations.where("kind").equals("question").toArray(),
-      db.questions.toArray()
+      questionChapterIndex()
     ]);
     const perChapter = new Map<string, number>();
-    qs.forEach((q) => perChapter.set(q.chapterId, (perChapter.get(q.chapterId) ?? 0) + 1));
+    for (const chapterId of qs.values()) perChapter.set(chapterId, (perChapter.get(chapterId) ?? 0) + 1);
     const topics = new Map<string, Map<string, number>>();
     for (const a of anns) {
       if (!topics.has(a.topic)) topics.set(a.topic, new Map());
@@ -219,6 +227,23 @@ export default function QuizSetup() {
           <label className="check small">
             <input type="checkbox" checked={!!filter.withImagesOnly} onChange={(e) => setFilter({ ...filter, withImagesOnly: e.target.checked })} /> Only questions with images (radiology/figures)
           </label>
+        </div>
+        <div className="row">
+          <span className="small muted">Question types:</span>
+          {FORMATS.map(([id, label]) => (
+            <label className="check small" key={id}>
+              <input
+                type="checkbox"
+                checked={!!filter.formats?.includes(id)}
+                onChange={() => {
+                  const cur = filter.formats ?? [];
+                  setFilter({ ...filter, formats: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] });
+                }}
+              />{" "}
+              {label}
+            </label>
+          ))}
+          {!filter.formats?.length && <span className="small muted">(all)</span>}
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { describeAiError } from "../ai/claude";
 import { questionText } from "../ai/tagger";
 import { AiChat } from "../components/AiChat";
 import { Annotations } from "../components/Annotations";
+import { ReportIssue } from "../components/ReportIssue";
 import { Icon } from "../components/Icons";
 import { useViewer } from "../components/ImageViewer";
 import { Explanation, QuestionView } from "../components/QuestionView";
@@ -277,6 +278,7 @@ export default function QuizRunner() {
                   <NoteBox key={current.id} initial={state?.note ?? ""} onSave={(n) => setNote(current.id, n)} />
                 </label>
                 <div className="row">
+                  <ReportIssue questionId={current.id} issue={state?.issue} />
                   <button className="small" onClick={() => setShowAi(!showAi)}>
                     <Icon.sparkle size={14} /> {showAi ? "Hide AI tutor" : "Ask AI tutor"}
                   </button>

@@ -27,6 +27,8 @@ export default defineConfig({
       workbox: {
         // precache the whole app + sample book so it starts with no network
         globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest,json}"],
+        // built-in books are copied into the database on first launch, not cached twice
+        globIgnores: ["library/**"],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: "index.html"
       }

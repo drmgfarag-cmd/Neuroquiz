@@ -20,6 +20,11 @@ export interface ParsedSource {
 export interface BookPlan {
   key: string;
   title: string;
+  /**
+   * Stable book id. Set from the source's book_id (or by the built-in
+   * library); otherwise derived from the title at import time.
+   */
+  id?: string;
   sources: ParsedSource[];
   images: SourceFile[];
 }
@@ -101,7 +106,9 @@ export async function planImport(
   const books = new Map<string, BookPlan>();
   const add = (key: string, title: string, src: ParsedSource) => {
     if (!books.has(key)) books.set(key, { key, title, sources: [], images: [] });
-    books.get(key)!.sources.push(src);
+    const b = books.get(key)!;
+    b.sources.push(src);
+    if (!b.id && src.parsed.bookId) b.id = slugify(src.parsed.bookId);
   };
 
   // In auto mode a file without a book title inherits the title used by
@@ -120,7 +127,10 @@ export async function planImport(
   for (const src of parsed) {
     if (mode === "single") add("single", src.parsed.bookTitle || src.folder.split("/").pop() || "Imported book", src);
     else if (mode === "per-file") add(src.path, src.parsed.bookTitle || src.path.split("/").pop()!.replace(/\.json$/i, ""), src);
-    else {
+    else if (src.parsed.bookId) {
+      // auto: files carrying the same book_id belong to one book (e.g. one file per chapter)
+      add(`id:${src.parsed.bookId.toLowerCase()}`, src.parsed.bookTitle || `Book ${src.parsed.bookId}`, src);
+    } else {
       // auto: explicit book title in JSON wins, otherwise the containing folder
       const named = src.parsed.bookTitle || inherited(src);
       const title = named || src.folder.split("/").pop() || src.path.split("/").pop()!.replace(/\.json$/i, "");
@@ -136,6 +146,14 @@ export async function planImport(
 
   // Assign images to books by folder; unmatched images go to every book.
   const plans = Array.from(books.values());
+
+  // Re-importing a book that already exists keeps the name it has in the library.
+  for (const b of plans) {
+    if (!b.sources.some((s) => s.parsed.bookTitle)) {
+      const existing = await db.books.get(b.id ?? slugify(b.title));
+      if (existing) b.title = existing.title;
+    }
+  }
   for (const img of images) {
     const folder = folderOf(img.path);
     const owners = plans.filter((b) => b.sources.some((s) => s.folder && (folder === s.folder || folder.startsWith(s.folder + "/"))));
@@ -172,7 +190,7 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
   const now = Date.now();
 
   for (const bp of plan.books) {
-    const bookId = slugify(bp.title);
+    const bookId = bp.id ?? slugify(bp.title);
     onProgress?.(`Importing “${bp.title}”…`);
 
     const chapters: Chapter[] = [];
@@ -192,14 +210,22 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
 
     let order = 0;
     let chapterOrder = 0;
-    for (const src of bp.sources) {
-      res.warnings.push(...src.parsed.warnings);
-      for (const ch of src.parsed.chapters) {
+    // chapters split across files are ordered by their chapter number when every chapter has one
+    const allChapters = bp.sources.flatMap((src) => src.parsed.chapters.map((ch) => ({ src, ch })));
+    if (allChapters.length > 1 && allChapters.every((x) => x.ch.sortKey !== undefined))
+      allChapters.sort((a, b) => a.ch.sortKey! - b.ch.sortKey!);
+    const warned = new Set<ParsedSource>();
+    for (const { src, ch } of allChapters) {
+      if (!warned.has(src)) {
+        warned.add(src);
+        res.warnings.push(...src.parsed.warnings);
+      }
+      {
         const chapterId = uniqueId(`${bookId}:${slugify(ch.title)}`);
         chapters.push({ id: chapterId, bookId, title: ch.title, order: chapterOrder++ });
         ch.questions.forEach(({ annotation, ...q }) => {
           const id = uniqueId(`${bookId}:q:${hash(q.stem + "|" + q.options.map((o) => o.text).join("|"))}`);
-          questions.push({ ...q, id, bookId, chapterId, order: order++ });
+          questions.push({ ...q, ...(q.groupId ? { groupId: `${chapterId}:${q.groupId}` } : {}), id, bookId, chapterId, order: order++ });
           if (annotation) carriedTags.push({ ...annotation, id, kind: "question" });
           [...refs(q.stemMedia), ...refs(q.explanationMedia), ...q.options.flatMap((o) => refs(o.media)), ...inlineRefs(q.stem), ...inlineRefs(q.explanation), ...q.options.flatMap((o) => inlineRefs(o.text))].forEach((r) => referenced.add(r));
         });

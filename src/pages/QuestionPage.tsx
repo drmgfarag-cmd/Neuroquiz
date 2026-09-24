@@ -5,6 +5,7 @@ import { describeAiError } from "../ai/claude";
 import { questionText } from "../ai/tagger";
 import { AiChat } from "../components/AiChat";
 import { Annotations } from "../components/Annotations";
+import { ReportIssue } from "../components/ReportIssue";
 import { Explanation, QuestionView } from "../components/QuestionView";
 import { addAiCards, addQuestionCard } from "../lib/cards";
 import { db } from "../lib/db";
@@ -62,6 +63,7 @@ export default function QuestionPage() {
       )}
       <div className="card stack">
         <div className="row">
+          <ReportIssue questionId={q.id} issue={st?.issue} />
           <button className="small" onClick={async () => (await addQuestionCard(q), setMsg("Added to flashcards."))}>
             + Flashcard
           </button>

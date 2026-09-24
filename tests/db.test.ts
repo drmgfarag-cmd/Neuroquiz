@@ -6,7 +6,7 @@ import { runLocalTagging } from "../src/ai/tagger";
 import { exportBookZip } from "../src/import/exporter";
 import { collectFiles, executeImport, planImport, type SourceFile } from "../src/import/importer";
 import { db, deleteSynced } from "../src/lib/db";
-import { buildPool, emptyFilter, recordResult } from "../src/lib/quiz";
+import { buildPool, createSession, emptyFilter, recordResult } from "../src/lib/quiz";
 import { search } from "../src/lib/search";
 import { applyChanges, collectChanges } from "../src/lib/sync";
 
@@ -116,5 +116,53 @@ describe("localTag", () => {
     expect(localTag("Spetzler-Martin grading of an arteriovenous malformation").topic).toBe("Cerebrovascular");
     expect(localTag("MGMT methylation in glioblastoma").subtopic).toBe("Gliomas");
     expect(localTag("burst fracture TLICS").topic).toBe("Neurotrauma");
+  });
+});
+
+describe("books split into chapter files", () => {
+  const chapterFile = (n: number, extra: Record<string, unknown> = {}) => ({
+    path: `upload/chapter${n}.json`,
+    blob: new Blob([
+      JSON.stringify({
+        book_id: "03",
+        chapter_id: String(n).padStart(2, "0"),
+        chapter_name: `Chapter ${n} topic`,
+        questions: [
+          { printed_number: "1", question: `Case for chapter ${n}. Q1?`, answers: { A: "x", B: "y" }, correct_answer: "A", parent_vignette_id: "CASE_1-2" },
+          { printed_number: "2", question: `Case for chapter ${n}. Q2?`, answers: { A: "x", B: "y" }, correct_answer: "B", parent_vignette_id: "CASE_1-2" },
+          { printed_number: "3", question: `Standalone ${n}?`, answers: { A: "x", B: "y" }, correct_answer: "A" }
+        ],
+        ...extra
+      })
+    ])
+  });
+
+  it("groups files by book_id, orders chapters by number and keeps a renamed title", async () => {
+    // file names sort 10 < 2 < 9 alphabetically – chapter numbers must win
+    const files = [chapterFile(10), chapterFile(2), chapterFile(9)];
+    const plan = await planImport(files, "auto", 1);
+    expect(plan.books).toHaveLength(1);
+    expect(plan.books[0]).toMatchObject({ id: "03", title: "Book 03" });
+    await executeImport(plan);
+    expect((await db.chapters.orderBy("order").toArray()).map((c) => c.title)).toEqual(["Chapter 2 topic", "Chapter 9 topic", "Chapter 10 topic"]);
+
+    await db.books.update("03", { title: "My renamed book" });
+    const ids = (await db.questions.toArray()).map((q) => q.id).sort();
+    const again = await planImport(files, "auto", 1);
+    expect(again.books[0].title).toBe("My renamed book");
+    await executeImport(again);
+    expect((await db.questions.toArray()).map((q) => q.id).sort()).toEqual(ids);
+  });
+
+  it("keeps questions that share a case together when shuffling", async () => {
+    await executeImport(await planImport([chapterFile(1), chapterFile(2)], "auto", 1));
+    const pool = await buildPool(emptyFilter());
+    for (let run = 0; run < 20; run++) {
+      const s = await createSession(pool, { mode: "tutor", title: "t", count: 0, shuffleQuestions: true, shuffleOptions: false, secondsPerQuestion: 60 });
+      const qs = await db.questions.bulkGet(s.questionIds);
+      qs.forEach((q, i) => {
+        if (q!.number === "1") expect(qs[i + 1]!.number).toBe("2"); // Q2 of the same case follows Q1
+      });
+    }
   });
 });

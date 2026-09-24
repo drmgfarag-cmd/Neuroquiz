@@ -10,3 +10,4 @@ tsconfig.tsbuildinfo
 *.log
 
 dist-web
+public/library

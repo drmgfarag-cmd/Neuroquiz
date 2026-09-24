@@ -61,6 +61,8 @@ export interface Question {
   choices?: MatchChoice[];
   /** … and the correct choice key per item (option key) */
   matches?: Record<string, string>;
+  /** Questions sharing a case, an EMI answer list or a parent question; kept together when shuffled. */
+  groupId?: string;
   explanation: string;
   stemMedia: MediaRef[];
   explanationMedia: MediaRef[];
@@ -146,6 +148,8 @@ export interface QuestionState {
   lastSeenAt?: number;
   flagged: boolean;
   note: string;
+  /** Problem reported by the learner (wrong key, OCR error, missing image …) */
+  issue?: string;
   srs: SrsState;
   updatedAt: number;
 }

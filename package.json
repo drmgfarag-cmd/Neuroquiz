@@ -13,7 +13,12 @@
     "sync-server": "node sync-server/server.mjs",
     "android:add": "cap add android",
     "android:sync": "npm run build && cap sync android",
-    "android:open": "cap open android"
+    "android:open": "cap open android",
+    "build-library": "node scripts/build-library.mjs",
+    "predev": "node scripts/build-library.mjs",
+    "prebuild": "node scripts/build-library.mjs",
+    "build:web": "node scripts/build-library.mjs && VITE_WEB_PREVIEW=1 vite build --outDir dist-web",
+    "check-books": "vitest run tests/library.test.ts --disable-console-intercept"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

@@ -1,11 +1,12 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { ask, notify } from "../components/Dialog";
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { exportBookZip } from "../import/exporter";
 import { deleteBook } from "../import/importer";
 import { saveFile } from "../lib/platform";
-import { db } from "../lib/db";
+import { db, questionChapterIndex } from "../lib/db";
+import { bundledBooks, bundledState, installBundled, type BundledBook, type BundledState } from "../lib/library";
 import { clearMediaCache } from "../lib/media";
 import { buildPool, createSession, emptyFilter } from "../lib/quiz";
 import type { QuizMode } from "../lib/types";
@@ -15,23 +16,23 @@ export default function Library() {
   const nav = useNavigate();
   const [exporting, setExporting] = useState("");
   const data = useLiveQuery(async () => {
-    const [books, chapters, questions, states] = await Promise.all([
+    const [books, chapters, index, states] = await Promise.all([
       db.books.orderBy("title").toArray(),
       db.chapters.toArray(),
-      db.questions.toArray(),
+      questionChapterIndex(),
       db.questionStates.toArray()
     ]);
     const st = new Map(states.map((s) => [s.questionId, s]));
     const perChapter = new Map<string, { total: number; seen: number; correct: number }>();
-    for (const q of questions) {
-      const c = perChapter.get(q.chapterId) ?? { total: 0, seen: 0, correct: 0 };
+    for (const [qid, chapterId] of index) {
+      const c = perChapter.get(chapterId) ?? { total: 0, seen: 0, correct: 0 };
       c.total++;
-      const s = st.get(q.id);
+      const s = st.get(qid);
       if (s && s.timesSeen) {
         c.seen++;
         if (s.lastCorrect) c.correct++;
       }
-      perChapter.set(q.chapterId, c);
+      perChapter.set(chapterId, c);
     }
     return { books, chapters, perChapter };
   });
@@ -48,6 +49,7 @@ export default function Library() {
     return (
       <div>
         <h1>Library</h1>
+        <IncludedBooks />
         <div className="card">
           No books yet. <Link to="/import">Import a book</Link>.
         </div>
@@ -62,6 +64,8 @@ export default function Library() {
           Import more
         </Link>
       </div>
+      <IncludedBooks />
+      <ProblemReports />
       {data.books.map((b) => {
         const chs = data.chapters.filter((c) => c.bookId === b.id).sort((a, z) => a.order - z.order);
         const tot = chs.reduce(
@@ -79,9 +83,9 @@ export default function Library() {
           <div className="card" key={b.id}>
             <div className="row between">
               <div>
-                <h2 style={{ margin: 0 }}>{b.title}</h2>
+                <BookTitle id={b.id} title={b.title} />
                 <div className="muted small">
-                  {b.questionCount} questions · {b.flashcardCount} flashcards · {b.caseCount} cases · {chs.length} chapters · {pct(tot.seen, tot.total)} used
+                  {b.questionCount} questions · {b.flashcardCount} flashcards · {b.caseCount} cases · {chs.length} chapter{chs.length === 1 ? "" : "s"} · {pct(tot.seen, tot.total)} used
                 </div>
               </div>
               <div className="row">
@@ -155,5 +159,153 @@ export default function Library() {
         );
       })}
     </div>
+  );
+}
+
+/** Book name with an inline rename (ids don't depend on the name, so progress is kept). */
+function BookTitle({ id, title }: { id: string; title: string }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  if (!editing)
+    return (
+      <div className="row" style={{ gap: 4 }}>
+        <h2 style={{ margin: 0 }}>{title}</h2>
+        <button className="small ghost" title="Rename book" aria-label={`Rename ${title}`} onClick={() => (setDraft(title), setEditing(true))}>
+          ✎
+        </button>
+      </div>
+    );
+  const save = async () => {
+    const t = draft.trim();
+    if (t && t !== title) await db.books.update(id, { title: t });
+    setEditing(false);
+  };
+  return (
+    <form
+      className="row"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save();
+      }}
+    >
+      <input id={`rename-${id}`} type="text" value={draft} autoFocus onChange={(e) => setDraft(e.target.value)} style={{ minWidth: 240 }} />
+      <button className="small primary" type="submit">
+        Save
+      </button>
+      <button className="small" type="button" onClick={() => setEditing(false)}>
+        Cancel
+      </button>
+    </form>
+  );
+}
+
+const STATE_LABEL: Record<BundledState, string> = { "not-installed": "Not in your library", installed: "In your library", update: "Updated version available" };
+
+/** Books that ship with the app: install, update or restore them. */
+function IncludedBooks() {
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState("");
+  const [books, setBooks] = useState<BundledBook[] | null>(null);
+  useEffect(() => {
+    bundledBooks().then(setBooks);
+  }, []);
+  // live: re-checks when books are imported, updated or deleted
+  const states = useLiveQuery(() => Promise.all((books ?? []).map(bundledState)), [books]);
+  if (!books?.length || !states || states.length !== books.length) return null;
+  const list = books.map((b, i) => ({ b, state: states[i] }));
+  const install = async (b: BundledBook) => {
+    setBusy(b.id);
+    setMsg("");
+    try {
+      const n = await installBundled(b, setMsg);
+      setMsg(`“${b.title}”: ${n} questions ready.`);
+    } catch (e) {
+      setMsg(`Could not import “${b.title}”: ${(e as Error).message}`);
+    } finally {
+      setBusy("");
+    }
+  };
+  const missing = list.filter((x) => x.state !== "installed");
+  return (
+    <details className="card" open={missing.length > 0}>
+      <summary className="clickable">
+        <strong>Included books</strong>{" "}
+        <span className="muted small">
+          {list.length} built into the app{missing.length ? ` · ${missing.length} to import or update` : ""}
+        </span>
+      </summary>
+      {list.map(({ b, state }) => (
+        <div className="list-item" key={b.id}>
+          <div style={{ flex: 1 }}>
+            <div>{b.title}</div>
+            <div className={`small ${state === "installed" ? "muted" : ""}`} style={state === "update" ? { color: "var(--warn)" } : undefined}>
+              {STATE_LABEL[state]}
+            </div>
+          </div>
+          <button className={`small ${state === "installed" ? "" : "primary"}`} disabled={!!busy} onClick={() => install(b)}>
+            {busy === b.id ? "Importing…" : state === "not-installed" ? "Import" : state === "update" ? "Update" : "Re-import"}
+          </button>
+        </div>
+      ))}
+      {msg && <div className="small muted">{msg}</div>}
+      <p className="small muted" style={{ margin: "6px 0 0" }}>
+        Updating or re-importing keeps your progress, notes and tags.
+      </p>
+    </details>
+  );
+}
+
+/** Questions the learner reported as wrong; the list can be copied and sent for fixing. */
+function ProblemReports() {
+  const nav = useNavigate();
+  const [copied, setCopied] = useState("");
+  const [fallback, setFallback] = useState("");
+  const reports = useLiveQuery(async () => {
+    const states = (await db.questionStates.toArray()).filter((s) => s.issue);
+    if (!states.length) return [];
+    const [qs, chapters, books] = await Promise.all([db.questions.bulkGet(states.map((s) => s.questionId)), db.chapters.toArray(), db.books.toArray()]);
+    const ch = new Map(chapters.map((c) => [c.id, c.title]));
+    const bk = new Map(books.map((b) => [b.id, b.title]));
+    return states.map((s, i) => {
+      const q = qs[i];
+      return { id: s.questionId, where: q ? `${bk.get(q.bookId) ?? q.bookId} › ${ch.get(q.chapterId) ?? ""} › Q${q.number}` : `(question no longer in library) ${s.questionId}`, issue: s.issue! };
+    });
+  });
+  if (!reports?.length) return null;
+  const text = reports.map((r) => `${r.where} [${r.id}]: ${r.issue}`).join("\n");
+  return (
+    <details className="card">
+      <summary className="clickable">
+        <strong>Reported problems</strong> <span className="chip warn">{reports.length}</span>
+      </summary>
+      {reports.map((r) => (
+        <div className="list-item" key={r.id}>
+          <div style={{ flex: 1 }}>
+            <Link to={`/question/${encodeURIComponent(r.id)}`} className="small">
+              {r.where}
+            </Link>
+            <div>{r.issue}</div>
+          </div>
+        </div>
+      ))}
+      <div className="row" style={{ marginTop: 8 }}>
+        <button
+          className="small"
+          onClick={() =>
+            navigator.clipboard
+              .writeText(text)
+              .then(() => setCopied("Copied – paste it into your message."))
+              .catch(() => setFallback(text))
+          }
+        >
+          Copy list
+        </button>
+        <button className="small" onClick={() => nav("/quiz", { state: { status: "reported", title: "Reported problems" } })}>
+          Test these questions
+        </button>
+        <span className="small muted">{copied}</span>
+      </div>
+      {fallback && <textarea id="report-copy" readOnly value={fallback} onFocus={(e) => e.target.select()} autoFocus style={{ marginTop: 8 }} />}
+    </details>
   );
 }

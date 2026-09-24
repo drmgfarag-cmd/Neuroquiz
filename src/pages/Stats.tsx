@@ -1,18 +1,21 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useNavigate } from "react-router-dom";
-import { db } from "../lib/db";
+import { db, questionChapterIndex } from "../lib/db";
 import { pct } from "../lib/util";
 
 export default function Stats() {
   const nav = useNavigate();
   const data = useLiveQuery(async () => {
-    const [qs, states, anns, books, sessions] = await Promise.all([
-      db.questions.toArray(),
+    const [index, states, anns, books, sessions, chapters] = await Promise.all([
+      questionChapterIndex(),
       db.questionStates.toArray(),
       db.annotations.where("kind").equals("question").toArray(),
       db.books.toArray(),
-      db.sessions.toArray()
+      db.sessions.toArray(),
+      db.chapters.toArray()
     ]);
+    const bookOfChapter = new Map(chapters.map((c) => [c.id, c.bookId]));
+    const qs = Array.from(index, ([id, chapterId]) => ({ id, bookId: bookOfChapter.get(chapterId) ?? "" }));
     const st = new Map(states.map((s) => [s.questionId, s]));
     const ann = new Map(anns.map((a) => [a.id, a]));
     const agg = () => ({ total: 0, seen: 0, correct: 0, answers: 0, right: 0 });

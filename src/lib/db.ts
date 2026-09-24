@@ -115,3 +115,15 @@ export async function deleteSynced(table: SyncTable, id: string): Promise<void> 
     await db.tombstones.put({ key: `${table}:${id}`, table, id, updatedAt: Date.now() });
   });
 }
+
+/**
+ * question id → chapter id, read from the index only (no question bodies),
+ * so screens that just count questions stay fast with large libraries.
+ */
+export async function questionChapterIndex(): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  await db.questions.orderBy("chapterId").eachKey((key, cursor) => {
+    out.set(String(cursor.primaryKey), String(key));
+  });
+  return out;
+}

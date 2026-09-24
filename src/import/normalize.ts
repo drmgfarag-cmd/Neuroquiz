@@ -40,6 +40,8 @@ export interface ParsedQuestion {
   verdicts?: Record<string, boolean>;
   choices?: MatchChoice[];
   matches?: Record<string, string>;
+  /** questions sharing a case, an EMI list or a parent question (kept together when shuffling) */
+  groupId?: string;
 }
 
 export interface ParsedFlashcard {
@@ -63,6 +65,8 @@ export interface ParsedCase {
 
 export interface ParsedChapter {
   title: string;
+  /** chapter number from the source (chapter_id "03", "s01" …) – orders chapters split across files */
+  sortKey?: number;
   questions: ParsedQuestion[];
   flashcards: ParsedFlashcard[];
   cases: ParsedCase[];
@@ -70,6 +74,8 @@ export interface ParsedChapter {
 
 export interface ParsedFile {
   bookTitle?: string;
+  /** stable id from the source (book_id) – keeps progress when a book is renamed */
+  bookId?: string;
   chapters: ParsedChapter[];
   warnings: string[];
 }
@@ -536,6 +542,7 @@ function expandParts(o: Obj): Obj[] {
       for (const k of Object.keys(merged)) if (F.number.includes(k.toLowerCase() as never)) delete merged[k];
       merged.printed_number = `${num}${label.toLowerCase()}`;
     }
+    merged.group_id = `parts-${num || toText(pick(o, ["question_id", "id"])) || context.slice(0, 40)}`;
     return merged;
   });
 }
@@ -631,6 +638,8 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
 
   const num = pick(o, F.number);
   const tags = pick(o, F.tags);
+  const group = pick(o, ["group_id", "parent_vignette_id", "emi_set_id", "case_group_id", "vignette_id", "shared_stem_id"]);
+  const groupId = typeof group === "string" || typeof group === "number" ? String(group) : undefined;
   return {
     number: num !== undefined && (typeof num === "string" || typeof num === "number") ? String(num) : String(idx + 1),
     stem: linkInlineImages(stem),
@@ -644,7 +653,8 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     annotation: parseAnnotation(o),
     stemMedia,
     explanationMedia,
-    sourceTags: tagList(tags)
+    sourceTags: tagList(tags),
+    ...(groupId ? { groupId } : {})
   };
 }
 
@@ -752,6 +762,12 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   const warnings: string[] = [];
   const chapters: ParsedChapter[] = [];
   let bookTitle: string | undefined;
+  let bookId: string | undefined;
+  const chapterNo = (o: Obj): number | undefined => {
+    const v = pick(o, ["chapter_id", "chapter_number", "chapter_no", "chapterid"]);
+    const m = /(\d+)/.exec(String(v ?? ""));
+    return m ? Number(m[1]) : undefined;
+  };
 
   const defaultTitle = fileTitle(opts.fileName);
 
@@ -829,6 +845,8 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
 
     const bt = pick(node, F.bookTitle);
     if (!bookTitle && typeof bt === "string") bookTitle = bt.trim();
+    const bid = pick(node, ["book_id", "bookid"]);
+    if (!bookId && (typeof bid === "string" || typeof bid === "number") && String(bid).trim()) bookId = String(bid).trim();
 
     const subChapters = pick(node, F.chapters);
     if (Array.isArray(subChapters)) {
@@ -851,6 +869,8 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
     if (Array.isArray(qs) || Array.isArray(fcs) || Array.isArray(cs)) {
       const t = subChapters ? titleHint : toText(pick(node, F.title)) || titleHint;
       const ch = emptyChapter(t);
+      const no = chapterNo(node);
+      if (no !== undefined) ch.sortKey = no;
       if (Array.isArray(qs)) addItems(qs, ch);
       if (Array.isArray(fcs)) fcs.forEach((f) => isObj(f) && (() => { const p = parseFlashcard(f); if (p) ch.flashcards.push(p); })());
       if (Array.isArray(cs)) cs.forEach((c) => isObj(c) && (() => { const p = parseCase(c, opts); if (p) ch.cases.push(p); })());
@@ -880,5 +900,5 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   }
   const out = Array.from(merged.values());
   if (!out.length) warnings.push(`${opts.fileName}: no questions, flashcards or cases recognised`);
-  return { bookTitle, chapters: out, warnings };
+  return { bookTitle, ...(bookId ? { bookId } : {}), chapters: out, warnings };
 }
