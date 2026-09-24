@@ -1,7 +1,8 @@
 import JSZip from "jszip";
 import { reapplyCorrections } from "../lib/corrections";
-import { db } from "../lib/db";
-import type { Annotation, Book, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question } from "../lib/types";
+import { db, getMeta } from "../lib/db";
+import { questionToCard } from "../lib/cards";
+import type { Annotation, Book, CardState, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question, QuestionState, QuizSession } from "../lib/types";
 import { hash, IMAGE_EXT, normaliseFileName, slugify } from "../lib/util";
 import { normalizeBookJson, type ParsedFile } from "./normalize";
 import { auditBook } from "../lib/quality";
@@ -417,7 +418,25 @@ export async function carryProgress(previous: PrevQuestion[], questions: Questio
 
   const to = [...moves.keys()];
   const from = to.map((id) => moves.get(id)!);
-  await db.transaction("rw", [db.questionStates, db.annotations, db.corrections, db.aiReviews, db.sessions], async () => {
+  const back = new Map(to.map((id, i) => [from[i], id]));
+  const newQuestion = new Map(questions.map((q) => [q.id, q]));
+  const remapSession = (s: QuizSession): QuizSession => {
+    const map = (id: string) => back.get(id) ?? id;
+    return { ...s, questionIds: s.questionIds.map(map),
+      answers: Object.fromEntries(Object.entries(s.answers).map(([k, a]) => [map(k), { ...a, questionId: map(k) }])),
+      ...(s.optionOrder ? { optionOrder: Object.fromEntries(Object.entries(s.optionOrder).map(([k, v]) => [map(k), v])) } : {}),
+      updatedAt: Date.now() };
+  };
+  const remapCard = (card: Flashcard): Flashcard | null => {
+    const target = card.questionId && back.get(card.questionId);
+    if (!target) return null;
+    const id = card.id === `gen:${card.questionId}` ? `gen:${target}`
+      : card.id.startsWith(`ai:${card.questionId}:`) ? `ai:${target}:${card.id.slice(`ai:${card.questionId}:`.length)}` : card.id;
+    const refreshed = card.id.startsWith("gen:") && newQuestion.has(target) ? questionToCard(newQuestion.get(target)!) : null;
+    return { ...card, ...(refreshed ? { front: refreshed.front, back: refreshed.back, frontMedia: refreshed.frontMedia, backMedia: refreshed.backMedia } : {}), id, questionId: target, updatedAt: Date.now() };
+  };
+  await db.transaction("rw", [db.questionStates, db.annotations, db.corrections, db.aiReviews, db.sessions, db.userFlashcards, db.cardStates, db.profileSnapshots, db.tombstones, db.meta], async () => {
+    const activeDefault = (await getMeta("profile:active", "default")) === "default";
     const copy = async <T extends object>(table: import("dexie").Table<T, string>, field: keyof T) => {
       const [olds, existing] = await Promise.all([table.bulkGet(from), table.bulkGet(to)]);
       const rows = olds.flatMap((row, i) => (row && !existing[i] ? [{ ...row, [field]: to[i], updatedAt: Date.now() } as T] : []));
@@ -427,18 +446,57 @@ export async function carryProgress(previous: PrevQuestion[], questions: Questio
     await copy(db.annotations, "id");
     await copy(db.corrections, "questionId");
     await copy(db.aiReviews, "questionId");
-    const back = new Map(to.map((id, i) => [from[i], id]));
     const sessions = await db.sessions.toArray();
     for (const s of sessions) {
       if (!s.questionIds.some((id) => back.has(id))) continue;
-      const map = (id: string) => back.get(id) ?? id;
-      await db.sessions.put({
-        ...s,
-        questionIds: s.questionIds.map(map),
-        answers: Object.fromEntries(Object.entries(s.answers).map(([k, a]) => [map(k), { ...a, questionId: map(k) }])),
-        ...(s.optionOrder ? { optionOrder: Object.fromEntries(Object.entries(s.optionOrder).map(([k, v]) => [map(k), v])) } : {}),
-        updatedAt: Date.now()
-      });
+      await db.sessions.put(remapSession(s));
+    }
+    const oldCards = await db.userFlashcards.where("questionId").anyOf(from).toArray();
+    for (const old of oldCards) {
+      const card = remapCard(old);
+      if (!card) continue;
+      await db.userFlashcards.put(card);
+      if (card.id !== old.id) {
+        const state = await db.cardStates.get(old.id);
+        if (state && !(await db.cardStates.get(card.id))) await db.cardStates.put({ ...state, cardId: card.id, updatedAt: Date.now() });
+        await db.userFlashcards.delete(old.id);
+        await db.cardStates.delete(old.id);
+        if (activeDefault) for (const [table, id] of [["userFlashcards", old.id], ["cardStates", old.id]] as const)
+          await db.tombstones.put({ key: `${table}:${id}`, table, id, updatedAt: Date.now() });
+      }
+    }
+    // Inactive profiles live in snapshots; apply the same identity move before a
+    // later switch restores their rows. They contain progress, not the book media.
+    for (const snapshot of await db.profileSnapshots.toArray()) {
+      const type = snapshot.key.split(":").at(-1);
+      if (type === "questionStates") {
+        const rows = snapshot.rows as QuestionState[];
+        const existing = new Set(rows.map((r) => r.questionId));
+        const additional = rows.flatMap((r) => {
+          const target = back.get(r.questionId);
+          return target && !existing.has(target) ? [{ ...r, questionId: target, updatedAt: Date.now() }] : [];
+        });
+        if (additional.length) await db.profileSnapshots.put({ ...snapshot, rows: [...rows, ...additional] });
+      } else if (type === "sessions") {
+        const rows = snapshot.rows as QuizSession[];
+        if (rows.some((s) => s.questionIds.some((id) => back.has(id))))
+          await db.profileSnapshots.put({ ...snapshot, rows: rows.map((s) => s.questionIds.some((id) => back.has(id)) ? remapSession(s) : s) });
+      } else if (type === "userFlashcards") {
+        const rows = snapshot.rows as Flashcard[];
+        if (rows.some((c) => c.questionId && back.has(c.questionId)))
+          await db.profileSnapshots.put({ ...snapshot, rows: rows.map((c) => remapCard(c) ?? c) });
+      } else if (type === "cardStates") {
+        const rows = snapshot.rows as CardState[];
+        const mapCardId = (id: string) => {
+          for (const [old, target] of back) {
+            if (id === `gen:${old}`) return `gen:${target}`;
+            if (id.startsWith(`ai:${old}:`)) return `ai:${target}:${id.slice(`ai:${old}:`.length)}`;
+          }
+          return id;
+        };
+        if (rows.some((r) => mapCardId(r.cardId) !== r.cardId))
+          await db.profileSnapshots.put({ ...snapshot, rows: rows.map((r) => ({ ...r, cardId: mapCardId(r.cardId), updatedAt: Date.now() })) });
+      }
     }
   });
   return moves.size;
