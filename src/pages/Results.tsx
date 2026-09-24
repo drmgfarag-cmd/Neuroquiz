@@ -6,6 +6,7 @@ import { db } from "../lib/db";
 import { answerSummary, isItemised, score, selectionSummary } from "../lib/grading";
 import { plain } from "../lib/markdown";
 import { createSession } from "../lib/quiz";
+import { unscorableReason } from "../lib/quality";
 import type { Question, QuizSession } from "../lib/types";
 import { formatDuration, pct } from "../lib/util";
 
@@ -22,6 +23,7 @@ export default function Results() {
     const anns = await db.annotations.bulkGet(qs.map((q) => q.id));
     const byTopic = new Map<string, { n: number; ok: number }>();
     qs.forEach((q, i) => {
+      if (unscorableReason(q)) return;
       const t = anns[i]?.topic || "Uncategorised";
       const r = byTopic.get(t) ?? { n: 0, ok: 0 };
       r.n++;
@@ -34,13 +36,14 @@ export default function Results() {
   if (data === undefined) return null;
   if (data === null) return <div className="card">Session not found.</div>;
   const { s, qs, byTopic } = data;
-  const answered = qs.filter((q) => s.answers[q.id]?.selected.length).length;
-  const correct = qs.filter((q) => s.answers[q.id]?.correct).length;
+  const eligible = qs.filter((q) => !unscorableReason(q));
+  const answered = eligible.filter((q) => s.answers[q.id]?.selected.length).length;
+  const correct = eligible.filter((q) => s.answers[q.id]?.correct).length;
   const list = qs.filter((q) => {
     const a = s.answers[q.id];
-    if (filter === "wrong") return a?.correct === false;
-    if (filter === "right") return a?.correct === true;
-    if (filter === "skipped") return !a?.selected.length;
+    if (filter === "wrong") return !unscorableReason(q) && a?.correct === false;
+    if (filter === "right") return !unscorableReason(q) && a?.correct === true;
+    if (filter === "skipped") return !unscorableReason(q) && !a?.selected.length;
     return true;
   });
 
@@ -57,9 +60,9 @@ export default function Results() {
         <div className="muted small">{s.title}</div>
         <div className="row" style={{ gap: 24, marginTop: 6 }}>
           <div>
-            <div className="stat">{pct(correct, qs.length)}</div>
+            <div className="stat">{eligible.length ? pct(correct, eligible.length) : "—"}</div>
             <div className="muted small">
-              {correct} / {qs.length} correct
+              {correct} / {eligible.length} correct
             </div>
           </div>
           <div>
@@ -71,18 +74,19 @@ export default function Results() {
             <div className="muted small">time · {formatDuration((s.elapsedMs ?? 0) / Math.max(1, answered))} / question</div>
           </div>
         </div>
+        {qs.length > eligible.length && <div className="muted small">{qs.length - eligible.length} question(s) with unverified keys excluded from scoring.</div>}
         <div className="row" style={{ marginTop: 12 }}>
-          <button className="primary" onClick={() => retry(qs.filter((q) => s.answers[q.id]?.correct === false), `Retry incorrect – ${s.title}`)}>
+          <button className="primary" onClick={() => retry(eligible.filter((q) => s.answers[q.id]?.correct === false), `Retry incorrect – ${s.title}`)}>
             Retry incorrect
           </button>
-          <button onClick={() => retry(qs, `Retake – ${s.title}`)}>Retake all</button>
+          <button onClick={() => retry(eligible, `Retake – ${s.title}`)}>Retake all</button>
           <Link className="btn" to="/quiz">
             New test
           </Link>
         </div>
       </div>
 
-      <SessionAnalysis qs={qs} answers={s.answers} onRetry={retry} title={s.title} />
+      <SessionAnalysis qs={eligible} answers={s.answers} onRetry={retry} title={s.title} />
 
       <h2>By topic</h2>
       <div className="card">
@@ -118,17 +122,17 @@ export default function Results() {
           return (
             <div key={q.id}>
               <div className="list-item clickable" onClick={() => setOpen(open === q.id ? null : q.id)}>
-                <span className={`chip ${a?.correct ? "good" : a?.selected.length ? "bad" : ""}`}>{i + 1}</span>
+                <span className={`chip ${unscorableReason(q) ? "" : a?.correct ? "good" : a?.selected.length ? "bad" : ""}`}>{i + 1}</span>
                 <div style={{ flex: 1 }}>{plain(q.stem, 160)}</div>
                 {a?.timeMs ? <span className="small muted" title="Time on this question">{formatDuration(a.timeMs)}</span> : null}
                 {a?.confidence && <span className="small muted">{["", "guess", "unsure", "sure"][a.confidence]}</span>}
                 <span className="small muted">
-                  {isItemised(q) && a?.selected.length ? `${score(q, a.selected).right}/${score(q, a.selected).total}` : `${selectionSummary(q, a?.selected ?? [])} / ${answerSummary(q, true)}`}
+                  {unscorableReason(q) ? "Unscored" : isItemised(q) && a?.selected.length ? `${score(q, a.selected).right}/${score(q, a.selected).total}` : `${selectionSummary(q, a?.selected ?? [])} / ${answerSummary(q, true)}`}
                 </span>
               </div>
               {open === q.id && (
                 <div style={{ padding: "8px 0 16px" }} data-gallery="">
-                  <QuestionView q={q} selected={a?.selected ?? []} revealed />
+                  <QuestionView q={q} selected={a?.selected ?? []} revealed={!unscorableReason(q)} />
                   <Explanation q={q} selected={a?.selected ?? []} />
                   <Link to={`/question/${encodeURIComponent(q.id)}`} className="small">
                     Open question page →
