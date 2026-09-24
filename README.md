@@ -2,6 +2,8 @@
 
 An offline-first quiz app for question banks extracted from neurosurgery books. It imports JSON files with their images, tags each question by topic with Claude, and gives you several test modes, flashcards with spaced repetition, and case discussions. The same app runs on **Windows** and **Android**, and your progress syncs between them.
 
+**Study profiles.** Settings → Study profiles creates separate local scores, test histories, flags, notes and card schedules over one shared book and image library. Guest progress is discarded when you switch away or begin a new browser session. Library tags and editorial corrections are shared. Device sync and progress backup currently apply to **My profile** only. In an unfinished test, **Cancel test** offers Save for later or Discard uncounted; tutor statistics are committed when you finish. Settings can reset only the active profile's scores, schedules and test history while keeping its flags and notes.
+
 ## Features
 
 | Area | What you get |
