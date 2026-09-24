@@ -9,6 +9,8 @@ import { executeImport, planImport, type SourceFile } from "../import/importer";
 import { db, getMeta, setMeta } from "./db";
 import { clearMediaCache } from "./media";
 import { getSettings } from "./settings";
+import { IMAGE_EXT, normaliseFileName } from "./util";
+import { auditBook } from "./quality";
 
 export interface BundledBook {
   id: string;
@@ -48,22 +50,18 @@ export async function bundledState(b: BundledBook): Promise<BundledState> {
 
 export async function installBundled(b: BundledBook, onProgress?: (msg: string) => void): Promise<number> {
   onProgress?.(`Loading “${b.title}”…`);
-  const files: SourceFile[] = await Promise.all(
-    b.files.map(async (f) => {
+  // Import the small JSON first, then write images in bounded batches. Keeping
+  // every image Blob in one array could exhaust memory on Android.
+  const jsonFiles: SourceFile[] = await Promise.all(
+    b.files.filter((f) => /\.json$/i.test(f)).map(async (f) => {
       const res = await fetch(`./library/${f}`);
       if (!res.ok) throw new Error(`Missing library file ${f}`);
       return { path: f, blob: await res.blob() };
     })
   );
-  for (const [i, p] of (b.packs ?? []).entries()) {
-    onProgress?.(`Loading images for “${b.title}” (${i + 1}/${b.packs!.length})…`);
-    const res = await fetch(`./library/${p}`);
-    if (!res.ok) throw new Error(`Missing library file ${p}`);
-    const pack = (await res.json()) as Record<string, string>;
-    for (const [rel, uri] of Object.entries(pack)) files.push({ path: `${b.id}/${rel}`, blob: dataUriToBlob(uri) });
-  }
-  const plan = await planImport(files, "single", getSettings().numericAnswerBase);
+  const plan = await planImport(jsonFiles, "single", getSettings().numericAnswerBase);
   if (plan.errors.length) throw new Error(plan.errors.join("\n"));
+  if (!plan.books.length) throw new Error(`No readable questions in “${b.title}”.`);
   const existing = await db.books.get(b.id);
   plan.books.forEach((p) => {
     p.id = b.id;
@@ -71,6 +69,40 @@ export async function installBundled(b: BundledBook, onProgress?: (msg: string) 
   });
   onProgress?.(`Importing “${b.title}”…`);
   const res = await executeImport(plan);
+  const imagePaths = b.files.filter((f) => IMAGE_EXT.test(f));
+  const seen = new Set<string>();
+  const writeBatch = async (items: { path: string; blob: Blob }[]) => {
+    const rows = items.map(({ path, blob }) => {
+      const name = normaliseFileName(path);
+      if (seen.has(name)) throw new Error(`Ambiguous image name in “${b.title}”: ${name}`);
+      seen.add(name);
+      return { id: `${b.id}/${name}`, bookId: b.id, name, blob };
+    });
+    if (rows.length) await db.media.bulkPut(rows);
+  };
+  for (let i = 0; i < imagePaths.length; i += 8) {
+    onProgress?.(`Loading images for “${b.title}” (${Math.min(i + 8, imagePaths.length)}/${imagePaths.length})…`);
+    const batch = await Promise.all(imagePaths.slice(i, i + 8).map(async (path) => {
+      const response = await fetch(`./library/${path}`);
+      if (!response.ok) throw new Error(`Missing library file ${path}`);
+      return { path, blob: await response.blob() };
+    }));
+    await writeBatch(batch);
+  }
+  for (const [i, p] of (b.packs ?? []).entries()) {
+    onProgress?.(`Loading image pack for “${b.title}” (${i + 1}/${b.packs!.length})…`);
+    const response = await fetch(`./library/${p}`);
+    if (!response.ok) throw new Error(`Missing library file ${p}`);
+    const pack = (await response.json()) as Record<string, string>;
+    for (const [rel, uri] of Object.entries(pack)) await writeBatch([{ path: rel, blob: dataUriToBlob(uri) }]);
+  }
+  const [questions, mediaKeys] = await Promise.all([
+    db.questions.where("bookId").equals(b.id).toArray(),
+    db.media.where("bookId").equals(b.id).primaryKeys()
+  ]);
+  const quality = auditBook(questions, mediaKeys.map((key) => String(key).slice(b.id.length + 1)));
+  if (quality.missingImages.length || quality.conflictingImageRoles.length)
+    throw new Error(`Image verification failed for “${b.title}”: ${[...quality.missingImages, ...quality.conflictingImageRoles].slice(0, 5).join("; ")}`);
   await setMeta(`bundle:${b.id}`, b.version);
   clearMediaCache();
   await runLocalTagging(["question", "flashcard", "case"], [b.id], "untagged");
@@ -79,10 +111,14 @@ export async function installBundled(b: BundledBook, onProgress?: (msg: string) 
 
 /** First launch: install every built-in book when the library is empty. */
 export async function installBundledIfEmpty(onProgress: (msg: string) => void): Promise<boolean> {
-  if ((await db.books.count()) > 0 || (await getMeta("bundle:first-run-done", false))) return false;
+  if (await getMeta("bundle:first-run-done", false)) return false;
   const books = await bundledBooks();
   if (!books.length) return false;
-  for (const b of books) await installBundled(b, onProgress);
+  const started = await getMeta("bundle:first-run-started", false) ||
+    (await Promise.all(books.map((b) => getMeta<string | null>(`bundle:${b.id}`, null)))).some(Boolean);
+  if (!started && (await db.books.count()) > 0) return false;
+  await setMeta("bundle:first-run-started", true);
+  for (const b of books) if ((await bundledState(b)) !== "installed") await installBundled(b, onProgress);
   await setMeta("bundle:first-run-done", true);
   return true;
 }
