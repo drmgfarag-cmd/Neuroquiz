@@ -38,9 +38,20 @@ export interface NormalizeOptions {
 /** The question text points at an image or a study the reader is meant to look at. */
 export function refersToImage(stem: string): boolean {
   return (
-    /\b(shown|below|above|pictured|picture|figure|image|images|illustrat\w*|labell?ed|arrows?|arrowheads?|see the|following (?:scan|film|study|radiograph|image))\b/i.test(stem) ||
+    /\b(shown|below|above|pictured|picture|figure|image|images|illustrat\w*|labell?ed|arrows?|arrowheads?|see the|diagram|depicted|angiogram|following (?:scan|film|study|radiograph|image))\b/i.test(stem) ||
     /\b(CT|MRI|MR|radiographs?|x-rays?|scan|angiogram|angiography|imaging|myelogram|ultrasound|EEG|EMG|histology|biopsy|smear|slide)\b[^.?!]{0,60}\b(performed|obtained|done|shows?|showed|reveals?|revealed|demonstrates?|demonstrated)\b/i.test(stem)
   );
+}
+
+/** Names and source folders can reveal an answer figure even when JSON puts it in question_images. */
+export function imageRole(file: string): "question" | "answer" | "unknown" {
+  const path = file.replace(/\\/g, "/").toLowerCase();
+  if (/(?:^|\/)(?:answer|answers|explanation|explanations)\//.test(path) ||
+      /(?:^|[_\-/])(?:answer|ans|explanation|expl)(?:[_\-.]|$)/.test(path) ||
+      /(?:^|[_\-])(?:fig|tbl|table|ill)a(?:[_\-.]|$)/.test(path)) return "answer";
+  if (/(?:^|\/)(?:question|questions)\//.test(path) ||
+      /(?:^|[_\-])(?:fig|tbl|table|ill)q(?:[_\-.]|$)/.test(path)) return "question";
+  return "unknown";
 }
 
 export interface ParsedQuestion {
@@ -764,16 +775,21 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
 
   // Question images: prefer explicit question-image fields; a generic "images"
   // list can contain answer images too, which must not be shown before answering.
-  const answerFiles = new Set(explanationMedia.map((m) => m.file));
+  const answerFiles = new Set(explanationMedia.map((m) => m.file.toLowerCase()));
   let stemMedia: MediaRef[];
   if (hasKey(o, F.questionMedia)) stemMedia = toMedia(pick(o, F.questionMedia));
   else {
-    // a mixed list: "…_answer_image1.jpg" belongs to the answer
-    const generic = toMedia(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file));
-    const isAnswer = (f: string) => /(^|[_\-\s/])(answer|ans|explanation|expl)[_\-\s]?(image|img|fig|figure|pic)/i.test(f);
-    stemMedia = generic.filter((m) => !isAnswer(m.file));
-    explanationMedia = explanationMedia.concat(generic.filter((m) => isAnswer(m.file)));
+    // A generic list has no trusted question/answer role. Require question
+    // evidence; otherwise show it only after the answer is revealed.
+    const generic = toMedia(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file.toLowerCase()));
+    stemMedia = generic.filter((m) => imageRole(m.file) === "question" || (imageRole(m.file) === "unknown" && refersToImage(stem)));
+    explanationMedia = explanationMedia.concat(generic.filter((m) => !stemMedia.includes(m)));
   }
+
+  // An answer-page marker overrides even an erroneous explicit question_images field.
+  const mislabeledAnswers = stemMedia.filter((m) => imageRole(m.file) === "answer");
+  stemMedia = stemMedia.filter((m) => imageRole(m.file) !== "answer");
+  explanationMedia = [...explanationMedia, ...mislabeledAnswers];
 
   // image credit printed with the figure
   const credit = toText(pick(o, ["image_attribution", "image_credit", "figure_credit"]));
@@ -783,6 +799,27 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     explanationMedia = [...stemMedia, ...explanationMedia];
     stemMedia = [];
   }
+
+  // Inline markdown/HTML and option media are visible before answering too.
+  // Move anything explicitly named as an answer asset behind the reveal.
+  const deferred = new Set<string>();
+  const defer = (file: string) => { if (imageRole(file) === "answer") deferred.add(file); return imageRole(file) === "answer"; };
+  const safeInline = (text: string) => linkInlineImages(text)
+    .replace(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g, (match, file: string) => defer(file) ? "" : match)
+    .replace(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi, (match, file: string) => defer(file) ? "" : match);
+  const safeStem = safeInline(stem);
+  const safeOptions = options.map((option) => ({
+    ...option,
+    text: safeInline(option.text),
+    media: option.media.filter((m) => !defer(m.file))
+  }));
+  options.splice(0, options.length, ...safeOptions);
+  const safeExplanation = linkInlineImages(explanation);
+  const shownInExplanation = new Set([
+    ...explanationMedia.map((m) => m.file.toLowerCase()),
+    ...Array.from(safeExplanation.matchAll(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g), (m) => m[1].toLowerCase())
+  ]);
+  for (const file of deferred) if (!shownInExplanation.has(file.toLowerCase())) explanationMedia.push({ file });
 
   const num = pick(o, F.number);
   const tags = pick(o, F.tags);
@@ -794,7 +831,7 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const groupId = typeof group === "string" || typeof group === "number" ? String(group) : undefined;
   return {
     number: num !== undefined && (typeof num === "string" || typeof num === "number") ? String(num) : String(idx + 1),
-    stem: linkInlineImages(stem),
+    stem: safeStem,
     options,
     answer,
     ...(format ? { format } : {}),
@@ -804,7 +841,7 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     ...(accepted ? { accepted } : {}),
     ...(regions ? { regions } : {}),
     ...(panel ? { panel } : {}),
-    explanation: linkInlineImages(explanation),
+    explanation: safeExplanation,
     annotation: parseAnnotation(o),
     stemMedia,
     explanationMedia,
