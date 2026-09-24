@@ -147,3 +147,21 @@ describe("library with every format", () => {
     expect(await db.questionStates.count()).toBe(2);
   });
 });
+
+describe("question images printed on the question page", () => {
+  const q = (question: string) => ({ question, answers: { A: "a", B: "b" }, correct_answer: "A", question_images: ["fig.png"], image_attribution: "Gray's Anatomy" });
+  const book = { question_images_policy: "referenced_only", questions: [q("Which structure of the eye refracts light?"), q("A CT scan is obtained, and a slice is shown below. What failed?"), q("An MRI of the brain is performed. What is the diagnosis?")] };
+
+  it("moves images the question doesn't refer to into the explanation", () => {
+    const [a, b, c] = normalizeBookJson(book, { fileName: "b.json", numericAnswerBase: 1 }).chapters[0].questions;
+    expect(a.stemMedia).toEqual([]);
+    expect(a.explanationMedia).toEqual([{ file: "fig.png", caption: "Gray's Anatomy" }]);
+    expect(b.stemMedia).toHaveLength(1);
+    expect(c.stemMedia).toHaveLength(1);
+  });
+
+  it("leaves other books alone", () => {
+    const [a] = normalizeBookJson({ ...book, question_images_policy: undefined }, { fileName: "b.json", numericAnswerBase: 1 }).chapters[0].questions;
+    expect(a.stemMedia).toHaveLength(1);
+  });
+});

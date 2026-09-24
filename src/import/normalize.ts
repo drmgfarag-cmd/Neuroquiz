@@ -25,6 +25,22 @@ export interface NormalizeOptions {
   /** How a bare number answer is interpreted (1 means 1 = first option). */
   numericAnswerBase: 0 | 1;
   fileName: string;
+  /**
+   * "referenced_only": an image stays with the question only when the question
+   * refers to it ("shown below", "a CT was performed"…); otherwise it belongs to
+   * the answer. For books whose layout prints teaching figures (often labelled
+   * with the answer) on the question page. Also read from the JSON's top-level
+   * "question_images_policy".
+   */
+  questionImagesPolicy?: "referenced_only";
+}
+
+/** The question text points at an image or a study the reader is meant to look at. */
+export function refersToImage(stem: string): boolean {
+  return (
+    /\b(shown|below|above|pictured|picture|figure|image|images|illustrat\w*|labell?ed|arrows?|arrowheads?|see the|following (?:scan|film|study|radiograph|image))\b/i.test(stem) ||
+    /\b(CT|MRI|MR|radiographs?|x-rays?|scan|angiogram|angiography|imaging|myelogram|ultrasound|EEG|EMG|histology|biopsy|smear|slide)\b[^.?!]{0,60}\b(performed|obtained|done|shows?|showed|reveals?|revealed|demonstrates?|demonstrated)\b/i.test(stem)
+  );
 }
 
 export interface ParsedQuestion {
@@ -763,6 +779,11 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const credit = toText(pick(o, ["image_attribution", "image_credit", "figure_credit"]));
   if (credit) stemMedia = stemMedia.map((m) => (m.caption ? m : { ...m, caption: credit }));
 
+  if (opts.questionImagesPolicy === "referenced_only" && stemMedia.length && !refersToImage(stem)) {
+    explanationMedia = [...stemMedia, ...explanationMedia];
+    stemMedia = [];
+  }
+
   const num = pick(o, F.number);
   const tags = pick(o, F.tags);
   const group = pick(o, ["group_id", "parent_vignette_id", "emi_set_id", "case_group_id", "vignette_id", "shared_stem_id"]);
@@ -1004,6 +1025,7 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   };
 
   const defaultTitle = fileTitle(opts.fileName);
+  if (isObj(json) && json.question_images_policy === "referenced_only") opts = { ...opts, questionImagesPolicy: "referenced_only" };
 
   function addItems(list: Json[], chapter: ParsedChapter) {
     // flat question arrays may carry their own chapter field → group

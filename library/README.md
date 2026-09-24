@@ -38,6 +38,12 @@ automatically.
 A book's images can also come as a separate ZIP next to the JSON:
 `"source": ["sources/05.json", "sources/05_images.zip.001"]`.
 
+If a book prints teaching figures on the question page and they give the
+answer away (labelled diagrams, as in book 09), add
+`"questionImages": "referenced-only"`. A question then keeps its image only
+when its text refers to it ("shown below", "pictured", "an MRI was
+performed"…). Other images move to the answer explanation.
+
 ## Waiting for files
 
 - `sources/05_images.zip.001/.002`: images for book 05 (10 chapters plus a

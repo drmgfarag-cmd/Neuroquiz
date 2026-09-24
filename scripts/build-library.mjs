@@ -86,9 +86,16 @@ for (const book of books) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(book.id)) throw new Error(`book id "${book.id}" must be lower-case letters, digits or dashes`);
   const sources = Array.isArray(book.source) ? book.source : [book.source];
   const hash = createHash("sha256");
+  // book settings change the installed content too
+  if (book.questionImages) hash.update(`questionImages=${book.questionImages}`);
   const files = [];
   const packed = []; // [path, data] for LIBRARY_PACK
   const write = (rel, data) => {
+    // "questionImages": "referenced-only" → images the question doesn't refer to go with the answer
+    if (book.questionImages === "referenced-only" && /\.json$/i.test(rel)) {
+      const json = JSON.parse(data.toString("utf8"));
+      if (json && typeof json === "object" && !Array.isArray(json)) data = Buffer.from(JSON.stringify({ ...json, question_images_policy: "referenced_only" }));
+    }
     if (PACK && !/\.json$/i.test(rel)) {
       packed.push([rel, data]);
       return;

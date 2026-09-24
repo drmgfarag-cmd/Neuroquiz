@@ -36,7 +36,8 @@
     {
       "id": "09",
       "title": "Neurosurgery Board Questions (Book 09)",
-      "source": "sources/09.zip"
+      "source": "sources/09.zip",
+      "questionImages": "referenced-only"
     },
     {
       "id": "npqa2",
