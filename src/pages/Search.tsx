@@ -156,7 +156,7 @@ export default function SearchPage() {
 
       {rows === null && topics && (
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>Browse by topic</h3>
+          <h2 className="card-title" style={{ marginTop: 0 }}>Browse by topic</h2>
           <div className="row">
             {topics.map(([t, n]) => (
               <Link key={t} className="chip accent" to={`/search?topic=${encodeURIComponent(t)}`}>

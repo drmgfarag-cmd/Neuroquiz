@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { aiAvailable, describeAiError } from "../ai/claude";
 import { runAiTagging, runLocalTagging, type AiTagProgress, type ItemKind, type TagScope } from "../ai/tagger";
+import { TreeNode } from "../components/Tree";
 import { db } from "../lib/db";
 import { useOnline } from "../lib/platform";
 import { useSettings } from "../lib/settings";
@@ -130,14 +131,18 @@ export default function Tagging() {
         {Array.from(stats.topics.entries())
           .sort((a, b) => a[0].localeCompare(b[0]))
           .map(([topic, subs]) => (
-            <details key={topic}>
-              <summary>
+            <TreeNode
+              key={topic}
+              name={topic}
+              label={
+                <>
                 <strong>{topic}</strong> <span className="muted small">({Array.from(subs.values()).reduce((a, b) => a + b, 0)})</span>{" "}
                 <button className="small ghost" onClick={() => nav("/quiz", { state: { topics: [topic], title: topic } })}>
                   Test →
                 </button>
-              </summary>
-              <div className="children">
+                </>
+              }
+            >
                 {Array.from(subs.entries())
                   .sort((a, b) => b[1] - a[1])
                   .map(([s, n]) => (
@@ -148,8 +153,7 @@ export default function Tagging() {
                       </button>
                     </div>
                   ))}
-              </div>
-            </details>
+            </TreeNode>
           ))}
         {!stats.topics.size && <span className="muted">No tags yet.</span>}
       </div>

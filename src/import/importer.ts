@@ -177,6 +177,8 @@ export interface ImportResult {
   images: number;
   missingImages: string[];
   warnings: string[];
+  /** questions whose progress moved to a new id (the source text changed) */
+  remapped?: number;
 }
 
 function refs(list: MediaRef[]): string[] {
@@ -273,6 +275,8 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       caseCount: cases.length
     };
 
+    const previous = await previousQuestions(bookId);
+
     await db.transaction("rw", [db.books, db.chapters, db.questions, db.flashcards, db.cases, db.media], async () => {
       // Replace the book's content; user progress lives in other tables keyed
       // by the same stable ids, so it survives a re-import.
@@ -287,6 +291,9 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       await db.cases.bulkPut(cases);
       if (media.length) await db.media.bulkPut(media);
     });
+
+    // a corrected extraction changes question ids: carry progress across by the source's own id
+    res.remapped = (res.remapped ?? 0) + (await carryProgress(previous, questions, chapters));
 
     // the learner's own fixes survive a re-import
     await reapplyCorrections(questions.map((q) => q.id), true);
@@ -312,6 +319,79 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
     res.images += media.length;
   }
   return res;
+}
+
+interface PrevQuestion {
+  id: string;
+  key: string;
+  sourceId?: string;
+}
+
+async function previousQuestions(bookId: string): Promise<PrevQuestion[]> {
+  const [qs, chs] = await Promise.all([db.questions.where("bookId").equals(bookId).toArray(), db.chapters.where("bookId").equals(bookId).toArray()]);
+  const title = new Map(chs.map((c) => [c.id, c.title]));
+  return qs.map((q) => ({ id: q.id, sourceId: q.sourceId, key: `${title.get(q.chapterId) ?? ""}|${q.sourceId ?? ""}` }));
+}
+
+/**
+ * Question ids hash the stem and options, so fixing a typo in the source gives
+ * a question a new id. When a new question's id is unknown but an old question
+ * that disappeared has the same source id (in the same chapter, or unique in the
+ * book), its progress, tags, corrections, AI review and test answers move over.
+ * Old rows are kept: another device may still have the old version of the book.
+ */
+export async function carryProgress(previous: PrevQuestion[], questions: Question[], chapters: Chapter[]): Promise<number> {
+  if (!previous.length) return 0;
+  const newIds = new Set(questions.map((q) => q.id));
+  const gone = previous.filter((p) => p.sourceId && !newIds.has(p.id));
+  if (!gone.length) return 0;
+  const unique = <T,>(list: T[], key: (x: T) => string) => {
+    const m = new Map<string, T | null>();
+    for (const x of list) m.set(key(x), m.has(key(x)) ? null : x);
+    return m;
+  };
+  const oldIds = new Set(previous.map((p) => p.id));
+  const title = new Map(chapters.map((c) => [c.id, c.title]));
+  const fresh = questions.filter((q) => q.sourceId && !oldIds.has(q.id));
+  const goneByKey = unique(gone, (p) => p.key);
+  const goneBySource = unique(gone, (p) => p.sourceId!);
+  const freshByKey = unique(fresh, (q) => `${title.get(q.chapterId) ?? ""}|${q.sourceId}`);
+  const freshBySource = unique(fresh, (q) => q.sourceId!);
+  const moves = new Map<string, string>();
+  for (const q of fresh) {
+    const key = `${title.get(q.chapterId) ?? ""}|${q.sourceId}`;
+    const from = (freshByKey.get(key) && goneByKey.get(key)) || (freshBySource.get(q.sourceId!) && goneBySource.get(q.sourceId!));
+    if (from && ![...moves.values()].includes(from.id)) moves.set(q.id, from.id);
+  }
+  if (!moves.size) return 0;
+
+  const to = [...moves.keys()];
+  const from = to.map((id) => moves.get(id)!);
+  await db.transaction("rw", [db.questionStates, db.annotations, db.corrections, db.aiReviews, db.sessions], async () => {
+    const copy = async <T extends object>(table: import("dexie").Table<T, string>, field: keyof T) => {
+      const [olds, existing] = await Promise.all([table.bulkGet(from), table.bulkGet(to)]);
+      const rows = olds.flatMap((row, i) => (row && !existing[i] ? [{ ...row, [field]: to[i], updatedAt: Date.now() } as T] : []));
+      if (rows.length) await table.bulkPut(rows);
+    };
+    await copy(db.questionStates, "questionId");
+    await copy(db.annotations, "id");
+    await copy(db.corrections, "questionId");
+    await copy(db.aiReviews, "questionId");
+    const back = new Map(to.map((id, i) => [from[i], id]));
+    const sessions = await db.sessions.toArray();
+    for (const s of sessions) {
+      if (!s.questionIds.some((id) => back.has(id))) continue;
+      const map = (id: string) => back.get(id) ?? id;
+      await db.sessions.put({
+        ...s,
+        questionIds: s.questionIds.map(map),
+        answers: Object.fromEntries(Object.entries(s.answers).map(([k, a]) => [map(k), { ...a, questionId: map(k) }])),
+        ...(s.optionOrder ? { optionOrder: Object.fromEntries(Object.entries(s.optionOrder).map(([k, v]) => [map(k), v])) } : {}),
+        updatedAt: Date.now()
+      });
+    }
+  });
+  return moves.size;
 }
 
 export async function deleteBook(bookId: string): Promise<void> {

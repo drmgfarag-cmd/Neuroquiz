@@ -1,3 +1,4 @@
+import { TreeNode } from "../components/Tree";
 import { useLiveQuery } from "dexie-react-hooks";
 import { notify } from "../components/Dialog";
 import { useEffect, useMemo, useState } from "react";
@@ -17,8 +18,27 @@ const FORMATS: [QuestionFormat, string][] = [
   ["single", "Single best answer"],
   ["multi", "Multiple answers"],
   ["truefalse", "True/False statements"],
-  ["matching", "Extended matching (EMI)"]
+  ["matching", "Extended matching (EMI)"],
+  ["ordering", "Ordering / sequence"],
+  ["text", "Typed answer / cloze"],
+  ["hotspot", "Image hotspot"],
+  ["sct", "Script concordance"]
 ];
+
+const pref = (k: string) => {
+  try {
+    return localStorage.getItem(`neuroquiz.setup.${k}`) === "1";
+  } catch {
+    return false;
+  }
+};
+const savePref = (k: string, v: boolean) => {
+  try {
+    localStorage.setItem(`neuroquiz.setup.${k}`, v ? "1" : "0");
+  } catch {
+    /* private mode */
+  }
+};
 
 const STATUSES: { id: QuestionStatus; label: string }[] = [
   { id: "all", label: "All" },
@@ -27,6 +47,7 @@ const STATUSES: { id: QuestionStatus; label: string }[] = [
   { id: "correct", label: "Correct" },
   { id: "flagged", label: "Flagged" },
   { id: "due", label: "Due for revision" },
+  { id: "unsure", label: "Right but unsure" },
   { id: "reported", label: "Reported problems" }
 ];
 
@@ -40,6 +61,8 @@ export default function QuizSetup() {
   const [count, setCount] = useState(40);
   const [shuffleQ, setShuffleQ] = useState(true);
   const [shuffleO, setShuffleO] = useState(false);
+  const [recall, setRecall] = useState(() => pref("recall"));
+  const [askConf, setAskConf] = useState(() => pref("confidence"));
   const [secPerQ, setSecPerQ] = useState(90);
   const [available, setAvailable] = useState<number | null>(null);
 
@@ -87,6 +110,8 @@ export default function QuizSetup() {
       count: mode === "review" ? 0 : count,
       shuffleQuestions: mode === "review" ? false : shuffleQ,
       shuffleOptions: shuffleO,
+      recall: mode !== "review" && recall,
+      askConfidence: mode !== "review" && askConf,
       secondsPerQuestion: secPerQ
     });
     nav(`/quiz/${s.id}`);
@@ -97,7 +122,7 @@ export default function QuizSetup() {
       <h1>Create a test</h1>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Mode</h3>
+        <h2 className="card-title" style={{ marginTop: 0 }}>Mode</h2>
         <div className="grid">
           {MODES.map((m) => (
             <button key={m.id} className={mode === m.id ? "active" : ""} style={{ flexDirection: "column", alignItems: "flex-start", textAlign: "left" }} onClick={() => setMode(m.id)}>
@@ -119,14 +144,16 @@ export default function QuizSetup() {
         </div>
       ) : (
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>Books & chapters</h3>
+          <h2 className="card-title" style={{ marginTop: 0 }}>Books & chapters</h2>
           <div className="tree">
             {lib.books.map((b) => {
               const chs = lib.chapters.filter((c) => c.bookId === b.id);
               return (
-                <details key={b.id}>
-                  <summary>
-                    <label className="check" onClick={(e) => e.stopPropagation()}>
+                <TreeNode
+                  key={b.id}
+                  name={b.title}
+                  label={
+                    <label className="check">
                       <input
                         type="checkbox"
                         checked={filter.bookIds.includes(b.id)}
@@ -141,8 +168,8 @@ export default function QuizSetup() {
                       />
                       {b.title} <span className="muted small">({b.questionCount})</span>
                     </label>
-                  </summary>
-                  <div className="children">
+                  }
+                >
                     {chs.map((c) => (
                       <div key={c.id}>
                         <label className="check small">
@@ -157,8 +184,7 @@ export default function QuizSetup() {
                         </label>
                       </div>
                     ))}
-                  </div>
-                </details>
+                </TreeNode>
               );
             })}
           </div>
@@ -167,18 +193,20 @@ export default function QuizSetup() {
       )}
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Topics</h3>
+        <h2 className="card-title" style={{ marginTop: 0 }}>Topics</h2>
         {topicList.length === 0 && <p className="muted small">Run tagging to filter by topic.</p>}
         <div className="tree">
           {topicList.map(([topic, subs]) => (
-            <details key={topic}>
-              <summary>
-                <label className="check" onClick={(e) => e.stopPropagation()}>
+            <TreeNode
+              key={topic}
+              name={topic}
+              label={
+                <label className="check">
                   <input type="checkbox" checked={filter.topics.includes(topic)} onChange={() => toggle("topics", topic)} />
                   {topic} <span className="muted small">({Array.from(subs.values()).reduce((a, b) => a + b, 0)})</span>
                 </label>
-              </summary>
-              <div className="children">
+              }
+            >
                 {Array.from(subs.entries())
                   .sort((a, b) => b[1] - a[1])
                   .map(([sub, n]) => (
@@ -189,8 +217,7 @@ export default function QuizSetup() {
                       </label>
                     </div>
                   ))}
-              </div>
-            </details>
+            </TreeNode>
           ))}
         </div>
         {filter.tags.length > 0 && (
@@ -206,7 +233,7 @@ export default function QuizSetup() {
       </div>
 
       <div className="card stack">
-        <h3 style={{ margin: 0 }}>Question status</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>Question status</h2>
         <div className="segmented">
           {STATUSES.map((s) => (
             <button key={s.id} className={filter.status === s.id ? "active" : ""} onClick={() => setFilter({ ...filter, status: s.id })}>
@@ -272,6 +299,32 @@ export default function QuizSetup() {
             <input type="checkbox" checked={shuffleO} onChange={(e) => setShuffleO(e.target.checked)} /> Shuffle answer options
           </label>
         </div>
+        {mode !== "review" && (
+          <div className="stack" style={{ gap: 4 }}>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={recall}
+                onChange={(e) => {
+                  setRecall(e.target.checked);
+                  savePref("recall", e.target.checked);
+                }}
+              />{" "}
+              Recall mode – hide the options until I have an answer in mind
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={askConf}
+                onChange={(e) => {
+                  setAskConf(e.target.checked);
+                  savePref("confidence", e.target.checked);
+                }}
+              />{" "}
+              Rate my confidence (guess / unsure / sure) – lucky guesses come back sooner
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="sticky-actions row between">

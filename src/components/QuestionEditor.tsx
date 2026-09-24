@@ -18,8 +18,19 @@ export function QuestionEditor({ q, issue, onDone }: { q: Question; issue?: stri
   const [verdicts, setVerdicts] = useState<Record<string, boolean>>({ ...(q.verdicts ?? {}) });
   const [matches, setMatches] = useState<Record<string, string>>({ ...(q.matches ?? {}) });
   const [choices, setChoices] = useState<MatchChoice[]>(q.choices ? q.choices.map((c) => ({ ...c })) : []);
+  const [accepted, setAccepted] = useState((q.accepted ?? []).join("\n"));
+  const [orderText, setOrderText] = useState(f === "ordering" ? q.answer.join(", ") : "");
   const [resolve, setResolve] = useState(!!issue);
   const [busy, setBusy] = useState(false);
+
+  const orderKeys = (() => {
+    const keys = orderText
+      .toUpperCase()
+      .split(/[^A-Z0-9]+/)
+      .filter(Boolean);
+    const valid = keys.length === q.options.length && new Set(keys).size === keys.length && keys.every((k) => q.options.some((o) => o.key === k));
+    return valid ? keys : null;
+  })();
 
   const save = async () => {
     setBusy(true);
@@ -29,7 +40,13 @@ export function QuestionEditor({ q, issue, onDone }: { q: Question; issue?: stri
         ? { stem, explanation, options, verdicts, answer: Object.keys(verdicts).filter((k) => verdicts[k]) }
         : f === "matching"
           ? { stem, explanation, options, matches, choices }
-          : { stem, explanation, options, answer };
+          : f === "text"
+            ? { stem, explanation, accepted: accepted.split("\n").map((t) => t.trim()).filter(Boolean) }
+            : f === "ordering"
+              ? { stem, explanation, options, answer: orderKeys ?? q.answer }
+              : f === "hotspot" || f === "sct"
+                ? { stem, explanation, options }
+                : { stem, explanation, options, answer };
     const updated = await saveCorrection(q, next);
     if (resolve && issue) await setIssue(q.id, "");
     setBusy(false);
@@ -44,7 +61,7 @@ export function QuestionEditor({ q, issue, onDone }: { q: Question; issue?: stri
   return (
     <div className="card stack editor">
       <div className="row between">
-        <h3 style={{ margin: 0 }}>Edit question</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>Edit question</h2>
         {q.edited && <span className="chip accent">Your corrections applied</span>}
       </div>
       <label className="field" htmlFor={`ed-stem-${q.id}`}>
@@ -52,7 +69,34 @@ export function QuestionEditor({ q, issue, onDone }: { q: Question; issue?: stri
       </label>
       <textarea id={`ed-stem-${q.id}`} value={stem} onChange={(e) => setStem(e.target.value)} rows={5} />
 
-      <div className="field">{f === "truefalse" ? "Statements and verdicts" : f === "matching" ? "Items and their correct answer" : f === "multi" ? "Options (tick every correct one)" : "Options (choose the correct one)"}</div>
+      {f === "text" && (
+        <>
+          <label className="field" htmlFor={`ed-acc-${q.id}`}>
+            Accepted answers (one per line; case, punctuation and small typos are ignored)
+          </label>
+          <textarea id={`ed-acc-${q.id}`} value={accepted} onChange={(e) => setAccepted(e.target.value)} rows={3} />
+        </>
+      )}
+      {f === "ordering" && (
+        <label className="field">
+          Correct order (option letters, e.g. C, A, D, B)
+          <input type="text" value={orderText} onChange={(e) => setOrderText(e.target.value)} aria-invalid={!orderKeys} />
+          {!orderKeys && <span className="small bad-text">Use every letter exactly once.</span>}
+        </label>
+      )}
+      {q.options.length > 0 && (
+        <div className="field">
+          {f === "truefalse"
+            ? "Statements and verdicts"
+            : f === "matching"
+              ? "Items and their correct answer"
+              : f === "multi"
+                ? "Options (tick every correct one)"
+                : f === "single"
+                  ? "Options (choose the correct one)"
+                  : "Options"}
+        </div>
+      )}
       {q.options.map((o) => (
         <div key={o.key} className="row editor-option">
           <span className="chip">{o.key}</span>
@@ -120,7 +164,7 @@ export function QuestionEditor({ q, issue, onDone }: { q: Question; issue?: stri
         </label>
       )}
       <div className="row">
-        <button className="primary" disabled={busy} onClick={save}>
+        <button className="primary" disabled={busy || (f === "ordering" && !orderKeys)} onClick={save}>
           Save correction
         </button>
         <button onClick={() => onDone(q)}>Cancel</button>

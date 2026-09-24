@@ -64,9 +64,9 @@ export default function Cases() {
     <div>
       <h1>Case scenarios</h1>
       <div className="card stack">
-        <h3 style={{ margin: 0 }}>Generate a case with AI</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>Generate a case with AI</h2>
         <div className="row">
-          <select value={topic} onChange={(e) => setTopic(e.target.value)}>
+          <select aria-label="Case topic" value={topic} onChange={(e) => setTopic(e.target.value)}>
             <option value="">Topic…</option>
             {TOPICS.map((t) => (
               <option key={t}>{t}</option>

@@ -89,7 +89,7 @@ export default function QuestionPage() {
           </button>
           <span className="small muted">{msg}</span>
         </div>
-        <h3 style={{ margin: 0 }}>AI tutor</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>AI tutor</h2>
         <AiChat context={questionText(q)} starters={["Explain this question in depth", "Why are the other options wrong?", "Related high-yield facts"]} />
       </div>
     </div>

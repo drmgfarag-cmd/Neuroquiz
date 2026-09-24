@@ -19,17 +19,20 @@ let index: MiniSearch<SearchDoc> | null = null;
 let signature = "";
 
 async function currentSignature(): Promise<string> {
-  const [q, f, uf, c, uc, a, last] = await Promise.all([
+  const [q, f, uf, c, uc, a, last, fixes, lastFix] = await Promise.all([
     db.questions.count(),
     db.flashcards.count(),
     db.userFlashcards.count(),
     db.cases.count(),
     db.userCases.count(),
     db.annotations.count(),
-    db.annotations.orderBy("updatedAt").last()
+    db.annotations.orderBy("updatedAt").last(),
+    // a learner's correction changes the question text
+    db.corrections.count(),
+    db.corrections.orderBy("updatedAt").last()
   ]);
   const books = (await db.books.toArray()).map((b) => b.importedAt).join(",");
-  return [q, f, uf, c, uc, a, last?.updatedAt ?? 0, books].join("|");
+  return [q, f, uf, c, uc, a, last?.updatedAt ?? 0, fixes, lastFix?.updatedAt ?? 0, books].join("|");
 }
 
 export async function getIndex(): Promise<MiniSearch<SearchDoc>> {

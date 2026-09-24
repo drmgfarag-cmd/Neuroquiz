@@ -35,7 +35,7 @@ export default function SettingsPage() {
       <h1>Settings</h1>
 
       <div className="card stack">
-        <h3 style={{ margin: 0 }}>AI (Claude)</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>AI (Claude)</h2>
         <label className="field">
           Anthropic API key
           <div className="row">
@@ -59,11 +59,11 @@ export default function SettingsPage() {
             <option value="custom">Custom…</option>
           </select>
         </label>
-        <input type="text" value={s.model} onChange={(e) => updateSettings({ model: e.target.value.trim() || DEFAULT_MODEL })} />
+        <input type="text" aria-label="Model ID" value={s.model} onChange={(e) => updateSettings({ model: e.target.value.trim() || DEFAULT_MODEL })} />
       </div>
 
       <div className="card stack">
-        <h3 style={{ margin: 0 }}>Sync between devices (Windows ⇄ Android)</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>Sync between devices (Windows ⇄ Android)</h2>
         <p className="small muted" style={{ margin: 0 }}>
           Progress, flags, notes, tags, test history and your own/AI flashcards & cases sync. Books and images do not – import them on each device (a ZIP makes this easy).
         </p>
@@ -129,7 +129,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="card stack">
-        <h3 style={{ margin: 0 }}>Appearance</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>Appearance</h2>
         <div className="row">
           <label className="field">
             Theme
@@ -152,7 +152,21 @@ export default function SettingsPage() {
       </div>
 
       <div className="card stack">
-        <h3 style={{ margin: 0 }}>Storage</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>Spaced repetition</h2>
+        <label className="field">
+          Scheduler for flashcards and question revision
+          <select value={s.scheduler ?? "fsrs"} onChange={(e) => updateSettings({ scheduler: e.target.value as "fsrs" | "sm2" })}>
+            <option value="fsrs">FSRS-5 (recommended – fewer reviews for the same retention)</option>
+            <option value="sm2">SM-2 (classic Anki)</option>
+          </select>
+        </label>
+        <p className="small muted" style={{ margin: 0 }}>
+          FSRS models how well you remember each item and schedules it when your recall drops to 90%. Switching keeps your existing schedule; items move over at their next review.
+        </p>
+      </div>
+
+      <div className="card stack">
+        <h2 className="card-title" style={{ margin: 0 }}>Storage</h2>
         <div className="small muted">{storage}</div>
         <div className="row">
           <button

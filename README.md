@@ -7,19 +7,20 @@ An offline-first quiz app for question banks extracted from neurosurgery books. 
 | Area | What you get |
 |---|---|
 | **Import** | JSON files, folders or ZIPs. A book can be one file or one file per chapter. Images, figures and tables are linked by file name from questions, options, explanations, flashcards and cases. Field names are flexible (see below). Re-importing a book replaces its content and keeps your progress. |
+| **Question types** | Single best answer, multiple answers, true/false statements and extended matching (EMI), plus **ordering** (drag or arrow buttons into sequence, partial credit per position), **typed answer / cloze** (case, punctuation and small typos forgiven), **image hotspot** (click the structure or lesion on the image) and **script concordance** (rate how new information changes a hypothesis on a −2…+2 scale, with partial credit from an expert panel). |
 | **AI tagging** | Claude reads each question with its answer and explanation. It assigns a topic and subtopic from a built-in neurosurgery taxonomy (16 topics, ~80 subtopics), plus concept tags, search keywords and synonyms, a difficulty, a high-yield flag and a one-line teaching point. An offline keyword tagger runs on every import as a first pass. You can correct tags by hand. |
 | **Search** | Full-text search with fuzzy and prefix matching, weighted by tags and topics. **Smart search** lets Claude turn a plain-language request into topics and synonyms. You can browse by topic and turn any result set into a test. |
-| **Test modes** | **Tutor** shows the answer and explanation after each question. **Timed exam** runs a countdown and grades at the end. **Untimed exam** also grades at the end, without a clock. **Read/review** lets you browse questions with answers shown. |
-| **Revision** | Filter by status: unused, incorrect, correct, flagged, or due for revision, or only questions with images (radiology/figure practice). Missed questions come back on a spaced-repetition schedule. You can also filter by book, chapter, topic, subtopic, difficulty or high-yield. Other tools: retry incorrect, flag, cross out options, notes, keyboard shortcuts. |
-| **Flashcards** | Cards come from imported flashcards, from questions (one tap), from Claude (short one-fact cards) or from you. Study with SM-2 spaced repetition or cram mode. |
+| **Test modes** | **Tutor** shows the answer and explanation after each question. **Timed exam** runs a countdown and grades at the end. **Untimed exam** also grades at the end, without a clock. **Read/review** lets you browse questions with answers shown. Options: **recall mode** hides the options until you have an answer in mind; **confidence rating** (guess / unsure / sure) sends lucky guesses back sooner and shows calibration in the results; **highlight** words in the stem (select, then `H`); **Lab values** opens a drawer of normal values and grading scales (GCS, Hunt–Hess, WFNS, modified Fisher, Spetzler–Martin, ICH score, ASIA, TLICS, mRS…); **Hint** asks Claude for a nudge that doesn't give the answer away. |
+| **Revision** | Filter by status: unused, incorrect, correct, right-but-unsure, flagged, or due for revision, or only questions with images (radiology/figure practice). Missed questions come back on a spaced-repetition schedule. You can also filter by book, chapter, topic, subtopic, difficulty or high-yield. Other tools: retry incorrect, flag, cross out options, notes, keyboard shortcuts. |
+| **Flashcards** | Cards come from imported flashcards, from questions (one tap), from Claude (short one-fact cards) or from you. Study with spaced repetition or cram mode. The scheduler is **FSRS-5** (fewer reviews than SM-2 for the same retention); SM-2 is available in Settings. |
 | **Cases** | Imported case scenarios reveal step by step: presentation, then stages, each with a question and model answer, then a discussion. Claude can write oral-board style cases from your own questions, and an **AI examiner** chat discusses each case with you. |
 | **Image viewer** | Tap any figure, radiology image or cropped table to open it. You can zoom with the mouse wheel, pinch, double-tap or the +/− buttons, up to 1200% or actual pixels (1:1). Drag to pan. Swipe, use the arrow keys or pick a thumbnail to move between all the images of a question, including its options and explanation. There are brightness and contrast controls: a **W/L** (window/level) drag like a PACS viewer, or right-drag at any time. You can also invert, rotate, flip and go full screen. **Dock** keeps the viewer beside the question on wide screens and follows you to the next question, so you can study a scan while choosing an answer. Keys: `+` `-` `0` `←` `→` `I` `R` `Esc`. |
 | **Fix questions** | Use **Edit question** to correct a question's text, options, answer key or explanation, for example an OCR error. Corrections survive book updates, sync between devices and can be reverted. **Report a problem** keeps a list of questions to fix later (Library → Reported problems), with a copyable list. |
 | **AI answer check** | Claude audits a book or chapter and flags answer keys that look wrong, contradict their explanation or are garbled. You can apply its suggested answer, edit the question, or dismiss the flag. |
-| **Mock exam** | A timed, board-style exam mixing several books by weight (e.g. 60/20/20). It prefers questions you haven't answered and keeps linked questions together. |
+| **Mock exam** | A timed, board-style exam mixing several books by weight (e.g. 60/20/20). It prefers questions you haven't answered and keeps linked questions together. Presets: quick (50), half board (185) and ABNS primary length (375 questions). |
 | **Image atlas** | Every figure, scan and table image of a book in one grid, filterable by chapter and by question vs. answer image. Each links to its question, and you can make a test from the image questions. |
 | **AI tutor** | Ask Claude about any question: why each option is right or wrong, mnemonics, related facts. |
-| **Stats** | Accuracy by book, topic and weakest subtopic, plus 14-day activity. Tap a weak area to build a test from it. |
+| **Stats** | Accuracy by book, topic and weakest subtopic, 14-day activity, questions due, right-but-unsure and confidently wrong answers, and average time per question. Tap a weak area to build a test from it. Each test's results add a **session analysis**: time on right vs. wrong answers, the slowest questions and confidence calibration. |
 | **Offline** | Everything except the AI features and sync works with no connection: import, tests, flashcards, cases, search, the viewer and stats. The web app installs itself for offline use on first visit. The Android and Windows apps load from local files. AI buttons are disabled while offline, and AI tagging stops cleanly if the connection drops, then continues from where it stopped when you run it again. Sync catches up automatically when you reconnect. |
 | **Sync** | Progress, flags, notes, tags, history and generated cards and cases sync through a small self-hosted server or a backup file. |
 
@@ -116,6 +117,18 @@ The importer recognises many shapes and field names. The key parts are:
 
   Both itemised types (true/false and matching) show a score such as "4 / 5 correct" and count as correct only when every item is right.
 - Case text in `case_scenario` is placed before the question. Images in `question_images` are shown with the question and `answer_images` only with the answer, even when a generic `images` list mixes both. Hard line breaks and page breaks from PDF/OCR extraction are joined back into paragraphs.
+- Other question types are named with `"type"` (or implied by their answer field):
+
+  ```jsonc
+  {"type": "ordering", "question": "…", "options": {"A": "…", "B": "…"}, "correct_order": ["B", "A"]}
+  {"type": "cloze", "question": "Oral {{c1::nimodipine}} for 21 days…"}          // the hidden word is the answer
+  {"type": "short_answer", "question": "…", "accepted_answers": ["PComm", "Posterior communicating artery"]}
+  {"type": "hotspot", "question": "Click the lesion", "images": ["mri.png"], "image_width": 512, "image_height": 512,
+   "hotspots": [{"x": 200, "y": 140, "w": 60, "h": 50, "label": "Vestibular schwannoma"}]}   // or {"x", "y", "r"}; pixels, % or 0–1
+  {"type": "sct", "question": "If you were thinking of … and then you find … this hypothesis becomes:",
+   "panel_votes": {"+2": 9, "+1": 5, "0": 1}}                                     // options default to the −2…+2 scale
+  ```
+- When a new edition of a book changes a question's text, its id changes; progress, tags, corrections and test history move to the new id when the question keeps its source id (`question_id` or `id`).
 - For numeric answers, you choose in the import screen whether `1` means the first option (default) or `0` does. `answer_index` is always 0-based.
 
 ## Project layout

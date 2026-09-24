@@ -11,7 +11,8 @@
  * Field names are matched case-insensitively against lists of common aliases
  * (question/stem/text, options/choices, answer/correct_answer, ...).
  */
-import type { Annotation, CaseStage, MatchChoice, MediaRef, Option, QuestionFormat } from "../lib/types";
+import { SCT_SCALE } from "../lib/grading";
+import type { Annotation, CaseStage, HotspotRegion, MatchChoice, MediaRef, Option, QuestionFormat } from "../lib/types";
 
 /** Tags carried inside NeuroQuiz's own book export (restored on import). */
 export type ParsedAnnotation = Omit<Annotation, "id" | "kind">;
@@ -40,6 +41,9 @@ export interface ParsedQuestion {
   verdicts?: Record<string, boolean>;
   choices?: MatchChoice[];
   matches?: Record<string, string>;
+  accepted?: string[];
+  regions?: HotspotRegion[];
+  panel?: Record<string, number>;
   /** questions sharing a case, an EMI list or a parent question (kept together when shuffling) */
   groupId?: string;
   /** EMI set the question belongs to in the source (merged into one matching question) */
@@ -458,6 +462,30 @@ function resolveAnswer(v: Json, options: Option[], base: 0 | 1, explicitZeroBase
 // Item classifiers
 // --------------------------------------------------------------------------
 
+const NEW_FORMAT = {
+  type: ["question_type", "qtype", "type", "format", "item_type"],
+  accepted: ["accepted_answers", "acceptable_answers", "accepted", "model_answers"],
+  order: ["correct_order", "correct_sequence", "sequence_answer", "answer_order"],
+  regions: ["hotspots", "hotspot_regions", "regions", "hotspot"],
+  panel: ["panel_votes", "expert_panel", "panel", "panel_answers"]
+};
+
+/** Newer formats named in the JSON ("type": "ordering") or implied by their answer fields. */
+function newFormatOf(o: Obj): "ordering" | "text" | "hotspot" | "sct" | undefined {
+  const t = toText(pick(o, NEW_FORMAT.type)).toLowerCase().replace(/[\s_-]+/g, "");
+  if (/^(ordering|order|sequence|sequencing|rank|ranking|dragorder)$/.test(t)) return "ordering";
+  if (/^(text|cloze|shortanswer|short|fillin|fillintheblank|fillblank|typed|typein|freetext|recall)$/.test(t)) return "text";
+  if (/^(hotspot|imagehotspot|clickimage|pointandclick)$/.test(t)) return "hotspot";
+  if (/^(sct|scriptconcordance|scriptconcordancetest)$/.test(t)) return "sct";
+  if (has(o, NEW_FORMAT.order)) return "ordering";
+  if (has(o, NEW_FORMAT.regions)) return "hotspot";
+  if (has(o, NEW_FORMAT.panel)) return "sct";
+  if (has(o, NEW_FORMAT.accepted)) return "text";
+  const stem = pick(o, F.stem);
+  if (typeof stem === "string" && /\{\{c\d+::/.test(stem)) return "text";
+  return undefined;
+}
+
 function looksLikeQuestion(o: Obj): boolean {
   const stem = pick(o, F.stem);
   if (stem === undefined || isObj(stem) || Array.isArray(stem)) return false;
@@ -467,6 +495,7 @@ function looksLikeQuestion(o: Obj): boolean {
     has(o, F.answerIndex) ||
     has(o, F.keyMap) ||
     has(o, F.verdicts) ||
+    newFormatOf(o) !== undefined ||
     Object.keys(o).some((k) => /^(?:option|opt|choice)[_\s-]?[a-h1-8]$/i.test(k))
   );
 }
@@ -475,6 +504,7 @@ function looksLikeFlashcard(o: Obj): boolean {
   const hasFront = has(o, ["front", "term", "cue"]);
   const hasBack = has(o, ["back", "definition"]);
   if (hasFront && hasBack) return true;
+  if (newFormatOf(o)) return false;
   // {question, answer} with no options = flashcard (unless it is a true/false item)
   const ans = pick(o, ["answer", "a"]);
   if (typeof ans === "boolean" || /^(true|false)$/i.test(String(ans ?? ""))) return false;
@@ -637,7 +667,68 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     // unknown list text: still playable with bare keys
     if (!choices?.length) choices = Array.from(new Set(values)).sort((a, b) => (numeric ? Number(a) - Number(b) : ROMANS.indexOf(a) - ROMANS.indexOf(b))).map((k) => ({ key: k, text: "" }));
     answer = [];
-  } else if (answer.length > 1) format = "multi";
+  }
+  let accepted: string[] | undefined;
+  let regions: HotspotRegion[] | undefined;
+  let panel: Record<string, number> | undefined;
+  const newFormat = format ? undefined : newFormatOf(o);
+  if (newFormat === "ordering") {
+    format = "ordering";
+    const raw = pick(o, NEW_FORMAT.order) ?? ansRaw;
+    const list = Array.isArray(raw) ? raw.map(toText) : toText(raw).split(/\s*(?:,|→|->|>|;|\s)\s*/);
+    const keyOf = (t: string) => options.find((x) => x.key === t.trim().toUpperCase())?.key ?? options.find((x) => squash(x.text).toLowerCase() === squash(t).toLowerCase())?.key;
+    const keys = list.map(keyOf).filter((k): k is string => !!k);
+    answer = keys.length === options.length && new Set(keys).size === keys.length ? keys : [];
+  } else if (newFormat === "text") {
+    format = "text";
+    // Anki-style cloze: "{{c1::Nimodipine}} reduces …" → blank + accepted answer
+    const cloze: string[] = [];
+    stem = stem.replace(/\{\{c\d+::([^}]*?)(?:::[^}]*)?\}\}/g, (_m, a: string) => {
+      cloze.push(a);
+      return "_____";
+    });
+    const raw = pick(o, NEW_FORMAT.accepted) ?? (answer.length ? undefined : ansRaw);
+    const listed = (Array.isArray(raw) ? raw.map(toText) : raw !== undefined ? toText(raw).split(/\s*[|;]\s*/) : []).filter(Boolean);
+    const fromKeys = answer.map((k) => options.find((x) => x.key === k)?.text ?? "").filter(Boolean);
+    accepted = Array.from(new Set([...cloze, ...listed, ...fromKeys]));
+    options.length = 0;
+    answer = [];
+  } else if (newFormat === "hotspot") {
+    format = "hotspot";
+    const raw = pick(o, NEW_FORMAT.regions);
+    const width = Number(pick(o, ["image_width", "width"])) || 0;
+    const height = Number(pick(o, ["image_height", "height"])) || 0;
+    const list = Array.isArray(raw) ? raw : raw !== undefined ? [raw] : [];
+    regions = list.filter(isObj).flatMap((r): HotspotRegion[] => {
+      const n = (k: string[]) => Number(pick(r, k));
+      const [x, y, w, h, rad] = [n(["x", "left", "cx"]), n(["y", "top", "cy"]), n(["w", "width"]), n(["h", "height"]), n(["r", "radius"])];
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
+      // pixels (with the image size given) or percentages → fractions
+      const big = Math.max(x, y, w || 0, h || 0, rad || 0) > 1;
+      const sx = big ? width || 100 : 1;
+      const sy = big ? height || 100 : 1;
+      const label = toText(pick(r, ["label", "name", "structure"])) || undefined;
+      if (Number.isFinite(rad) && rad > 0) return [{ x: x / sx, y: y / sy, r: rad / Math.max(sx, sy), ...(label ? { label } : {}) }];
+      if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return [{ x: x / sx, y: y / sy, w: w / sx, h: h / sy, ...(label ? { label } : {}) }];
+      return [];
+    });
+    options.length = 0;
+    answer = [];
+  } else if (newFormat === "sct") {
+    format = "sct";
+    const scaleKey = (k: string) => {
+      const m = /^\s*([-+\u2212]?)\s*(\d)\s*$/.exec(k);
+      return m ? (m[2] === "0" ? "0" : `${m[1] && m[1] !== "+" ? "-" : "+"}${m[2]}`) : k.trim().toUpperCase();
+    };
+    // no options of its own: the standard −2…+2 scale
+    if (!options.length) options.push(...SCT_SCALE.map((x) => ({ ...x, media: [] })));
+    else options.forEach((x) => (x.key = scaleKey(x.key)));
+    const raw = pick(o, NEW_FORMAT.panel);
+    if (isObj(raw)) panel = Object.fromEntries(Object.entries(raw).map(([k, v]) => [scaleKey(k), Number(v) || 0]));
+    const best = panel ? Object.entries(panel).sort((a, b) => b[1] - a[1])[0]?.[0] : ansRaw !== undefined ? scaleKey(toText(ansRaw)) : undefined;
+    answer = best ? [best] : [];
+    if (!panel && best) panel = { [best]: 1 };
+  } else if (!format && answer.length > 1) format = "multi";
 
   let explanation = reflow(toText(pick(o, F.explanation)));
   const sharedAnswer = reflow(toText(pick(o, ["shared_answer_context", "shared_explanation"])));
@@ -676,8 +767,9 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const tags = pick(o, F.tags);
   const group = pick(o, ["group_id", "parent_vignette_id", "emi_set_id", "case_group_id", "vignette_id", "shared_stem_id"]);
   const emi = pick(o, ["emi_set_id", "emi_set", "emi_group_id"]);
-  const srcId = pick(o, ["question_id", "qid"]);
+  const srcId = pick(o, ["question_id", "qid", "id"]);
   const section = pick(o, ["section_id", "section_name"]);
+  const warning = toText(pick(o, ["source_warning", "extraction_warning"]));
   const groupId = typeof group === "string" || typeof group === "number" ? String(group) : undefined;
   return {
     number: num !== undefined && (typeof num === "string" || typeof num === "number") ? String(num) : String(idx + 1),
@@ -688,6 +780,9 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     ...(verdicts ? { verdicts } : {}),
     ...(choices ? { choices } : {}),
     ...(matches ? { matches } : {}),
+    ...(accepted ? { accepted } : {}),
+    ...(regions ? { regions } : {}),
+    ...(panel ? { panel } : {}),
     explanation: linkInlineImages(explanation),
     annotation: parseAnnotation(o),
     stemMedia,
@@ -696,7 +791,8 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     ...(groupId ? { groupId } : {}),
     ...(typeof emi === "string" || typeof emi === "number" ? { emiSet: String(emi) } : {}),
     ...(typeof srcId === "string" || typeof srcId === "number" ? { sourceId: String(srcId) } : {}),
-    ...(typeof section === "string" ? { section } : {})
+    ...(typeof section === "string" ? { section } : {}),
+    ...(warning ? { sourceWarning: warning } : {})
   };
 }
 
@@ -942,8 +1038,10 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
       if (looksLikeQuestion(item) && !looksLikeFlashcard(item)) {
         const q = parseQuestion(item, i, opts);
         if (q) {
-          if (!q.answer.length && q.format !== "matching") warnings.push(`${chapter.title} #${q.number}: no correct answer found`);
-          if (!q.options.length) warnings.push(`${chapter.title} #${q.number}: no options found`);
+          const f = q.format ?? "single";
+          if (f === "text" ? !q.accepted?.length : f === "hotspot" ? !q.regions?.length : !q.answer.length && f !== "matching")
+            warnings.push(`${chapter.title} #${q.number}: no correct answer found`);
+          if (!q.options.length && f !== "text" && f !== "hotspot") warnings.push(`${chapter.title} #${q.number}: no options found`);
           if (q.format === "matching" && q.choices?.every((c) => !c.text)) warnings.push(`${chapter.title} #${q.number}: matching list not found – choices shown as numbers only`);
           target(item).questions.push(q);
         }

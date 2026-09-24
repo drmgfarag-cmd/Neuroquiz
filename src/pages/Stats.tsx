@@ -1,7 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useNavigate } from "react-router-dom";
 import { db, questionChapterIndex } from "../lib/db";
-import { pct } from "../lib/util";
+import { formatDuration, pct } from "../lib/util";
 
 export default function Stats() {
   const nav = useNavigate();
@@ -48,7 +48,13 @@ export default function Stats() {
       .filter(([, v]) => v.answers >= 3)
       .sort((a, b) => a[1].right / a[1].answers - b[1].right / b[1].answers)
       .slice(0, 10);
-    return { books, byBook, byTopic, weak, days, sessions: sessions.filter((s) => s.finishedAt).length };
+    const now = Date.now();
+    const due = states.filter((s) => s.timesSeen > 0 && s.srs.due <= now).length;
+    const unsure = states.filter((s) => s.lastCorrect === true && (s.lastConfidence ?? 3) < 3).length;
+    const sureWrong = states.filter((s) => s.lastCorrect === false && s.lastConfidence === 3).length;
+    const times = sessions.flatMap((x) => Object.values(x.answers).map((a) => a.timeMs).filter((t) => t > 0 && t < 30 * 60_000));
+    const avgTime = times.length ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+    return { books, byBook, byTopic, weak, days, sessions: sessions.filter((s) => s.finishedAt).length, due, unsure, sureWrong, avgTime };
   });
   if (!data) return null;
   const maxDay = Math.max(1, ...data.days.values());
@@ -71,7 +77,7 @@ export default function Stats() {
     <div>
       <h1>Statistics</h1>
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Activity – last 14 days</h3>
+        <h2 className="card-title" style={{ marginTop: 0 }}>Activity – last 14 days</h2>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 90 }}>
           {Array.from(data.days.entries()).map(([d, n]) => (
             <div key={d} title={`${d}: ${n}`} style={{ flex: 1, background: "var(--accent)", opacity: n ? 1 : 0.15, height: `${Math.max(4, (100 * n) / maxDay)}%`, borderRadius: 3 }} />
@@ -80,9 +86,39 @@ export default function Stats() {
         <div className="small muted">Questions last answered per day · {data.sessions} completed tests</div>
       </div>
 
+      <div className="card stack">
+        <h2 className="card-title" style={{ margin: 0 }}>Revision & confidence</h2>
+        <div className="row" style={{ gap: 24 }}>
+          <div>
+            <div className="stat">{data.due}</div>
+            <div className="muted small">due for revision</div>
+          </div>
+          <div>
+            <div className="stat">{data.unsure}</div>
+            <div className="muted small">right but unsure</div>
+          </div>
+          <div>
+            <div className="stat">{data.sureWrong}</div>
+            <div className="muted small">confidently wrong</div>
+          </div>
+          <div>
+            <div className="stat">{data.avgTime ? formatDuration(data.avgTime) : "–"}</div>
+            <div className="muted small">average time / question</div>
+          </div>
+        </div>
+        <div className="row">
+          <button className="small" disabled={!data.due} onClick={() => nav("/quiz", { state: { status: "due", title: "Due for revision" } })}>
+            Revise due questions
+          </button>
+          <button className="small" disabled={!data.unsure} onClick={() => nav("/quiz", { state: { status: "unsure", title: "Right but unsure" } })}>
+            Practise right-but-unsure
+          </button>
+        </div>
+      </div>
+
       {data.weak.length > 0 && (
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>Weakest subtopics</h3>
+          <h2 className="card-title" style={{ marginTop: 0 }}>Weakest subtopics</h2>
           {data.weak.map(([s, v]) => (
             <Bar key={s} label={`${s}`} v={v} onClick={() => nav("/quiz", { state: { subtopics: [s], title: `Weak area: ${s}` } })} />
           ))}
@@ -91,7 +127,7 @@ export default function Stats() {
       )}
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>By topic</h3>
+        <h2 className="card-title" style={{ marginTop: 0 }}>By topic</h2>
         {Array.from(data.byTopic.entries())
           .sort((a, b) => a[0].localeCompare(b[0]))
           .map(([t, v]) => (
@@ -99,7 +135,7 @@ export default function Stats() {
           ))}
       </div>
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>By book</h3>
+        <h2 className="card-title" style={{ marginTop: 0 }}>By book</h2>
         {data.books.map((b) => data.byBook.get(b.id) && <Bar key={b.id} label={b.title} v={data.byBook.get(b.id)!} />)}
       </div>
     </div>

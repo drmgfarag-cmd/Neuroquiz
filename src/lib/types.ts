@@ -37,8 +37,16 @@ export interface Option {
  * multi      – select all that apply
  * truefalse  – mark every statement (option) true or false
  * matching   – extended matching (EMI): pick one choice from a shared list per item
+ * ordering   – put the options in the right sequence (answer = keys in order)
+ * text       – type the answer (cloze / short answer), graded against `accepted`
+ * hotspot    – click the right place on the question's first image (`regions`)
+ * sct        – script concordance: rate how new information changes a hypothesis
+ *              (−2…+2); partial credit from an expert panel (`panel`)
  */
-export type QuestionFormat = "single" | "multi" | "truefalse" | "matching";
+export type QuestionFormat = "single" | "multi" | "truefalse" | "matching" | "ordering" | "text" | "hotspot" | "sct";
+
+/** Area on an image, as fractions (0–1) of its width and height. */
+export type HotspotRegion = { x: number; y: number; w: number; h: number; label?: string } | { x: number; y: number; r: number; label?: string };
 
 export interface MatchChoice {
   key: string; // "i", "ii", … or "1", "2", …
@@ -61,6 +69,12 @@ export interface Question {
   choices?: MatchChoice[];
   /** … and the correct choice key per item (option key) */
   matches?: Record<string, string>;
+  /** text: accepted answers (case and punctuation are ignored, small typos allowed) */
+  accepted?: string[];
+  /** hotspot: where a click counts as correct */
+  regions?: HotspotRegion[];
+  /** sct: expert panel votes per option key (the modal answer gets full credit) */
+  panel?: Record<string, number>;
   /** Questions sharing a case, an EMI answer list or a parent question; kept together when shuffled. */
   groupId?: string;
   /** true when the learner's correction is applied (see Correction) */
@@ -154,6 +168,8 @@ export interface QuestionState {
   lastSeenAt?: number;
   flagged: boolean;
   note: string;
+  /** confidence given with the last answer: 1 guess, 2 unsure, 3 sure */
+  lastConfidence?: Confidence;
   /** Problem reported by the learner (wrong key, OCR error, missing image …) */
   issue?: string;
   srs: SrsState;
@@ -173,7 +189,13 @@ export interface SrsState {
   reps: number;
   lapses: number;
   due: number; // epoch ms
+  /** FSRS memory state (days until recall probability falls to 90%, difficulty 1–10) */
+  stability?: number;
+  difficulty?: number;
+  lastReview?: number;
 }
+
+export type Confidence = 1 | 2 | 3;
 
 export type QuizMode = "tutor" | "timed" | "exam" | "review";
 
@@ -185,6 +207,12 @@ export interface SessionAnswer {
   flagged?: boolean;
   /** Eliminated options (strike-through) in the UI */
   struck?: string[];
+  /** 1 guess, 2 unsure, 3 sure */
+  confidence?: Confidence;
+  /** Text the learner highlighted in the stem */
+  highlights?: string[];
+  /** recall mode: the options were shown after the learner committed to an answer in their head */
+  optionsShown?: boolean;
 }
 
 export interface QuizSession {
@@ -201,6 +229,10 @@ export interface QuizSession {
   /** Seconds for the whole exam (timed mode) */
   timeLimitSec?: number;
   shuffleOptions: boolean;
+  /** Hide the options until the learner has an answer in mind (active recall). */
+  recall?: boolean;
+  /** Ask how sure the learner is with every answer. */
+  askConfidence?: boolean;
   optionOrder?: Record<string, string[]>;
   score?: number;
   updatedAt: number;
@@ -215,10 +247,12 @@ export interface Settings {
   deviceName: string;
   theme: "system" | "light" | "dark";
   fontScale: number;
+  /** spaced-repetition scheduler for flashcards and question revision */
+  scheduler?: "fsrs" | "sm2";
 }
 
 /** Fields of a question the learner can correct. */
-export type EditableFields = Partial<Pick<Question, "stem" | "options" | "answer" | "verdicts" | "matches" | "choices" | "explanation">>;
+export type EditableFields = Partial<Pick<Question, "stem" | "options" | "answer" | "verdicts" | "matches" | "choices" | "accepted" | "explanation">>;
 
 /** A learner's fix to an imported question; re-applied after every re-import and synced. */
 export interface Correction {

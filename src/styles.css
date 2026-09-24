@@ -12,7 +12,7 @@
   --good-soft: #dff3e7;
   --bad: #b3261e;
   --bad-soft: #fbe3e1;
-  --warn: #9a6400;
+  --warn: #7a4d00;
   --warn-soft: #fff1d6;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(15, 23, 32, 0.06), 0 2px 8px rgba(15, 23, 32, 0.05);
@@ -140,7 +140,9 @@ input[type="text"], input[type="password"], input[type="number"], input[type="se
   font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-height: 38px; max-width: 100%;
 }
 textarea { width: 100%; min-height: 80px; resize: vertical; }
-label.field { display: flex; flex-direction: column; gap: 4px; font-size: 0.9em; color: var(--muted); }
+label.field { display: flex; flex-direction: column; gap: 4px; font-size: 0.9em; color: var(--muted); min-width: 0; max-width: 100%; }
+label.field select { width: 100%; text-overflow: ellipsis; }
+.table-scroll { overflow-x: auto; max-width: 100%; }
 label.check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; accent-color: var(--accent); }
 
@@ -326,3 +328,31 @@ table.data th { font-size: 0.85em; color: var(--muted); font-weight: 600; }
 .atlas-thumb { width: 100%; height: 150px; object-fit: contain; background: #000; border-radius: 6px; cursor: zoom-in; min-width: 0 !important; }
 .atlas-chapter { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) { .atlas { grid-template-columns: repeat(2, minmax(0, 1fr)); } .atlas-thumb { height: 120px; } }
+
+h2.card-title { font-size: 1.12em; }
+.tree-node > .tree-row { display: flex; align-items: center; gap: 2px; padding: 2px 0; }
+.tree-node .caret { min-height: 28px; min-width: 28px; padding: 0; border: 0; background: none; color: var(--muted); }
+.tree-node .caret[aria-expanded="true"] { transform: rotate(90deg); }
+
+/* highlighting, new question formats */
+mark.hl { background: #ffe066; color: #17202b; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.ordering { list-style: none; padding: 0; margin: 8px 0; }
+.order-item { cursor: grab; }
+.order-item.dragging { opacity: 0.5; }
+.order-buttons { display: inline-flex; gap: 4px; flex: none; }
+.order-buttons button { min-width: 36px; }
+.option.partial { border-color: var(--warn); background: var(--warn-soft); }
+.text-answer input { width: 100%; font-size: 1.05em; }
+.hotspot { position: relative; display: block; width: 100%; max-width: 720px; margin: 8px 0; line-height: 0; }
+/* width fixed so images without an intrinsic size (SVG) still show; marks are fractions of this box */
+.hotspot img { display: block; width: 100%; height: auto; cursor: crosshair; border-radius: 6px; user-select: none; }
+.hs-marker { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid var(--accent); background: rgba(255, 255, 255, 0.35); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45); pointer-events: none; }
+.hs-marker.good { border-color: #2fbf6b; }
+.hs-marker.bad { border-color: #ff5a4f; }
+.hs-region { position: absolute; border: 3px dashed #2fbf6b; background: rgba(47, 191, 107, 0.15); pointer-events: none; }
+.hs-label { position: absolute; left: 0; top: 100%; background: #2fbf6b; color: #fff; font-size: 12px; line-height: 1.3; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+.confidence { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.confidence button.active { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); background: var(--surface); border-left: 1px solid var(--border); box-shadow: -4px 0 20px rgba(0, 0, 0, 0.18); z-index: 60; overflow-y: auto; padding: 14px 16px 40px; }
+.drawer table.data td, .drawer table.data th { padding: 4px 6px; font-size: 0.9em; }
+.bad-text { color: var(--bad); }

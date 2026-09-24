@@ -6,7 +6,7 @@ import { db } from "../lib/db";
 import { answerSummary, isItemised, score, selectionSummary } from "../lib/grading";
 import { plain } from "../lib/markdown";
 import { createSession } from "../lib/quiz";
-import type { Question } from "../lib/types";
+import type { Question, QuizSession } from "../lib/types";
 import { formatDuration, pct } from "../lib/util";
 
 export default function Results() {
@@ -82,6 +82,8 @@ export default function Results() {
         </div>
       </div>
 
+      <SessionAnalysis qs={qs} answers={s.answers} onRetry={retry} title={s.title} />
+
       <h2>By topic</h2>
       <div className="card">
         {Array.from(byTopic.entries())
@@ -118,6 +120,8 @@ export default function Results() {
               <div className="list-item clickable" onClick={() => setOpen(open === q.id ? null : q.id)}>
                 <span className={`chip ${a?.correct ? "good" : a?.selected.length ? "bad" : ""}`}>{i + 1}</span>
                 <div style={{ flex: 1 }}>{plain(q.stem, 160)}</div>
+                {a?.timeMs ? <span className="small muted" title="Time on this question">{formatDuration(a.timeMs)}</span> : null}
+                {a?.confidence && <span className="small muted">{["", "guess", "unsure", "sure"][a.confidence]}</span>}
                 <span className="small muted">
                   {isItemised(q) && a?.selected.length ? `${score(q, a.selected).right}/${score(q, a.selected).total}` : `${selectionSummary(q, a?.selected ?? [])} / ${answerSummary(q, true)}`}
                 </span>
@@ -137,5 +141,92 @@ export default function Results() {
         {!list.length && <div className="muted">Nothing here.</div>}
       </div>
     </div>
+  );
+}
+
+const CONF = ["", "Guess", "Unsure", "Sure"] as const;
+
+/** Where the time went and how well confidence matched results (calibration). */
+function SessionAnalysis({ qs, answers, onRetry, title }: { qs: Question[]; answers: QuizSession["answers"]; onRetry: (q: Question[], title: string) => void; title: string }) {
+  const done = qs.filter((q) => answers[q.id]?.selected.length);
+  if (!done.length) return null;
+  const avg = (list: Question[]) => (list.length ? list.reduce((t, q) => t + (answers[q.id]?.timeMs ?? 0), 0) / list.length : 0);
+  const right = done.filter((q) => answers[q.id]?.correct);
+  const wrong = done.filter((q) => answers[q.id]?.correct === false);
+  const slowest = done
+    .slice()
+    .sort((a, b) => (answers[b.id]?.timeMs ?? 0) - (answers[a.id]?.timeMs ?? 0))
+    .slice(0, 5);
+  const rated = done.filter((q) => answers[q.id]?.confidence);
+  const confidentlyWrong = wrong.filter((q) => answers[q.id]?.confidence === 3);
+  const lucky = right.filter((q) => (answers[q.id]?.confidence ?? 3) < 3 && answers[q.id]?.confidence);
+  return (
+    <>
+      <h2>Session analysis</h2>
+      <div className="card stack">
+        <div className="row" style={{ gap: 24 }}>
+          <div>
+            <div className="stat">{formatDuration(avg(done))}</div>
+            <div className="muted small">average per question</div>
+          </div>
+          <div>
+            <div className="stat">{formatDuration(avg(right))}</div>
+            <div className="muted small">on correct answers</div>
+          </div>
+          <div>
+            <div className="stat">{formatDuration(avg(wrong))}</div>
+            <div className="muted small">on incorrect answers</div>
+          </div>
+        </div>
+        <div className="small">
+          <strong>Slowest:</strong>{" "}
+          {slowest.map((q, i) => (
+            <span key={q.id}>
+              {i > 0 && " · "}
+              Q{qs.indexOf(q) + 1} ({formatDuration(answers[q.id]?.timeMs ?? 0)}
+              {answers[q.id]?.correct ? " ✓" : " ✗"})
+            </span>
+          ))}
+        </div>
+        {rated.length > 0 && (
+          <>
+            <div className="table-scroll" tabIndex={0}>
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>Confidence</th>
+                    <th>Answers</th>
+                    <th>Correct</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {([3, 2, 1] as const).map((c) => {
+                    const g = rated.filter((q) => answers[q.id]?.confidence === c);
+                    return (
+                      <tr key={c}>
+                        <td>{CONF[c]}</td>
+                        <td>{g.length}</td>
+                        <td>{g.length ? pct(g.filter((q) => answers[q.id]?.correct).length, g.length) : "–"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="small muted" style={{ margin: 0 }}>
+              Well calibrated: “Sure” answers are nearly all right and “Guess” answers much less so. Confidently wrong answers point to a misconception worth reviewing first.
+            </p>
+            <div className="row">
+              <button className="small" disabled={!confidentlyWrong.length} onClick={() => onRetry(confidentlyWrong, `Confidently wrong – ${title}`)}>
+                Retry {confidentlyWrong.length} confidently wrong
+              </button>
+              <button className="small" disabled={!lucky.length} onClick={() => onRetry(lucky, `Right but unsure – ${title}`)}>
+                Retry {lucky.length} right-but-unsure
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
 }

@@ -6,6 +6,8 @@ import { ViewerProvider } from "./components/ImageViewer";
 import { registerPwa } from "./pwa";
 import "./styles.css";
 
+document.documentElement.lang ||= "en";
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <HashRouter>

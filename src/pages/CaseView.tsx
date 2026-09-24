@@ -49,7 +49,7 @@ export default function CaseView() {
           );
         return (
           <div className="card" key={i}>
-            <h3 style={{ marginTop: 0 }}>{s.title}</h3>
+            <h2 className="card-title" style={{ marginTop: 0 }}>{s.title}</h2>
             {s.content && <Rich text={s.content} bookId={c.bookId} />}
             <MediaList media={s.media} bookId={c.bookId} />
             {s.question && (
@@ -84,13 +84,13 @@ export default function CaseView() {
 
       {(finished || showAll) && c.discussion && (
         <div className="card explanation">
-          <h3 style={{ marginTop: 0 }}>Discussion</h3>
+          <h2 className="card-title" style={{ marginTop: 0 }}>Discussion</h2>
           <Rich text={c.discussion} bookId={c.bookId} />
         </div>
       )}
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Case discussion with AI examiner</h3>
+        <h2 className="card-title" style={{ marginTop: 0 }}>Case discussion with AI examiner</h2>
         <AiChat
           context={`Clinical case (the resident has seen up to stage ${visible} of ${c.stages.length}; do not reveal later stages unless asked):\n${caseText(c)}\n\nResident's written answers so far: ${JSON.stringify(mine)}`}
           starters={["Examine me on this case, oral-board style", "Critique my answers so far", "What are the key teaching points?", "What would change if the patient were elderly/anticoagulated?"]}

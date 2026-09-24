@@ -9,7 +9,7 @@
 import { db, deleteSynced } from "./db";
 import type { Correction, EditableFields, Question } from "./types";
 
-const FIELDS = ["stem", "options", "answer", "verdicts", "matches", "choices", "explanation"] as const;
+const FIELDS = ["stem", "options", "answer", "verdicts", "matches", "choices", "accepted", "explanation"] as const;
 
 function pickFields(q: Question, keys: readonly (keyof EditableFields)[]): EditableFields {
   const out: Record<string, unknown> = {};

@@ -43,7 +43,7 @@ export default function ImportPage() {
     setBusy("Loading sample…");
     try {
       // served as plain files (not a zip) so every host can deliver them
-      const names = ["01-vascular.json", "02-oncology-trauma.json", "03-spine-functional.json", "fig_cow.svg", "fig_edh.svg"];
+      const names = ["01-vascular.json", "02-oncology-trauma.json", "03-spine-functional.json", "04-question-types.json", "fig_cow.svg", "fig_edh.svg"];
       const files = await Promise.all(
         names.map(async (n) => {
           const res = await fetch(`./sample/${n}`);
@@ -247,6 +247,7 @@ export default function ImportPage() {
           <p>
             {result.books} book(s), {result.chapters} chapters, {result.questions} questions, {result.flashcards} flashcards, {result.cases} cases, {result.images} images.
           </p>
+          {!!result.remapped && <p className="small">{result.remapped} question(s) changed in the source; your progress on them was kept.</p>}
           <p className="small muted">Questions were given quick offline topic tags. For accurate context-aware categorisation run AI tagging.</p>
           {result.missingImages.length > 0 && (
             <details>
@@ -275,7 +276,7 @@ export default function ImportPage() {
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Supported JSON</h2>
         <p className="small muted">Field names are flexible (question/stem/text, options/choices, answer/correct_answer, explanation/rationale, images/figures…). Examples:</p>
-        <pre className="small" style={{ overflow: "auto", background: "var(--surface-2)", padding: 10, borderRadius: 8 }}>{`{
+        <pre className="small" tabIndex={0} style={{ overflow: "auto", background: "var(--surface-2)", padding: 10, borderRadius: 8 }}>{`{
   "book": "Neurosurgery Review",
   "chapters": [{
     "title": "Vascular",

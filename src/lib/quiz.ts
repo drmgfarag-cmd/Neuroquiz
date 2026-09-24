@@ -1,10 +1,10 @@
 import { db } from "./db";
-import { formatOf, isCorrect, isItemised } from "./grading";
+import { canShuffle, formatOf, isCorrect } from "./grading";
 import { newSrs, review } from "./srs";
-import type { Difficulty, Question, QuestionFormat, QuestionState, QuizMode, QuizSession, SessionAnswer } from "./types";
+import type { Confidence, Difficulty, Question, QuestionFormat, QuestionState, QuizMode, QuizSession, SessionAnswer } from "./types";
 import { shuffle, uid } from "./util";
 
-export type QuestionStatus = "all" | "unused" | "incorrect" | "flagged" | "due" | "correct" | "reported";
+export type QuestionStatus = "all" | "unused" | "incorrect" | "flagged" | "due" | "correct" | "reported" | "unsure";
 
 export interface PoolFilter {
   bookIds: string[];
@@ -74,6 +74,9 @@ export async function buildPool(f: PoolFilter): Promise<Question[]> {
           return !!s?.flagged;
         case "reported":
           return !!s?.issue;
+        case "unsure":
+          // right, but only by guessing or unsure
+          return !!s && s.lastCorrect === true && (s.lastConfidence ?? 3) < 3;
         case "due":
           return !!s && s.timesSeen > 0 && s.srs.due <= now;
       }
@@ -100,6 +103,15 @@ export interface SessionOptions {
   preserveOrder?: boolean;
   /** exact exam length in seconds (timed mode); default secondsPerQuestion × count */
   timeLimitSec?: number;
+  /** hide options until the learner has an answer in mind */
+  recall?: boolean;
+  askConfidence?: boolean;
+}
+
+function shuffleUntilChanged(keys: string[]): string[] {
+  let out = shuffle(keys);
+  for (let i = 0; i < 5 && keys.length > 1 && out.every((k, j) => k === keys[j]); i++) out = shuffle(keys);
+  return out;
 }
 
 /**
@@ -140,8 +152,13 @@ export async function createSession(pool: Question[], o: SessionOptions): Promis
     startedAt: now,
     timeLimitSec: o.mode === "timed" ? (o.timeLimitSec ?? Math.round(chosen.length * o.secondsPerQuestion)) : undefined,
     shuffleOptions: o.shuffleOptions,
-    // item-by-item questions keep their order (labels often refer to a diagram)
-    optionOrder: o.shuffleOptions ? Object.fromEntries(chosen.filter((q) => !isItemised(q)).map((q) => [q.id, shuffle(q.options.map((x) => x.key))])) : undefined,
+    // item-by-item questions keep their order (labels often refer to a diagram);
+    // ordering questions always start shuffled
+    optionOrder: Object.fromEntries(
+      chosen.filter((q) => (o.shuffleOptions && canShuffle(q)) || formatOf(q) === "ordering").map((q) => [q.id, shuffleUntilChanged(q.options.map((x) => x.key))])
+    ),
+    ...(o.recall ? { recall: true } : {}),
+    ...(o.askConfidence ? { askConfidence: true } : {}),
     updatedAt: now
   };
   await db.sessions.put(s);
@@ -159,16 +176,19 @@ export async function getState(questionId: string): Promise<QuestionState> {
 }
 
 /** Persist a graded answer into the long-term per-question state (+ revision schedule). */
-export async function recordResult(q: Question, correct: boolean): Promise<void> {
+export async function recordResult(q: Question, correct: boolean, confidence?: Confidence): Promise<void> {
   const s = await getState(q.id);
   const now = Date.now();
+  // a lucky guess comes back sooner
+  const grade = !correct ? "again" : confidence === 1 ? "hard" : "good";
   await db.questionStates.put({
     ...s,
     timesSeen: s.timesSeen + 1,
     timesCorrect: s.timesCorrect + (correct ? 1 : 0),
     lastCorrect: correct,
     lastSeenAt: now,
-    srs: review(s.srs, correct ? "good" : "again", now),
+    lastConfidence: confidence,
+    srs: review(s.srs, grade, now),
     updatedAt: now
   });
 }
@@ -204,7 +224,7 @@ export async function finishSession(s: QuizSession): Promise<QuizSession> {
     const c = isCorrect(q, a.selected);
     answers[q.id] = { ...a, correct: c };
     if (c) score++;
-    if (!already && s.mode !== "review") await recordResult(q, c);
+    if (!already && s.mode !== "review") await recordResult(q, c, a.confidence);
   }
   const done: QuizSession = { ...s, answers, score, finishedAt: Date.now(), updatedAt: Date.now() };
   await db.sessions.put(done);

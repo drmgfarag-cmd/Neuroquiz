@@ -1,4 +1,5 @@
 import { answerSummary, choiceLabel, formatOf, isCorrect, pairs, score } from "../lib/grading";
+import { Hotspot, Ordering, Sct, TextAnswer } from "./NewFormats";
 import type { Question } from "../lib/types";
 import { MediaList, Rich } from "./Rich";
 
@@ -11,6 +12,9 @@ interface Props {
   struck?: string[];
   onStrike?: (key: string) => void;
   order?: string[];
+  /** text the learner highlighted in the stem; clicking a highlight removes it */
+  highlights?: string[];
+  onUnhighlight?: (text: string) => void;
 }
 
 /** Stem + answer controls for every question format. When `revealed`, marks right and wrong. */
@@ -20,9 +24,24 @@ export function QuestionView(props: Props) {
   return (
     <div>
       {q.sourceWarning && !q.edited && <div className="banner small source-warning">⚠ {q.sourceWarning}</div>}
-      <Rich text={q.stem} bookId={q.bookId} />
-      <MediaList media={q.stemMedia} bookId={q.bookId} />
-      {f === "truefalse" ? <TrueFalse {...props} /> : f === "matching" ? <Matching {...props} /> : <Choices {...props} />}
+      <Rich text={q.stem} bookId={q.bookId} highlights={props.highlights} onUnhighlight={props.onUnhighlight} className="stem" />
+      {/* the hotspot image is the answer area */}
+      <MediaList media={f === "hotspot" ? q.stemMedia.slice(1) : q.stemMedia} bookId={q.bookId} />
+      {f === "truefalse" ? (
+        <TrueFalse {...props} />
+      ) : f === "matching" ? (
+        <Matching {...props} />
+      ) : f === "ordering" ? (
+        <Ordering {...props} />
+      ) : f === "text" ? (
+        <TextAnswer {...props} />
+      ) : f === "hotspot" ? (
+        <Hotspot {...props} />
+      ) : f === "sct" ? (
+        <Sct {...props} />
+      ) : (
+        <Choices {...props} />
+      )}
     </div>
   );
 }
@@ -177,15 +196,17 @@ export function Explanation({ q, selected }: { q: Question; selected: string[] }
   const answered = selected.length > 0;
   const correct = answered ? isCorrect(q, selected) : null;
   const sc = score(q, selected);
-  const itemised = formatOf(q) === "truefalse" || formatOf(q) === "matching";
+  const itemised = ["truefalse", "matching", "ordering", "sct"].includes(formatOf(q));
   return (
     <div className="card explanation">
       <div className="row">
         {correct === true && <span className="chip good">Correct</span>}
-        {correct === false && <span className="chip bad">{itemised ? `${sc.right} / ${sc.total} correct` : "Incorrect"}</span>}
+        {correct === false && (
+          <span className={`chip ${sc.right > 0 ? "warn" : "bad"}`}>{formatOf(q) === "sct" ? `${Math.round(sc.right * 100)}% credit` : itemised ? `${sc.right} / ${sc.total} correct` : "Incorrect"}</span>
+        )}
         {correct === null && <span className="chip">Not answered</span>}
         <span>
-          Answer: <strong>{answerSummary(q, itemised)}</strong>
+          Answer: <strong>{answerSummary(q, formatOf(q) === "truefalse" || formatOf(q) === "matching")}</strong>
         </span>
       </div>
       {q.explanation ? <Rich text={q.explanation} bookId={q.bookId} className="" /> : <p className="muted">No explanation in the source.</p>}

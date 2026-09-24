@@ -1,0 +1,84 @@
+{
+  "book": "Sample Neurosurgery Review",
+  "chapter": "Other question types",
+  "questions": [
+    {
+      "id": "T1",
+      "type": "ordering",
+      "question": "Put the layers in the order you meet them during a craniotomy, from the surface inwards.",
+      "options": {
+        "A": "Pericranium",
+        "B": "Skin",
+        "C": "Dura mater",
+        "D": "Galea aponeurotica",
+        "E": "Bone",
+        "F": "Loose areolar tissue"
+      },
+      "correct_order": ["B", "D", "F", "A", "E", "C"],
+      "explanation": "SCALP: **S**kin, dense **C**onnective tissue, **A**poneurosis (galea), **L**oose areolar tissue, **P**ericranium – then bone and dura. The loose areolar layer is the plane for a subgaleal dissection and for subgaleal haematomas."
+    },
+    {
+      "id": "T2",
+      "type": "ordering",
+      "question": "Order the segments of the internal carotid artery (Bouthillier classification) from proximal to distal.",
+      "options": {
+        "A": "Cavernous",
+        "B": "Petrous",
+        "C": "Communicating",
+        "D": "Cervical",
+        "E": "Clinoid",
+        "F": "Lacerum",
+        "G": "Ophthalmic"
+      },
+      "correct_order": ["D", "B", "F", "A", "E", "G", "C"],
+      "explanation": "C1 cervical, C2 petrous, C3 lacerum, C4 cavernous, C5 clinoid, C6 ophthalmic, C7 communicating (Bouthillier et al., 1996)."
+    },
+    {
+      "id": "T3",
+      "type": "cloze",
+      "question": "After aneurysmal subarachnoid haemorrhage, oral {{c1::nimodipine}} 60 mg every 4 hours for 21 days improves neurological outcome.",
+      "explanation": "Nimodipine is the only drug shown to improve outcome after aneurysmal SAH; it does not reliably reduce angiographic vasospasm."
+    },
+    {
+      "id": "T4",
+      "type": "short_answer",
+      "question": "A 45-year-old develops a painful complete third nerve palsy with a dilated pupil. Which artery is the aneurysm most likely to arise from? (type your answer)",
+      "accepted_answers": ["Posterior communicating artery", "PComm", "PCOM", "PComA", "ICA–PComm junction"],
+      "explanation": "A painful pupil-involving third nerve palsy is a posterior communicating artery aneurysm until proven otherwise; the pupillomotor fibres run superficially on the nerve."
+    },
+    {
+      "id": "T5",
+      "type": "hotspot",
+      "question": "Click on the aneurysm in this diagram of the circle of Willis.",
+      "images": ["fig_cow.svg"],
+      "image_width": 320,
+      "image_height": 220,
+      "hotspots": [{ "x": 142, "y": 42, "w": 36, "h": 34, "label": "AComm aneurysm" }],
+      "explanation": "Anterior communicating artery aneurysms are the most common intracranial aneurysms (about 30–35%)."
+    },
+    {
+      "id": "T6",
+      "type": "hotspot",
+      "question": "Click on the extra-axial haematoma.",
+      "images": ["fig_edh.svg"],
+      "image_width": 260,
+      "image_height": 260,
+      "hotspots": [{ "x": 12, "y": 64, "w": 62, "h": 132, "label": "Extradural haematoma" }],
+      "explanation": "A biconvex (lentiform) hyperdense collection limited by the sutures is an extradural haematoma, typically from a middle meningeal artery tear."
+    },
+    {
+      "id": "T7",
+      "type": "sct",
+      "question": "A 74-year-old man has 3 weeks of worsening headache and a mild left hemiparesis.\n\n**If you were thinking of:** chronic subdural haematoma\n\n**and then you find:** he takes apixaban and fell at home 6 weeks ago\n\n**this hypothesis becomes:**",
+      "panel_votes": { "+2": 9, "+1": 5, "0": 1, "-1": 0, "-2": 0 },
+      "explanation": "Anticoagulation and minor trauma weeks earlier are the classic risk factors for a chronic subdural haematoma. Script concordance items are scored against an expert panel: the most common panel answer gets full credit and other answers chosen by panellists get partial credit."
+    },
+    {
+      "id": "T8",
+      "type": "sct",
+      "question": "A 30-year-old woman has sudden severe headache; CT at 2 hours is normal.\n\n**If you were considering:** discharge without further tests\n\n**and then you find:** lumbar puncture at 12 hours shows xanthochromia\n\n**this option becomes:**",
+      "panel_votes": { "-2": 12, "-1": 2, "0": 0, "+1": 0, "+2": 0 },
+      "explanation": "Xanthochromia confirms subarachnoid haemorrhage; she needs CT angiography, not discharge."
+    }
+  ]
+}

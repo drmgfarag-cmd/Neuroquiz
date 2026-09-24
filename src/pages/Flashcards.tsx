@@ -283,7 +283,7 @@ function Create({ onDone }: { onDone: () => void }) {
   return (
     <div>
       <div className="card stack">
-        <h3 style={{ margin: 0 }}>New card</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>New card</h2>
         <label className="field">
           Front (markdown supported)
           <textarea value={front} onChange={(e) => setFront(e.target.value)} />
@@ -309,7 +309,7 @@ function Create({ onDone }: { onDone: () => void }) {
         </div>
       </div>
       <div className="card stack">
-        <h3 style={{ margin: 0 }}>Convert questions into cards</h3>
+        <h2 className="card-title" style={{ margin: 0 }}>Convert questions into cards</h2>
         <p className="small muted" style={{ margin: 0 }}>
           Creates one card per question (stem → correct answer + explanation). For concise AI-written cards use “+ AI flashcards” after answering a question.
         </p>

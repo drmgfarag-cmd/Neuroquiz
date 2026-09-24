@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { allCases, allFlashcards, db } from "../lib/db";
-import type { Annotation, MediaRef } from "../lib/types";
+import type { Annotation, Correction, MediaRef, Question } from "../lib/types";
 
 /**
  * Packs one book (questions, flashcards, cases, images and tags) into a ZIP
@@ -28,6 +28,10 @@ export async function exportBookZip(bookId: string): Promise<{ blob: Blob; name:
     void _kind;
     return rest;
   };
+  // export what the book says: ids are a hash of the original text, so the
+  // other device gets the same ids and re-applies the (synced) corrections
+  const fixes = new Map((await db.corrections.bulkGet(questions.map((q) => q.id))).filter((c): c is Correction => !!c).map((c) => [c.questionId, c.original]));
+  const asImported = (q: Question): Question => ({ ...q, ...(fixes.get(q.id) ?? {}) });
   const refs = (m: MediaRef[]) => m.map((x) => (x.caption ? { file: x.file, caption: x.caption } : x.file));
 
   const json = {
@@ -38,8 +42,12 @@ export async function exportBookZip(bookId: string): Promise<{ blob: Blob; name:
       title: ch.title,
       questions: questions
         .filter((q) => q.chapterId === ch.id)
+        .map(asImported)
         .map((q) => ({
           number: q.number,
+          ...(q.sourceId ? { question_id: q.sourceId } : {}),
+          ...(q.groupId ? { group_id: q.groupId.startsWith(`${q.chapterId}:`) ? q.groupId.slice(q.chapterId.length + 1) : q.groupId } : {}),
+          ...(q.sourceWarning ? { source_warning: q.sourceWarning } : {}),
           stem: q.stem,
           stem_media: refs(q.stemMedia),
           options: q.options.map((o) => ({ key: o.key, text: o.text, media: refs(o.media) })),
@@ -48,6 +56,10 @@ export async function exportBookZip(bookId: string): Promise<{ blob: Blob; name:
           ...(q.verdicts ? { option_verdicts: Object.fromEntries(Object.entries(q.verdicts).map(([k, v]) => [k, v ? "TRUE" : "FALSE"])) } : {}),
           ...(q.matches ? { answer_key_map: q.matches } : {}),
           ...(q.choices ? { choice_list: Object.fromEntries(q.choices.map((c) => [c.key, c.text])) } : {}),
+          ...(q.format === "ordering" ? { correct_order: q.answer } : {}),
+          ...(q.accepted ? { accepted_answers: q.accepted } : {}),
+          ...(q.regions ? { hotspots: q.regions } : {}),
+          ...(q.panel ? { panel_votes: q.panel } : {}),
           explanation: q.explanation,
           explanation_media: refs(q.explanationMedia),
           tags: q.sourceTags,

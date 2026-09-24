@@ -11,7 +11,18 @@ const FORMATS: [QuestionFormat, string][] = [
   ["single", "Single best answer"],
   ["multi", "Multiple answers"],
   ["truefalse", "True/False"],
-  ["matching", "EMI"]
+  ["matching", "EMI"],
+  ["ordering", "Ordering"],
+  ["text", "Typed answer"],
+  ["hotspot", "Image hotspot"],
+  ["sct", "Script concordance"]
+];
+
+/** Common lengths; board exams allow roughly 72 seconds per question. */
+const PRESETS: { label: string; total: number; minutes: number; title: string }[] = [
+  { label: "Quick – 50 Q / 60 min", total: 50, minutes: 60, title: "Quick mock" },
+  { label: "Half board – 185 Q", total: 185, minutes: 222, title: "Half-length board mock" },
+  { label: "ABNS primary length – 375 Q", total: 375, minutes: 450, title: "Full-length board mock (ABNS primary length)" }
 ];
 
 export default function MockExam() {
@@ -26,6 +37,7 @@ export default function MockExam() {
   const [formats, setFormats] = useState<QuestionFormat[]>([]);
   const [shuffleOptions, setShuffleOptions] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [title, setTitle] = useState("");
 
   // every book starts with an equal share
   useEffect(() => {
@@ -52,7 +64,7 @@ export default function MockExam() {
       }
       const s = await createSession(plan.questions, {
         mode: timed ? "timed" : "exam",
-        title: `Mock exam – ${plan.questions.length} questions`,
+        title: `${title || "Mock exam"} – ${plan.questions.length} questions`,
         count: 0,
         shuffleQuestions: false,
         preserveOrder: true,
@@ -74,6 +86,23 @@ export default function MockExam() {
           Build a board-style exam from several books. Questions are drawn at random in the proportions you set, linked questions (shared cases, EMI sets) stay
           together, and results and explanations appear at the end.
         </p>
+        <div className="row" role="group" aria-label="Presets">
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              className={`small ${total === p.total && minutes === p.minutes ? "active" : ""}`}
+              onClick={() => {
+                setTotal(p.total);
+                setMinutes(p.minutes);
+                setMinutesTouched(true);
+                setTimed(true);
+                setTitle(p.title);
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
         <div className="row">
           <label className="field">
             Questions
@@ -102,7 +131,8 @@ export default function MockExam() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Book mix</h3>
+        <h2 className="card-title" style={{ marginTop: 0 }}>Book mix</h2>
+        <div className="table-scroll" tabIndex={0}>
         <table className="data">
           <thead>
             <tr>
@@ -138,6 +168,7 @@ export default function MockExam() {
             ))}
           </tbody>
         </table>
+        </div>
         <p className="small muted">Set a weight to 0 to leave a book out. Weights are relative: 2 / 1 / 1 gives 50% / 25% / 25%.</p>
       </div>
 
