@@ -79,6 +79,12 @@ function Choices({ q, selected, revealed, onSelect, struck = [], onStrike, order
               aria-checked={isSel}
               tabIndex={0}
               onClick={() => !revealed && onSelect?.(o.key)}
+              onKeyDown={(e) => {
+                if (!revealed && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  onSelect?.(o.key);
+                }
+              }}
               onContextMenu={(e) => {
                 if (onStrike && !revealed) {
                   e.preventDefault();
