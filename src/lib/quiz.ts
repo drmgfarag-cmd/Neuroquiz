@@ -36,7 +36,13 @@ export const emptyFilter = (): PoolFilter => ({
 export async function buildPool(f: PoolFilter): Promise<Question[]> {
   let qs: Question[];
   if (f.ids?.length) qs = (await db.questions.bulkGet(f.ids)).filter((q): q is Question => !!q);
-  else if (f.chapterIds.length) qs = await db.questions.where("chapterId").anyOf(f.chapterIds).toArray();
+  else if (f.chapterIds.length && f.bookIds.length) {
+    const [chapters, books] = await Promise.all([
+      db.questions.where("chapterId").anyOf(f.chapterIds).toArray(),
+      db.questions.where("bookId").anyOf(f.bookIds).toArray()
+    ]);
+    qs = Array.from(new Map([...chapters, ...books].map((q) => [q.id, q])).values());
+  } else if (f.chapterIds.length) qs = await db.questions.where("chapterId").anyOf(f.chapterIds).toArray();
   else if (f.bookIds.length) qs = await db.questions.where("bookId").anyOf(f.bookIds).toArray();
   else qs = await db.questions.toArray();
 
