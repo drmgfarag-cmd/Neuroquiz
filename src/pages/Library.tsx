@@ -11,6 +11,7 @@ import { clearMediaCache } from "../lib/media";
 import { buildPool, createSession, emptyFilter } from "../lib/quiz";
 import type { QuizMode } from "../lib/types";
 import { pct } from "../lib/util";
+import { auditBook } from "../lib/quality";
 
 export default function Library() {
   const nav = useNavigate();
@@ -38,7 +39,7 @@ export default function Library() {
   });
 
   const start = async (mode: QuizMode, title: string, bookIds: string[], chapterIds: string[]) => {
-    const pool = await buildPool({ ...emptyFilter(), bookIds, chapterIds });
+    const pool = await buildPool({ ...emptyFilter(), bookIds, chapterIds }, mode === "review");
     if (!pool.length) return void notify("No questions in this selection.");
     const s = await createSession(pool, { mode, title, count: 0, shuffleQuestions: false, shuffleOptions: false, secondsPerQuestion: 90 });
     nav(`/quiz/${s.id}`);
@@ -125,6 +126,7 @@ export default function Library() {
                 </button>
               </div>
             </div>
+            <BookQualityReport bookId={b.id} />
             <details style={{ marginTop: 8 }}>
               <summary className="clickable">Chapters</summary>
               {chs.map((c) => {
@@ -159,6 +161,42 @@ export default function Library() {
         );
       })}
     </div>
+  );
+}
+
+/** Derived from the imported records, so fixing or re-importing a question updates this report. */
+function BookQualityReport({ bookId }: { bookId: string }) {
+  const report = useLiveQuery(async () => {
+    const [questions, mediaKeys] = await Promise.all([
+      db.questions.where("bookId").equals(bookId).toArray(),
+      db.media.where("bookId").equals(bookId).primaryKeys()
+    ]);
+    return auditBook(questions, mediaKeys.map((k) => String(k).slice(bookId.length + 1)));
+  }, [bookId]);
+  if (!report) return null;
+  const count = report.unscorable.length + report.missingImages.length + report.unreferencedImages.length + report.conflictingImageRoles.length;
+  return (
+    <details style={{ marginTop: 8 }}>
+      <summary className="clickable small" style={count ? { color: "var(--warn)" } : undefined}>
+        Content check: {count ? `${count} item${count === 1 ? "" : "s"} to review` : "no answer-key or image-link issues detected"}
+        {report.noExplanation.length ? ` · ${report.noExplanation.length} without explanation` : ""}
+      </summary>
+      {report.unscorable.length > 0 && <div className="small"><strong>Unresolved answers · excluded from scored tests</strong>
+        {report.unscorable.map((q) => <div key={q.id}><Link to={`/question/${encodeURIComponent(q.id)}`}>Q{q.number}: {q.sourceId ?? q.stem.slice(0, 70)}</Link></div>)}
+      </div>}
+      {([
+        ["Missing image files", report.missingImages],
+        ["Images not referenced by questions", report.unreferencedImages],
+        ["Question/answer image role conflicts", report.conflictingImageRoles]
+      ] as [string, string[]][]).filter(([, items]) => items.length).map(([label, items]) => (
+        <div key={label} className="small" style={{ marginTop: 8 }}>
+          <strong>{label} ({items.length})</strong>
+          <div className="muted" style={{ maxHeight: 120, overflow: "auto" }}>{items.map((item, i) => <div key={`${item}-${i}`}>{item}</div>)}</div>
+        </div>
+      ))}
+      {report.noExplanation.length > 0 && <div className="small muted" style={{ marginTop: 8 }}>{report.noExplanation.length} question(s) have no explanation in the source.</div>}
+      <p className="small muted">This check verifies links, roles and answer-key presence. It cannot establish the medical correctness of an answer or image content without its source page.</p>
+    </details>
   );
 }
 
