@@ -262,6 +262,20 @@ export default function ImportPage() {
               <p className="small">Import the missing images again together with the same book title – they will attach automatically.</p>
             </details>
           )}
+          {([
+            ["Unresolved answer keys (excluded from scored tests)", result.unscorable],
+            ["Images not linked to a question", result.unreferencedImages],
+            ["Question/answer image role conflicts", result.conflictingImageRoles],
+            ["Questions without a source explanation", result.noExplanation],
+            ["Source extraction warnings", result.warnings]
+          ] as [string, string[]][]).filter(([, items]) => items.length).map(([label, items]) => (
+            <details key={label}>
+              <summary className="clickable" style={{ color: "var(--warn)" }}>{items.length} {label.toLowerCase()}</summary>
+              <div className="small muted" style={{ maxHeight: 200, overflow: "auto" }}>
+                {items.map((item, i) => <div key={`${item}-${i}`}>{item}</div>)}
+              </div>
+            </details>
+          ))}
           <div className="row">
             <Link className="btn primary" to="/tagging">
               Run AI tagging
