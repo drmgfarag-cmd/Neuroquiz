@@ -28,6 +28,7 @@ import MockExam from "./pages/MockExam";
 import ImageAtlas from "./pages/ImageAtlas";
 import ReferencePage from "./components/Reference";
 import { SECTION_HUE } from "./lib/colors";
+import { resumeProfile } from "./lib/profiles";
 
 const NAV = [
   { to: "/", label: "Home", icon: Icon.home, end: true, mobile: true },
@@ -52,6 +53,9 @@ export default function App() {
   const online = useOnline();
   const [pwa, setPwa] = useState<"" | "offline-ready" | "update">("");
   const [setup, setSetup] = useState("");
+  const [profileName, setProfileName] = useState("My profile");
+  const [profileId, setProfileId] = useState("");
+  useEffect(() => { resumeProfile().then((p) => { setProfileName(p.name); setProfileId(p.id); }); }, []);
 
   // First launch: copy the books that ship with the app into the library.
   useEffect(() => {
@@ -75,7 +79,7 @@ export default function App() {
 
   // Background sync every 5 minutes and when the app regains focus.
   useEffect(() => {
-    if (!settings.syncUrl) return;
+    if (!settings.syncUrl || profileId !== "default") return;
     // offline changes stay queued locally and go out on the next sync
     const run = () => navigator.onLine && syncWithServer().catch(() => undefined);
     run();
@@ -88,7 +92,7 @@ export default function App() {
       document.removeEventListener("visibilitychange", vis);
       window.removeEventListener("online", run);
     };
-  }, [settings.syncUrl, settings.syncToken]);
+  }, [settings.syncUrl, settings.syncToken, profileId]);
 
   return (
     <div className="app">
@@ -96,6 +100,7 @@ export default function App() {
         <div className="brand">
           <img src="./icon.svg" alt="" /> NeuroQuiz
         </div>
+        <NavLink to="/settings" className="nav-link small" title="Switch study profile">👤 {profileName}</NavLink>
         {NAV.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className="nav-link" style={{ ["--h" as string]: SECTION_HUE[n.to] ?? 212 }}>
             <span className="nav-ico">
@@ -106,6 +111,7 @@ export default function App() {
         ))}
       </nav>
       <main className="main">
+        <NavLink to="/settings" className="mobile-profile" title="Switch study profile">👤 {profileName} <span aria-hidden="true">›</span></NavLink>
         {webPreview && (
           <div className="banner accent small">
             Web preview: your books and progress are saved in this browser only. Install the Windows or Android app to keep them for real use and to export.
