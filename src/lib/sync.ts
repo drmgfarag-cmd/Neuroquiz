@@ -12,6 +12,7 @@
 import { db, getMeta, setMeta, SYNC_KEY, SYNC_TABLES, type SyncTable, type Tombstone } from "./db";
 import { reapplyCorrections } from "./corrections";
 import { getSettings } from "./settings";
+import { activeProfile } from "./profiles";
 
 export interface SyncRecord {
   table: SyncTable;
@@ -84,6 +85,7 @@ export interface SyncOutcome {
 }
 
 export async function syncWithServer(): Promise<SyncOutcome> {
+  if ((await activeProfile()).id !== "default") throw new Error("Sync is available for the main profile only. Switch to My profile to sync.");
   const { syncUrl, syncToken, deviceName } = getSettings();
   if (!syncUrl) throw new Error("Set a sync server URL in Settings first.");
   const lastPush = await getMeta<number>("sync.lastPushLocal", 0);
@@ -108,12 +110,14 @@ export async function syncWithServer(): Promise<SyncOutcome> {
 }
 
 export async function exportBackup(): Promise<Blob> {
+  if ((await activeProfile()).id !== "default") throw new Error("Progress export is available for the main profile only.");
   const records = await collectChanges(-1);
   const payload = { format: "neuroquiz-backup", version: 1, exportedAt: Date.now(), device: getSettings().deviceName, records };
   return new Blob([JSON.stringify(payload)], { type: "application/json" });
 }
 
 export async function importBackup(file: Blob): Promise<number> {
+  if ((await activeProfile()).id !== "default") throw new Error("Switch to My profile before merging a progress file.");
   const data = JSON.parse(await file.text());
   if (data?.format !== "neuroquiz-backup" || !Array.isArray(data.records)) throw new Error("Not a NeuroQuiz backup file.");
   return applyChanges(data.records as SyncRecord[]);
