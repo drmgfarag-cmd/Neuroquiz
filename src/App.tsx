@@ -56,6 +56,12 @@ export default function App() {
   const [profileName, setProfileName] = useState("My profile");
   const [profileId, setProfileId] = useState("");
   useEffect(() => { resumeProfile().then((p) => { setProfileName(p.name); setProfileId(p.id); }); }, []);
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel("neuroquiz-profile");
+    channel.onmessage = () => location.reload();
+    return () => channel.close();
+  }, []);
 
   // First launch: copy the books that ship with the app into the library.
   useEffect(() => {
