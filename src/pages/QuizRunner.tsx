@@ -350,7 +350,7 @@ export default function QuizRunner() {
                   </>
                 )}
                 {tutor && (
-                  <button className="small" disabled={!online || !!hint} title={online ? "A nudge from Claude that doesn't give the answer away" : "Needs an internet connection"} onClick={askHint}>
+                  <button className="small" disabled={!online || !!hint} title={online ? "An AI nudge that doesn't give the answer away" : "Needs an internet connection"} onClick={askHint}>
                     <Icon.sparkle size={14} /> Hint
                   </button>
                 )}

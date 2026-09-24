@@ -62,7 +62,7 @@ export default function AnswerCheck() {
       <h1>AI answer check</h1>
       <div className="card stack">
         <p className="small muted" style={{ margin: 0 }}>
-          Claude reads each question with its answer key and explanation and flags keys that look wrong, contradict the explanation, or are garbled by OCR. Nothing
+          The AI reads each question with its answer key and explanation and flags keys that look wrong, contradict the explanation, or are garbled by OCR. Nothing
           changes until you apply a suggestion or edit the question.
         </p>
         <div className="row">
@@ -167,7 +167,7 @@ function ReviewRow({ r, q }: { r: AiReview; q: Question }) {
         </div>
         {r.verdict !== "agree" && (
           <div className="small">
-            <strong>Claude:</strong> {r.suggestion}
+            <strong>AI:</strong> {r.suggestion}
           </div>
         )}
         <div className="small muted">{r.reason}</div>
@@ -181,7 +181,7 @@ function ReviewRow({ r, q }: { r: AiReview; q: Question }) {
                   setMsg(`Answer changed to ${r.suggestedKeys.join(", ")} (Edit question → Revert to undo).`);
                 }}
               >
-                Use Claude's answer ({r.suggestedKeys.join(", ")})
+                Use the AI's answer ({r.suggestedKeys.join(", ")})
               </button>
             )}
             <Link className="btn small" to={`/question/${encodeURIComponent(q.id)}`}>

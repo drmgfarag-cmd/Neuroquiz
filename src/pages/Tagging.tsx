@@ -55,7 +55,7 @@ export default function Tagging() {
       <h1>AI tagging & categorisation</h1>
       <div className="card stack">
         <p className="small muted" style={{ margin: 0 }}>
-          Claude reads each question together with its answer and explanation, then assigns a topic and subtopic from a neurosurgery taxonomy, concept tags, search keywords/synonyms, difficulty,
+          The AI reads each question together with its answer and explanation, then assigns a topic and subtopic from a neurosurgery taxonomy, concept tags, search keywords/synonyms, difficulty,
           high-yield flag and a one-line teaching point. Tags power Search, topic filters in tests and statistics. The offline keyword tagger runs automatically on import as a rough first pass.
         </p>
         <div className="row small">

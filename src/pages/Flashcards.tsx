@@ -3,6 +3,7 @@ import { ask } from "../components/Dialog";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Annotations } from "../components/Annotations";
+import { FlipCard } from "../components/FlipCard";
 import { MediaList, Rich } from "../components/Rich";
 import { questionToCard } from "../lib/cards";
 import { allFlashcards, db, deleteSynced } from "../lib/db";
@@ -106,8 +107,8 @@ function Study() {
       if (!card || (e.target as HTMLElement).tagName === "INPUT") return;
       if (e.key === " " || e.key === "Enter") {
         e.preventDefault();
-        setFlipped(true);
-      } else if (flipped && ["1", "2", "3", "4"].includes(e.key)) grade((["again", "hard", "good", "easy"] as Grade[])[Number(e.key) - 1]);
+        setFlipped((f) => !f);
+      } else if (e.key === "Escape") setQueue(null); else if (flipped && ["1", "2", "3", "4"].includes(e.key)) grade((["again", "hard", "good", "easy"] as Grade[])[Number(e.key) - 1]);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -175,39 +176,42 @@ function Study() {
       </div>
     );
 
+  const total = doneCount + queue.length;
   return (
-    <div>
-      <div className="row between small muted" style={{ marginBottom: 8 }}>
-        <span>{queue.length} left</span>
-        <button className="small" onClick={() => setQueue(null)}>
-          End session
+    <div className="fc-overlay" role="dialog" aria-modal="true" aria-label="Flashcard study">
+      <div className="fc-top">
+        <span className="small">
+          <strong>{doneCount}</strong> done · {queue.length} left
+        </span>
+        <div className="progress fc-progress">
+          <div style={{ width: `${(100 * doneCount) / Math.max(1, total)}%` }} />
+        </div>
+        <button className="small" onClick={() => setQueue(null)} aria-label="End session">
+          ✕ End
         </button>
       </div>
-      <div className="card flashcard" data-gallery="" onClick={() => setFlipped(true)}>
-        <div className="side-label">Front</div>
-        <Rich text={card.front} bookId={card.bookId} />
-        <MediaList media={card.frontMedia} bookId={card.bookId} />
-        {flipped && (
-          <>
-            <hr />
-            <div className="side-label">Back</div>
-            <Rich text={card.back} bookId={card.bookId} />
-            <MediaList media={card.backMedia} bookId={card.bookId} />
-          </>
-        )}
-      </div>
-      <div className="sticky-actions">
+      <FlipCard
+        key={card.id}
+        card={card}
+        topic={d.anns.get(card.id)?.topic}
+        flipped={flipped}
+        onFlip={() => setFlipped(!flipped)}
+        onSwipe={(dir) => grade(dir === "right" ? "good" : "again")}
+        footer="Swipe right = Good · left = Again, or use the buttons"
+      />
+      <div className="fc-actions">
         {!flipped ? (
-          <button className="primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => setFlipped(true)}>
-            Show answer (Space)
+          <button className="primary fc-show" onClick={() => setFlipped(true)}>
+            Show answer <small>Space</small>
           </button>
         ) : (
           <div className="grade-row">
             {(["again", "hard", "good", "easy"] as Grade[]).map((g, i) => (
-              <button key={g} className={g === "good" ? "primary" : g === "again" ? "danger" : ""} onClick={() => grade(g)}>
+              <button key={g} className={`grade g-${g}`} onClick={() => grade(g)}>
                 {g[0].toUpperCase() + g.slice(1)}
                 <small>
-                  {mode === "due" ? previewInterval(srs, g) : ""} · {i + 1}
+                  {mode === "due" ? `${previewInterval(srs, g)} · ` : ""}
+                  {i + 1}
                 </small>
               </button>
             ))}
@@ -222,6 +226,7 @@ function Browse({ focus }: { focus: string | null }) {
   const d = useDecks();
   const [filter, setFilter] = useState("");
   const [open, setOpen] = useState<string | null>(focus);
+  const [preview, setPreview] = useState<number | null>(null);
   if (!d) return null;
   const f = filter.toLowerCase();
   const list = d.cards.filter((c) => !f || c.front.toLowerCase().includes(f) || c.back.toLowerCase().includes(f)).slice(0, 400);
@@ -238,6 +243,16 @@ function Browse({ focus }: { focus: string | null }) {
             <div className="list-item clickable" onClick={() => setOpen(open === c.id ? null : c.id)}>
               <span className="chip">{c.origin}</span>
               <div style={{ flex: 1 }}>{plain(c.front, 140)}</div>
+              <button
+                className="small"
+                title="Open as a flash card"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreview(list.indexOf(c));
+                }}
+              >
+                ⟲ Flip
+              </button>
               {st && <span className="small muted">{st.suspended ? "suspended" : `due ${new Date(st.srs.due).toLocaleDateString()}`}</span>}
             </div>
             {open === c.id && (
@@ -269,6 +284,51 @@ function Browse({ focus }: { focus: string | null }) {
           </div>
         );
       })}
+      {preview !== null && list[preview] && <CardPreview cards={list} index={preview} topicOf={(id) => d.anns.get(id)?.topic} onIndex={setPreview} />}
+    </div>
+  );
+}
+
+/** One card in the flip popup; ← → move through the list, Esc closes. */
+function CardPreview({ cards, index, topicOf, onIndex }: { cards: Flashcard[]; index: number; topicOf: (id: string) => string | undefined; onIndex: (i: number | null) => void }) {
+  const [flipped, setFlipped] = useState(false);
+  const card = cards[index];
+  useEffect(() => setFlipped(false), [index]);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onIndex(null);
+      else if (e.key === " ") {
+        e.preventDefault();
+        setFlipped((f) => !f);
+      } else if (e.key === "ArrowRight" && index < cards.length - 1) onIndex(index + 1);
+      else if (e.key === "ArrowLeft" && index > 0) onIndex(index - 1);
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [index, cards.length, onIndex]);
+  return (
+    <div className="fc-overlay" role="dialog" aria-modal="true" aria-label="Flashcard">
+      <div className="fc-top">
+        <span className="small">
+          Card {index + 1} of {cards.length}
+        </span>
+        <span className="spacer" />
+        <button className="small" onClick={() => onIndex(null)} aria-label="Close">
+          ✕ Close
+        </button>
+      </div>
+      <FlipCard card={card} topic={topicOf(card.id)} flipped={flipped} onFlip={() => setFlipped(!flipped)} />
+      <div className="fc-actions row" style={{ justifyContent: "center" }}>
+        <button disabled={index === 0} onClick={() => onIndex(index - 1)}>
+          ← Previous
+        </button>
+        <button className="primary" onClick={() => setFlipped(!flipped)}>
+          Flip <small>Space</small>
+        </button>
+        <button disabled={index === cards.length - 1} onClick={() => onIndex(index + 1)}>
+          Next →
+        </button>
+      </div>
     </div>
   );
 }

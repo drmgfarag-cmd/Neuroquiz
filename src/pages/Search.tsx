@@ -125,7 +125,7 @@ export default function SearchPage() {
           <button className="primary" type="submit" disabled={busy}>
             Search
           </button>
-          <button type="button" disabled={busy || !q.trim() || !aiAvailable() || !online} onClick={runAi} title={!online ? "Offline – normal search still works" : aiAvailable() ? "Let Claude interpret the request" : "Add an API key in Settings"}>
+          <button type="button" disabled={busy || !q.trim() || !aiAvailable() || !online} onClick={runAi} title={!online ? "Offline – normal search still works" : aiAvailable() ? "Let the AI interpret the request" : "Add an API key in Settings"}>
             ✦ Smart search
           </button>
         </form>

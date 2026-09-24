@@ -2,6 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { TOPICS, subtopicsOf } from "../ai/taxonomy";
+import { topicHue } from "../lib/colors";
 import { db } from "../lib/db";
 import type { Annotation } from "../lib/types";
 
@@ -76,12 +77,12 @@ export function Annotations({ id, kind, extraTags = [] }: { id: string; kind: An
   return (
     <div className="row small" style={{ marginTop: 8 }}>
       {a?.topic && (
-        <Link className="chip accent" to={`/search?topic=${encodeURIComponent(a.topic)}`}>
+        <Link className="chip topic" style={{ ["--h" as string]: topicHue(a.topic) }} to={`/search?topic=${encodeURIComponent(a.topic)}`}>
           {a.topic}
         </Link>
       )}
       {a?.subtopic && (
-        <Link className="chip accent" to={`/search?q=${encodeURIComponent(a.subtopic)}`}>
+        <Link className="chip topic" style={{ ["--h" as string]: topicHue(a.topic) }} to={`/search?q=${encodeURIComponent(a.subtopic)}`}>
           {a.subtopic}
         </Link>
       )}

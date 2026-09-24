@@ -247,6 +247,11 @@ export interface Settings {
   deviceName: string;
   theme: "system" | "light" | "dark";
   fontScale: number;
+  /** AI provider for every AI feature ("anthropic" = Claude, the default) */
+  provider?: "anthropic" | "openai" | "gemini" | "xai";
+  /** API keys and models for the other providers (Claude uses apiKey/model) */
+  keys?: Partial<Record<"openai" | "gemini" | "xai", string>>;
+  models?: Partial<Record<"openai" | "gemini" | "xai", string>>;
   /** spaced-repetition scheduler for flashcards and question revision */
   scheduler?: "fsrs" | "sm2";
 }

@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useNavigate } from "react-router-dom";
 import { db, questionChapterIndex } from "../lib/db";
+import { topicHue } from "../lib/colors";
 import { formatDuration, pct } from "../lib/util";
 
 export default function Stats() {
@@ -61,7 +62,8 @@ export default function Stats() {
 
   const Bar = ({ label, v, onClick }: { label: string; v: { total: number; seen: number; answers: number; right: number }; onClick?: () => void }) => (
     <div className={`bar ${onClick ? "clickable" : ""}`} style={{ margin: "6px 0" }} onClick={onClick}>
-      <span style={{ width: 230, flex: "none" }} className="small">
+      <span style={{ width: 230, flex: "none", display: "flex", alignItems: "center", gap: 8 }} className="small">
+        <span className="dot" style={{ ["--h" as string]: topicHue(label) }} />
         {label}
       </span>
       <div className="progress" style={{ flex: 1 }}>

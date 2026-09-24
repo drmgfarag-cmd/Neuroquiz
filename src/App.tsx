@@ -27,6 +27,7 @@ import AnswerCheck from "./pages/AnswerCheck";
 import MockExam from "./pages/MockExam";
 import ImageAtlas from "./pages/ImageAtlas";
 import ReferencePage from "./components/Reference";
+import { SECTION_HUE } from "./lib/colors";
 
 const NAV = [
   { to: "/", label: "Home", icon: Icon.home, end: true, mobile: true },
@@ -96,8 +97,11 @@ export default function App() {
           <img src="./icon.svg" alt="" /> NeuroQuiz
         </div>
         {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className="nav-link">
-            <n.icon /> {n.label}
+          <NavLink key={n.to} to={n.to} end={n.end} className="nav-link" style={{ ["--h" as string]: SECTION_HUE[n.to] ?? 212 }}>
+            <span className="nav-ico">
+              <n.icon />
+            </span>{" "}
+            {n.label}
           </NavLink>
         ))}
       </nav>
@@ -153,8 +157,11 @@ export default function App() {
       <DialogHost />
       <nav className="bottom-nav" aria-label="Main mobile">
         {NAV.filter((n) => n.mobile).map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className="nav-link">
-            <n.icon size={20} /> {n.label}
+          <NavLink key={n.to} to={n.to} end={n.end} className="nav-link" style={{ ["--h" as string]: SECTION_HUE[n.to] ?? 212 }}>
+            <span className="nav-ico">
+              <n.icon size={20} />
+            </span>
+            {n.label}
           </NavLink>
         ))}
       </nav>

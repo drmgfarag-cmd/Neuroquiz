@@ -1,21 +1,17 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { AiSettings } from "../components/AiSettings";
 import { ask } from "../components/Dialog";
 import { useEffect, useState } from "react";
 import { db, getMeta } from "../lib/db";
-import { DEFAULT_MODEL, updateSettings, useSettings } from "../lib/settings";
+import { updateSettings, useSettings } from "../lib/settings";
 import { isNative, saveFile } from "../lib/platform";
 import { exportBackup, importBackup, syncWithServer } from "../lib/sync";
 
-const MODELS = [
-  { id: "claude-opus-5", label: "Claude Opus 5 (default, most accurate)" },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5 (cheaper for bulk tagging)" },
-  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (cheapest, fastest)" }
-];
+
 
 
 export default function SettingsPage() {
   const s = useSettings();
-  const [showKey, setShowKey] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [storage, setStorage] = useState("");
   const lastSync = useLiveQuery(() => getMeta<number>("sync.lastAt", 0));
@@ -34,33 +30,7 @@ export default function SettingsPage() {
     <div>
       <h1>Settings</h1>
 
-      <div className="card stack">
-        <h2 className="card-title" style={{ margin: 0 }}>AI (Claude)</h2>
-        <label className="field">
-          Anthropic API key
-          <div className="row">
-            <input type={showKey ? "text" : "password"} value={s.apiKey} onChange={(e) => updateSettings({ apiKey: e.target.value })} placeholder="sk-ant-…" style={{ flex: 1, minWidth: 220 }} autoComplete="off" />
-            <button className="small" onClick={() => setShowKey(!showKey)}>
-              {showKey ? "Hide" : "Show"}
-            </button>
-          </div>
-        </label>
-        <p className="small muted" style={{ margin: 0 }}>
-          Stored only on this device (not synced). Get a key at console.anthropic.com. Used for tagging, smart search, flashcard & case generation and the AI tutor.
-        </p>
-        <label className="field">
-          Model
-          <select value={MODELS.some((m) => m.id === s.model) ? s.model : "custom"} onChange={(e) => e.target.value !== "custom" && updateSettings({ model: e.target.value })}>
-            {MODELS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-            <option value="custom">Custom…</option>
-          </select>
-        </label>
-        <input type="text" aria-label="Model ID" value={s.model} onChange={(e) => updateSettings({ model: e.target.value.trim() || DEFAULT_MODEL })} />
-      </div>
+      <AiSettings />
 
       <div className="card stack">
         <h2 className="card-title" style={{ margin: 0 }}>Sync between devices (Windows ⇄ Android)</h2>

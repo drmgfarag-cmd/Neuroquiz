@@ -1,6 +1,7 @@
 /**
- * Claude integration. Runs directly from the app (browser / Android WebView /
- * desktop) with the user's own API key, which is stored only on this device.
+ * AI features. Claude by default; ChatGPT, Gemini or Grok when chosen in
+ * Settings (see providers.ts). Runs directly from the app (browser / Android
+ * WebView / desktop) with the user's own API key, stored only on this device.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
@@ -8,23 +9,32 @@ import type { BetaMessageParam } from "@anthropic-ai/sdk/resources/beta/messages
 import * as z from "zod/v4";
 import { webPreview } from "../lib/platform";
 import { getSettings } from "../lib/settings";
+import { activeProvider, chatStream, jsonCall, PROVIDERS, providerKey, ProviderError, type Provider } from "./providers";
 import { taxonomyText, TOPICS } from "./taxonomy";
 
 export class AiNotConfiguredError extends Error {
   constructor() {
-    super("Add your Anthropic API key in Settings to use AI features.");
+    super(`Add your ${PROVIDERS[activeProvider()].short} API key in Settings to use AI features.`);
   }
 }
 
 export function aiAvailable(): boolean {
-  return !webPreview && !!getSettings().apiKey.trim();
+  return !webPreview && !!providerKey();
 }
 
 /** Why AI features can't run right now (null when they can). */
 export function aiUnavailableReason(): string | null {
   if (webPreview) return "AI features work in the Windows and Android apps; the web preview can't reach the AI service.";
-  if (!getSettings().apiKey.trim()) return "Add your Anthropic API key in Settings to use AI features.";
+  if (!providerKey()) return `Add your ${PROVIDERS[activeProvider()].short} API key in Settings to use AI features.`;
   return null;
+}
+
+/** The provider to use, or null for Claude (SDK path below). */
+function other(): Exclude<Provider, "anthropic"> | null {
+  const p = activeProvider();
+  if (p === "anthropic") return null;
+  if (!providerKey(p)) throw new AiNotConfiguredError();
+  return p;
 }
 
 function client(): Anthropic {
@@ -88,6 +98,11 @@ export interface TagInput {
 export async function aiTagBatch(items: TagInput[], signal?: AbortSignal): Promise<AiTag[]> {
   const { model } = getSettings();
   const body = items.map((it) => `<item id="${it.id}">\n${it.text.slice(0, 6000)}\n</item>`).join("\n\n");
+  const user = `Tag these ${items.length} items. Return one entry per item id.\n\n${body}`;
+  const valid = new Set(items.map((i) => i.id));
+  const tidy = (list: AiTag[]) => list.filter((t) => valid.has(t.id)).map((t) => ({ ...t, topic: TOPICS.find((x) => x.toLowerCase() === t.topic.toLowerCase()) ?? t.topic }));
+  const p = other();
+  if (p) return tidy((await jsonCall(p, TagResponse, TAG_SYSTEM, user, signal)).items);
   const res = await client().beta.messages.parse(
     {
       model,
@@ -96,17 +111,14 @@ export async function aiTagBatch(items: TagInput[], signal?: AbortSignal): Promi
       // The taxonomy prompt is identical for every batch → cache it.
       system: [{ type: "text", text: TAG_SYSTEM, cache_control: { type: "ephemeral" } }],
       output_config: { effort: "low", format: betaZodOutputFormat(TagResponse) },
-      messages: [{ role: "user", content: `Tag these ${items.length} items. Return one entry per item id.\n\n${body}` }]
+      messages: [{ role: "user", content: user }]
     },
     { signal }
   );
   const refused = refusalMessage(res.stop_reason);
   if (refused) throw new Error(refused);
   if (!res.parsed_output) throw new Error(`Could not read Claude's tagging response (stop reason: ${res.stop_reason}).`);
-  const valid = new Set(items.map((i) => i.id));
-  return res.parsed_output.items
-    .filter((t) => valid.has(t.id))
-    .map((t) => ({ ...t, topic: TOPICS.find((x) => x.toLowerCase() === t.topic.toLowerCase()) ?? t.topic }));
+  return tidy(res.parsed_output.items);
 }
 
 // ---------------------------------------------------------------------------
@@ -123,11 +135,7 @@ export type AiSearchPlan = z.infer<typeof SearchPlan>;
 
 export async function aiSearchPlan(query: string, knownTags: string[]): Promise<AiSearchPlan> {
   const { model } = getSettings();
-  const res = await client().beta.messages.parse({
-    model,
-    max_tokens: 4000,
-    ...fallbackParams(model),
-    system: `You help a neurosurgery resident find questions in their question bank. Convert the request into search filters.
+  const system = `You help a neurosurgery resident find questions in their question bank. Convert the request into search filters.
 - topics / subtopics: pick only from the taxonomy (exact spelling), may be empty.
 - terms: 4-15 search terms: key concepts, synonyms, abbreviations, British and American spellings, related eponyms/classifications.
 - explanation: one short sentence describing what you searched for.
@@ -135,7 +143,14 @@ export async function aiSearchPlan(query: string, knownTags: string[]): Promise<
 Taxonomy:
 ${taxonomyText()}
 
-Some tags already used in the bank: ${knownTags.slice(0, 300).join(", ")}`,
+Some tags already used in the bank: ${knownTags.slice(0, 300).join(", ")}`;
+  const p = other();
+  if (p) return jsonCall(p, SearchPlan, system, query);
+  const res = await client().beta.messages.parse({
+    model,
+    max_tokens: 4000,
+    ...fallbackParams(model),
+    system,
     output_config: { effort: "low", format: betaZodOutputFormat(SearchPlan) },
     messages: [{ role: "user", content: query }]
   });
@@ -153,14 +168,18 @@ const CardsSchema = z.object({ cards: z.array(z.object({ front: z.string(), back
 
 export async function aiFlashcards(questionText: string, count = 3): Promise<{ front: string; back: string }[]> {
   const { model } = getSettings();
+  const system =
+    "You write high-yield neurosurgery flashcards (minimum-information principle: one fact per card, concise front as a question or cloze, back under 40 words). Use markdown for emphasis only.";
+  const user = `Write up to ${count} flashcards capturing what this question teaches:\n\n${questionText}`;
+  const p = other();
+  if (p) return (await jsonCall(p, CardsSchema, system, user)).cards;
   const res = await client().beta.messages.parse({
     model,
     max_tokens: 8000,
     ...fallbackParams(model),
-    system:
-      "You write high-yield neurosurgery flashcards (minimum-information principle: one fact per card, concise front as a question or cloze, back under 40 words). Use markdown for emphasis only.",
+    system,
     output_config: { effort: "medium", format: betaZodOutputFormat(CardsSchema) },
-    messages: [{ role: "user", content: `Write up to ${count} flashcards capturing what this question teaches:\n\n${questionText}` }]
+    messages: [{ role: "user", content: user }]
   });
   const refused = refusalMessage(res.stop_reason);
   if (refused) throw new Error(refused);
@@ -182,20 +201,19 @@ export type AiCase = z.infer<typeof CaseSchema>;
 
 export async function aiGenerateCase(topic: string, context: string): Promise<AiCase> {
   const { model } = getSettings();
+  const system = `You are a consultant neurosurgeon writing an oral-board style clinical case for residents.
+Structure: an initial presentation (history + examination, no diagnosis given), then 4-6 progressive stages (e.g. initial imaging, differential, management decision, operative considerations, complication, follow-up). Each stage adds new information (content), asks the examiner question (question) and gives a model answer (answer) with key facts, classifications and evidence.
+Finish with a discussion of teaching points and relevant landmark evidence. Use markdown (lists, bold, tables) where helpful. Be clinically accurate and current.`;
+  const user = `Write a case on: ${topic}${context ? `\n\nBase it on the concepts tested in these question-bank items:\n${context.slice(0, 20000)}` : ""}`;
+  const p = other();
+  if (p) return jsonCall(p, CaseSchema, system, user);
   const res = await client().beta.messages.stream({
     model,
     max_tokens: 32000,
     ...fallbackParams(model),
-    system: `You are a consultant neurosurgeon writing an oral-board style clinical case for residents.
-Structure: an initial presentation (history + examination, no diagnosis given), then 4-6 progressive stages (e.g. initial imaging, differential, management decision, operative considerations, complication, follow-up). Each stage adds new information (content), asks the examiner question (question) and gives a model answer (answer) with key facts, classifications and evidence.
-Finish with a discussion of teaching points and relevant landmark evidence. Use markdown (lists, bold, tables) where helpful. Be clinically accurate and current.`,
+    system,
     output_config: { effort: "high", format: betaZodOutputFormat(CaseSchema) },
-    messages: [
-      {
-        role: "user",
-        content: `Write a case on: ${topic}${context ? `\n\nBase it on the concepts tested in these question-bank items:\n${context.slice(0, 20000)}` : ""}`
-      }
-    ]
+    messages: [{ role: "user", content: user }]
   });
   const msg = await res.finalMessage();
   const refused = refusalMessage(msg.stop_reason);
@@ -226,6 +244,15 @@ export async function aiChat(
   signal?: AbortSignal
 ): Promise<string> {
   const { model } = getSettings();
+  const p = other();
+  if (p)
+    return chatStream(
+      p,
+      TUTOR_SYSTEM,
+      history.map((t, i) => (i === 0 && t.role === "user" ? { role: "user", content: `<context>\n${context}\n</context>\n\n${t.content}` } : t)),
+      onText,
+      signal
+    );
   const messages: BetaMessageParam[] = history.map((t, i) =>
     i === 0 && t.role === "user"
       ? { role: "user", content: [{ type: "text", text: `<context>\n${context}\n</context>` }, { type: "text", text: t.content }] }
@@ -251,6 +278,15 @@ export async function aiChat(
 
 export function describeAiError(e: unknown): string {
   if (e instanceof AiNotConfiguredError) return e.message;
+  if (e instanceof ProviderError) {
+    const who = PROVIDERS[e.provider].short;
+    if (e.status === 401) return `Invalid ${who} API key – check Settings.`;
+    if (e.status === 403) return `This ${who} key is not allowed to use the selected model (${e.message}).`;
+    if (e.status === 404) return `${who} model not found – pick one with “Load models” in Settings.`;
+    if (e.status === 429) return `Rate limited or out of credit at ${who} – wait a moment and retry. (${e.message})`;
+    return `${who} error ${e.status}: ${e.message}`;
+  }
+  if (e instanceof TypeError && activeProvider() !== "anthropic") return `No connection to ${PROVIDERS[activeProvider()].short} (offline, or the service blocked the request).`;
   if (e instanceof Anthropic.AuthenticationError) return "Invalid API key – check Settings.";
   if (e instanceof Anthropic.PermissionDeniedError) return "This API key is not allowed to use the selected model.";
   if (e instanceof Anthropic.NotFoundError) return "Model not found – check the model name in Settings.";
@@ -289,6 +325,11 @@ const CheckResponse = z.object({ items: z.array(CheckItem) });
 export async function aiCheckAnswers(items: TagInput[], signal?: AbortSignal): Promise<AiCheck[]> {
   const { model } = getSettings();
   const body = items.map((it) => `<question id="${it.id}">\n${it.text.slice(0, 8000)}\n</question>`).join("\n\n");
+  const p = other();
+  if (p) {
+    const valid = new Set(items.map((i) => i.id));
+    return (await jsonCall(p, CheckResponse, CHECK_SYSTEM, `Audit these ${items.length} questions. Return one entry per question id.\n\n${body}`, signal)).items.filter((c) => valid.has(c.id));
+  }
   const res = await client().beta.messages.parse(
     {
       model,
