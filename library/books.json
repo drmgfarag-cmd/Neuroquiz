@@ -22,6 +22,7 @@
         "sources/05.json",
         "sources/05_images.zip.001"
       ],
+      "referencedAssetsOnly": true,
       "webMaxPx": 900,
       "webQuality": 45
     },

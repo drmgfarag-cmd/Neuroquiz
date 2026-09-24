@@ -44,6 +44,12 @@ answer away (labelled diagrams, as in book 09), add
 when its text refers to it ("shown below", "pictured", "an MRI was
 performed"…). Other images move to the answer explanation.
 
+Set `"referencedAssetsOnly": true` when a source archive also contains old or
+incorrectly assigned figures. Book 05 uses this rule: 13 superseded or
+deliberately unlinked images are excluded from the app, while all 340 images
+referenced by questions remain bundled. This prevents misleading duplicate
+images from appearing in the image atlas.
+
 Images: the Android and Windows apps ship every image as the original file,
 untouched. Only the web preview, which has a 64 MB limit, gets smaller WebP
 copies (at most 1200 px). A book with many large scans can be squeezed further

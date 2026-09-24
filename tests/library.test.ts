@@ -42,6 +42,17 @@ describe.skipIf(!list.length)("built-in library", () => {
               for (const name of [...(q.question_images ?? []), ...(q.answer_images ?? [])]) linked.add(name.toLowerCase().replace(/\.[^.]+$/, ""));
         files = files.filter((f) => f === main || (!/\.json$/i.test(f.path) && (!book.referencedAssetsOnly || linked.has(f.path.split("/").pop()!.toLowerCase().replace(/\.[^.]+$/, "")))));
       }
+      if (book.referencedAssetsOnly && !book.primaryJson) {
+        const linked = new Set<string>();
+        for (const f of files.filter((file) => /\.json$/i.test(file.path))) {
+          const json = JSON.parse(await f.blob.text());
+          for (const chapter of Object.values(json.chapters ?? {}) as { questions: { images?: string[]; question_images?: string[]; answer_images?: string[] }[] }[])
+            for (const q of chapter.questions)
+              for (const name of [...(q.images ?? []), ...(q.question_images ?? []), ...(q.answer_images ?? [])])
+                linked.add(name.split("/").pop()!.toLowerCase().replace(/\.[^.]+$/, ""));
+        }
+        files = files.filter((f) => /\.json$/i.test(f.path) || linked.has(f.path.split("/").pop()!.toLowerCase().replace(/\.[^.]+$/, "")));
+      }
       // Mirror build-library.mjs: this policy is written into the JSON shipped to users.
       if (book.questionImages === "referenced-only") {
         for (const f of files.filter((file) => /\.json$/i.test(file.path))) {
@@ -83,6 +94,8 @@ describe.skipIf(!list.length)("built-in library", () => {
       expect(res.missingImages).toEqual([]);
       expect(res.conflictingImageRoles).toEqual([]);
       if (book.id === "05") {
+        expect(unused).toEqual([]);
+        expect(res.unreferencedImages).toEqual([]);
         const hemangioblastoma = qs.find((q) => q.stem.includes("MRI scans of the brain of a 33-year-old man"));
         expect(hemangioblastoma?.options.find((o) => o.key === "B")?.text).toBe("Hemangioblastoma");
         expect(hemangioblastoma?.answer).toEqual(["B"]);

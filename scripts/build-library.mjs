@@ -91,6 +91,20 @@ for (const book of books) {
   const hash = createHash("sha256");
   // book settings change the installed content too
   if (book.questionImages) hash.update(`questionImages=${book.questionImages}`);
+  if (book.referencedAssetsOnly) hash.update("referencedAssetsOnly=true");
+  // Some extractions retain superseded or wrongly assigned images inside the
+  // source archive. Ship only figures explicitly linked to a source question.
+  let externalLinkedAssets = null;
+  if (book.referencedAssetsOnly && !book.primaryJson) {
+    externalLinkedAssets = new Set();
+    for (const src of sources.filter((path) => /\.json$/i.test(path))) {
+      const json = JSON.parse(readSource(src));
+      for (const chapter of Object.values(json.chapters ?? {}))
+        for (const item of chapter.questions ?? [])
+          for (const name of [...(item.images ?? []), ...(item.question_images ?? []), ...(item.answer_images ?? [])])
+            externalLinkedAssets.add(posix.basename(String(name)).replace(/\.[^.]+$/, "").toLowerCase());
+    }
+  }
   const files = [];
   const packed = []; // [path, data] for LIBRARY_PACK
   const write = (rel, data) => {
@@ -113,7 +127,7 @@ for (const book of books) {
     hash.update(data);
     if (/\.zip(\.001)?$/i.test(src)) {
       const zip = await JSZip.loadAsync(data);
-      let linkedAssets = null;
+      let linkedAssets = externalLinkedAssets;
       if (book.primaryJson && book.referencedAssetsOnly) {
         const main = Object.values(zip.files).find((e) => posix.basename(e.name) === book.primaryJson);
         if (!main) throw new Error(`Missing ${book.primaryJson} in ${src}`);
@@ -121,7 +135,7 @@ for (const book of books) {
         linkedAssets = new Set();
         for (const chapter of Object.values(json.chapters ?? {}))
           for (const item of chapter.questions ?? [])
-            for (const name of [...(item.question_images ?? []), ...(item.answer_images ?? [])])
+            for (const name of [...(item.images ?? []), ...(item.question_images ?? []), ...(item.answer_images ?? [])])
               linkedAssets.add(posix.basename(String(name)).replace(/\.[^.]+$/, "").toLowerCase());
       }
       for (const entry of Object.values(zip.files)) {
