@@ -83,6 +83,8 @@ export interface Question {
   sourceId?: string;
   /** warning from the book's extraction (unresolved mismatch, needs review…) */
   sourceWarning?: string;
+  /** Source transcription is pending verification; excluded from scored tests until corrected. */
+  sourceReviewRequired?: boolean;
   explanation: string;
   stemMedia: MediaRef[];
   explanationMedia: MediaRef[];

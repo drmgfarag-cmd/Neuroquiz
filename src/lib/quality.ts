@@ -5,6 +5,7 @@ import { normaliseFileName, stripExt } from "./util";
 
 /** A question without a defensible key remains readable and editable, but must not affect a score. */
 export function unscorableReason(q: Question): string | null {
+  if (q.sourceReviewRequired && !q.edited) return "Source transcription pending review";
   const f = formatOf(q);
   const keys = new Set(q.options.map((o) => o.key));
   if (f === "text") return q.accepted?.some((a) => a.trim()) ? null : "No accepted answer";

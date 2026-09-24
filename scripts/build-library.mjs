@@ -113,8 +113,21 @@ for (const book of books) {
     hash.update(data);
     if (/\.zip(\.001)?$/i.test(src)) {
       const zip = await JSZip.loadAsync(data);
+      let linkedAssets = null;
+      if (book.primaryJson && book.referencedAssetsOnly) {
+        const main = Object.values(zip.files).find((e) => posix.basename(e.name) === book.primaryJson);
+        if (!main) throw new Error(`Missing ${book.primaryJson} in ${src}`);
+        const json = JSON.parse(await main.async("string"));
+        linkedAssets = new Set();
+        for (const chapter of Object.values(json.chapters ?? {}))
+          for (const item of chapter.questions ?? [])
+            for (const name of [...(item.question_images ?? []), ...(item.answer_images ?? [])])
+              linkedAssets.add(posix.basename(String(name)).replace(/\.[^.]+$/, "").toLowerCase());
+      }
       for (const entry of Object.values(zip.files)) {
         if (entry.dir || /(^|\/)(__MACOSX|\.)/.test(entry.name) || !KEEP.test(entry.name) || SKIP.test(entry.name)) continue;
+        if (book.primaryJson && /\.json$/i.test(entry.name) && posix.basename(entry.name) !== book.primaryJson) continue;
+        if (linkedAssets && !/\.json$/i.test(entry.name) && !linkedAssets.has(posix.basename(entry.name).replace(/\.[^.]+$/, "").toLowerCase())) continue;
         const data = await entry.async("nodebuffer");
         write(...(/\.json$/i.test(entry.name) ? [entry.name, data] : await optimise(entry.name, data, book)));
       }

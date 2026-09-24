@@ -5,7 +5,7 @@
  * question ids don't change.
  */
 import { runLocalTagging } from "../ai/tagger";
-import { executeImport, planImport, type SourceFile } from "../import/importer";
+import { deleteBook, executeImport, planImport, type SourceFile } from "../import/importer";
 import { db, getMeta, setMeta } from "./db";
 import { clearMediaCache } from "./media";
 import { getSettings } from "./settings";
@@ -121,4 +121,25 @@ export async function installBundledIfEmpty(onProgress: (msg: string) => void): 
   for (const b of books) if ((await bundledState(b)) !== "installed") await installBundled(b, onProgress);
   await setMeta("bundle:first-run-done", true);
   return true;
+}
+
+/** Retire the explicitly withdrawn QBNE extraction once, leaving progress available for its replacement. */
+export async function retireIncompleteQbne(): Promise<void> {
+  if (await getMeta("retired:qbne:v1", false)) return;
+  if (await db.books.get("qbne")) {
+    await deleteBook("qbne");
+    clearMediaCache();
+  }
+  await setMeta("retired:qbne:v1", true);
+}
+
+/** Install newly added books for people who already have a library. Do not restore later deletions. */
+export async function installNewStudyBooks(onProgress: (msg: string) => void): Promise<void> {
+  const ids = new Set(["neurosurgery-rounds-2e", "nbr3", "nper"]);
+  for (const b of await bundledBooks()) {
+    if (!ids.has(b.id)) continue;
+    if (await getMeta<string | null>(`bundle:${b.id}`, null)) continue;
+    if (await db.books.get(b.id)) continue;
+    await installBundled(b, onProgress);
+  }
 }

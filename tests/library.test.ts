@@ -9,10 +9,10 @@ import { describe, expect, it } from "vitest";
 import { collectFiles, executeImport, planImport } from "../src/import/importer";
 import { db } from "../src/lib/db";
 import { formatOf } from "../src/lib/grading";
-import { auditBook } from "../src/lib/quality";
+import { auditBook, unscorableReason } from "../src/lib/quality";
 
 const LIB = new URL("../library/", import.meta.url);
-const list: { id: string; title: string; source: string | string[]; questionImages?: string }[] = existsSync(new URL("books.json", LIB))
+const list: { id: string; title: string; source: string | string[]; questionImages?: string; primaryJson?: string; referencedAssetsOnly?: boolean }[] = existsSync(new URL("books.json", LIB))
   ? JSON.parse(readFileSync(new URL("books.json", LIB), "utf8")).books
   : [];
 
@@ -30,7 +30,18 @@ describe.skipIf(!list.length)("built-in library", () => {
     it(`${book.id}: ${book.title}`, async () => {
       await Promise.all(db.tables.map((t) => t.clear()));
       const sources = Array.isArray(book.source) ? book.source : [book.source];
-      const files = await collectFiles(sources.map((s) => new File([readSource(s)], s.split("/").pop()!.replace(/\.001$/, ""))));
+      let files = await collectFiles(sources.map((s) => new File([readSource(s)], s.split("/").pop()!.replace(/\.001$/, ""))));
+      if (book.primaryJson) {
+        const main = files.find((f) => f.path.split("/").pop() === book.primaryJson);
+        expect(main).toBeDefined();
+        const json = JSON.parse(await main!.blob.text());
+        const linked = new Set<string>();
+        if (book.referencedAssetsOnly)
+          for (const chapter of Object.values(json.chapters) as { questions: { question_images?: string[]; answer_images?: string[] }[] }[])
+            for (const q of chapter.questions)
+              for (const name of [...(q.question_images ?? []), ...(q.answer_images ?? [])]) linked.add(name.toLowerCase().replace(/\.[^.]+$/, ""));
+        files = files.filter((f) => f === main || (!/\.json$/i.test(f.path) && (!book.referencedAssetsOnly || linked.has(f.path.split("/").pop()!.toLowerCase().replace(/\.[^.]+$/, "")))));
+      }
       // Mirror build-library.mjs: this policy is written into the JSON shipped to users.
       if (book.questionImages === "referenced-only") {
         for (const f of files.filter((file) => /\.json$/i.test(file.path))) {
@@ -87,6 +98,26 @@ describe.skipIf(!list.length)("built-in library", () => {
         expect(neuro.stages[1].question).toContain("major branches of the ECA");
         expect(neuro.stages[1].answerMedia?.[0]?.file).toBe("fig_1_1.png");
         expect(neuro.stages[1].media).toEqual([]);
+      }
+      if (book.id === "nbr3" || book.id === "nper") {
+        expect(unused).toEqual([]);
+        expect(res.unreferencedImages).toEqual([]);
+        expect(res.shortAnswers).toBe(0);
+        if (book.id === "nbr3") {
+          expect(qs).toHaveLength(1314);
+          expect(qs.every((q) => unscorableReason(q) === "Source transcription pending review")).toBe(true);
+          const labeled = qs.find((q) => q.sourceId === "NBR3_s01_q001")!;
+          expect(labeled.stemMedia[0]?.file).toContain("figQ");
+          expect(labeled.explanationMedia[0]?.file).toContain("figA");
+          expect(labeled.explanation).toContain("Printed figure label: D");
+        }
+        if (book.id === "nper") {
+          expect(qs).toHaveLength(600);
+          expect(qs.filter((q) => q.sourceReviewRequired)).toHaveLength(1);
+          const first = qs.find((q) => q.sourceId === "NPER_t01_q001")!;
+          expect(first.stemMedia).toEqual([]);
+          expect(first.explanationMedia[0]?.file).toContain("figRef");
+        }
       }
     }, 120_000);
   }

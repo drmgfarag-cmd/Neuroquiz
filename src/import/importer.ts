@@ -54,7 +54,7 @@ const MIME: Record<string, string> = {
 };
 
 /** Reports that travel with an extraction but hold no questions (audit, OCR dumps). */
-const NOT_A_BOOK = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest|answer_key)[^/]*\.json$|contact_sheet/i;
+const NOT_A_BOOK = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest|answer_key|review_queue|review_card_index|validation_report)[^/]*\.json$|contact_sheet/i;
 
 function folderOf(path: string): string {
   const parts = path.replace(/\\/g, "/").split("/");

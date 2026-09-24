@@ -1,6 +1,20 @@
 # Bundled content and image audit
 
-Run `npm run check-books` to repeat the automated checks. The audit normalizes all nine bundled books, resolves question and explanation image references against their book's files, checks answer-labeled images do not appear before reveal, and reports missing keys and unused images. The checks are also part of the test suite.
+Run `npm run check-books` to repeat the automated checks. The audit normalizes all twelve bundled books, resolves question and explanation image references against their book's files, checks answer-labeled images do not appear before reveal, and reports missing keys and unused images. The checks are also part of the test suite.
+
+## Newly supplied books (September 2026)
+
+The three uploaded archives on the repository's main branch were inspected before registration. The Rounds ZIP is byte-identical to the previously extracted import ZIP, so the catalog uses that uploaded copy. NBER.zip contains **NPER**, Neurosurgery Primary Examination Review; the archive name is retained to match the upload, while its library title and ID follow the book inside.
+
+| Book | Source records | Playable records | Included figures | Image link errors | Scored availability |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Neurosurgery Rounds, 2e | 1,736 short answers; 30 cases | 1,736 short answers; 30 cases | 150 | 0 | Short-answer reader |
+| NBR3 | 1,314 questions | 1,314 | 264 | 0 | Review only: extraction explicitly requires source comparison; 67 visual-label items lack printed response options |
+| NPER (uploaded as NBER) | 600 questions | 600 | 190 | 0 | 599 scored; one flagged for source review |
+
+NBR3's source marks every item `REQUIRES_SOURCE_REVIEW`, and its README says transcription is a draft. The app keeps these items readable but excludes them from scored tests until corrected. NPER's source reports one transcription concern and four answers with no substantive rationale; the flagged item is excluded from scoring. Unreferenced source assets (including 12 reference figures in NPER) and report JSON files were left out of the app bundle. Crops were visually spot-checked across both books; image-link and answer-side checks are structural and do not validate clinical correctness. The QBNE import is withdrawn from local libraries once, without preventing the user from importing its later complete replacement.
+
+### Earlier books
 
 | Book | Questions | Images | Missing references | Unused images | Unverified answer keys |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -14,7 +28,7 @@ Run `npm run check-books` to repeat the automated checks. The audit normalizes a
 | NPQA2 | 686 | 106 | 0 | 0 | 0 |
 | INBR | 1,300 | 270 | 0 | 0 | 0 |
 
-Total: 8,244 normalized question records, 1,030 image assets, zero missing image references and zero detected answer-image role conflicts. Source entries in shared matching sets may combine into one playable record.
+These earlier books contain 8,244 normalized question records and 1,030 image assets, with zero missing image references and zero detected answer-image role conflicts. Source entries in shared matching sets may combine into one playable record.
 
 The 13 unused files in Book 05 remain unattached. In particular, `Book05_PracticeExam_Section4of5_Q72_image1.jpg` and `Book05_PracticeExam_Section5of5_Q1_image1.jpg` are stale, exchanged versions; the referenced `_CORRECTED.jpg` files match their respective questions on visual inspection. An unused image must never be assigned to a question solely because its filename resembles the question ID. Some questions legitimately share an image from the preceding question; this was checked against the source record for Book 02, NPQA2 and INBR.
 

@@ -80,6 +80,7 @@ export interface ParsedQuestion {
   section?: string;
   /** warning from the source about this question (unresolved mismatch, needs review…) */
   sourceWarning?: string;
+  sourceReviewRequired?: boolean;
 }
 
 export interface ParsedFlashcard {
@@ -760,6 +761,10 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   } else if (!format && answer.length > 1) format = "multi";
 
   let explanation = reflow(toText(pick(o, F.explanation)));
+  if (!options.length && toText(pick(o, ["question_type"])).toUpperCase() === "VISUAL_LABEL") {
+    const printedLabel = toText(pick(o, F.answer));
+    if (/^[A-Z]$/i.test(printedLabel)) explanation = `**Printed figure label: ${printedLabel.toUpperCase()}**${explanation ? `\n\n${explanation}` : ""}`;
+  }
   const sharedAnswer = reflow(toText(pick(o, ["shared_answer_context", "shared_explanation"])));
   if (sharedAnswer && !squash(explanation).includes(squash(sharedAnswer))) explanation = [sharedAnswer, explanation].filter(Boolean).join("\n\n");
   if (!explanation && isObj(ansRaw)) explanation = reflow(toText(pick(ansRaw, F.explanation)));
@@ -829,7 +834,10 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const emi = pick(o, ["emi_set_id", "emi_set", "emi_group_id"]);
   const srcId = pick(o, ["question_id", "qid", "id"]);
   const section = pick(o, ["section_id", "section_name"]);
-  const warning = toText(pick(o, ["source_warning", "extraction_warning"]));
+  const review = toText(pick(o, ["verification_status"])).toUpperCase() === "REQUIRES_SOURCE_REVIEW" ||
+    (Array.isArray(o.review_required) && o.review_required.length > 0);
+  const warning = toText(pick(o, ["source_warning", "extraction_warning"])) ||
+    (review ? "Source extraction requires visual comparison with the printed book before scored use." : "");
   const groupId = typeof group === "string" || typeof group === "number" ? String(group) : undefined;
   return {
     number: num !== undefined && (typeof num === "string" || typeof num === "number") ? String(num) : String(idx + 1),
@@ -852,7 +860,8 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     ...(typeof emi === "string" || typeof emi === "number" ? { emiSet: String(emi) } : {}),
     ...(typeof srcId === "string" || typeof srcId === "number" ? { sourceId: String(srcId) } : {}),
     ...(typeof section === "string" ? { section } : {}),
-    ...(warning ? { sourceWarning: warning } : {})
+    ...(warning ? { sourceWarning: warning } : {}),
+    ...(review ? { sourceReviewRequired: true } : {})
   };
 }
 
@@ -1057,6 +1066,7 @@ export function mergeEmiSets(questions: ParsedQuestion[], groups: Obj[] = []): P
       stemMedia: sharedMedia,
       explanationMedia: set.flatMap((x) => x.explanationMedia).filter((m, i, all) => all.findIndex((y) => y.file === m.file) === i),
       sourceTags: Array.from(new Set(set.flatMap((x) => x.sourceTags))),
+      ...(set.some((x) => x.sourceReviewRequired) ? { sourceReviewRequired: true, sourceWarning: set.find((x) => x.sourceWarning)?.sourceWarning ?? "Source transcription pending review." } : {}),
       annotation: set[0].annotation
     });
   }

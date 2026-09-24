@@ -58,9 +58,27 @@
     {
       "id": "neurosurgery-rounds-2e",
       "title": "Neurosurgery Rounds: Questions and Answers, 2nd Edition",
-      "source": "sources/RoundsQA2.zip.001",
+      "source": "sources/Neurosurgery-Rounds-QA2.zip",
       "webMaxPx": 1100,
       "webQuality": 60
+    },
+    {
+      "id": "nbr3",
+      "title": "Neurosurgery Board Review, Third Edition",
+      "source": "sources/NBR3.zip.001",
+      "primaryJson": "NBR3_extraction.json",
+      "referencedAssetsOnly": true,
+      "webMaxPx": 1000,
+      "webQuality": 58
+    },
+    {
+      "id": "nper",
+      "title": "Neurosurgery Primary Examination Review",
+      "source": "sources/NBER.zip.001",
+      "primaryJson": "NPER_extraction.json",
+      "referencedAssetsOnly": true,
+      "webMaxPx": 1000,
+      "webQuality": 58
     }
   ]
 }

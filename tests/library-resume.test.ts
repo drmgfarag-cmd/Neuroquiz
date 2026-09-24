@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, expect, it, vi } from "vitest";
 import { db, getMeta, setMeta } from "../src/lib/db";
-import { installBundledIfEmpty } from "../src/lib/library";
+import { installBundledIfEmpty, retireIncompleteQbne } from "../src/lib/library";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -27,4 +27,14 @@ it("resumes the remaining bundled book after an interrupted first launch", async
   expect(await db.questions.where("bookId").equals("second").count()).toBe(1);
   expect(await db.media.get("second/fig.png")).toBeTruthy();
   expect(await getMeta("bundle:first-run-done", false)).toBe(true);
+});
+
+it("retires the withdrawn QBNE book once without deleting a later replacement", async () => {
+  await Promise.all(db.tables.map((table) => table.clear()));
+  await db.books.put({ id: "qbne", title: "QBNE incomplete", sources: [], importedAt: 1, questionCount: 0, flashcardCount: 0, caseCount: 0 });
+  await retireIncompleteQbne();
+  expect(await db.books.get("qbne")).toBeUndefined();
+  await db.books.put({ id: "qbne", title: "QBNE complete", sources: [], importedAt: 2, questionCount: 0, flashcardCount: 0, caseCount: 0 });
+  await retireIncompleteQbne();
+  expect((await db.books.get("qbne"))?.title).toBe("QBNE complete");
 });
