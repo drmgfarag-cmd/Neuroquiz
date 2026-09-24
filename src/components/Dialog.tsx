@@ -10,6 +10,8 @@ interface Request {
   danger?: boolean;
   /** notify() has only an OK button */
   single?: boolean;
+  choices?: { label: string; value: string; danger?: boolean }[];
+  resolveChoice?: (value: string | null) => void;
   resolve: (ok: boolean) => void;
 }
 
@@ -29,6 +31,11 @@ export function ask(message: string, opts: { confirmLabel?: string; danger?: boo
 /** Show a message with an OK button. */
 export function notify(message: string): Promise<void> {
   return new Promise((resolve) => open({ message, single: true, resolve: () => resolve() }));
+}
+
+/** Present several mutually exclusive choices; Escape leaves the action unchanged. */
+export function choose(message: string, choices: { label: string; value: string; danger?: boolean }[]): Promise<string | null> {
+  return new Promise((resolve) => open({ message, choices, resolveChoice: resolve, resolve: () => undefined }));
 }
 
 export function DialogHost() {
@@ -57,7 +64,12 @@ export function DialogHost() {
   });
   if (!cur) return null;
   function close(ok: boolean) {
-    cur.resolve(ok);
+    if (cur.choices) cur.resolveChoice?.(null);
+    else cur.resolve(ok);
+    setItems((s) => s.slice(1));
+  }
+  function pick(value: string) {
+    cur.resolveChoice?.(value);
     setItems((s) => s.slice(1));
   }
   return (
@@ -65,10 +77,15 @@ export function DialogHost() {
       <div className="card dialog" role="alertdialog" aria-modal="true" aria-describedby="dialog-msg" onClick={(e) => e.stopPropagation()}>
         <p id="dialog-msg">{cur.message}</p>
         <div className="row" style={{ justifyContent: "flex-end" }}>
-          {!cur.single && <button onClick={() => close(false)}>Cancel</button>}
-          <button ref={okRef} className={cur.danger ? "danger" : "primary"} onClick={() => close(true)}>
-            {cur.single ? "OK" : cur.confirmLabel ?? "OK"}
-          </button>
+          {cur.choices ? <>
+            <button ref={okRef} onClick={() => close(false)}>Keep studying</button>
+            {cur.choices.map((c) => <button key={c.value} className={c.danger ? "danger" : "primary"} onClick={() => pick(c.value)}>{c.label}</button>)}
+          </> : <>
+            {!cur.single && <button onClick={() => close(false)}>Cancel</button>}
+            <button ref={okRef} className={cur.danger ? "danger" : "primary"} onClick={() => close(true)}>
+              {cur.single ? "OK" : cur.confirmLabel ?? "OK"}
+            </button>
+          </>}
         </div>
       </div>
     </div>
