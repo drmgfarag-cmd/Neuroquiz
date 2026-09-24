@@ -132,6 +132,25 @@ describe.skipIf(!list.length)("built-in library", () => {
           expect(first.explanationMedia[0]?.file).toContain("figRef");
         }
       }
+      if (book.id === "ntmcq2022") {
+        expect(qs).toHaveLength(336);
+        expect(media).toHaveLength(19);
+        expect(unused).toEqual([]);
+      }
+      if (book.id === "raj2009") {
+        expect(qs).toHaveLength(1008);
+        const allFalse = qs.filter((q) => q.sourceId && [753, 769, 772, 776, 798, 832].some((n) => q.sourceId!.endsWith(`q${String(n).padStart(4, "0")}`)));
+        expect(allFalse).toHaveLength(6);
+        expect(allFalse.every((q) => q.format === "truefalse" && Object.values(q.verdicts ?? {}).every((v) => v === false))).toBe(true);
+        expect(allFalse.filter((q) => unscorableReason(q))).toHaveLength(1); // the source flags Q776 for review
+      }
+      if (book.id === "mcqs-neuroanatomy-2") expect(qs).toHaveLength(77);
+      if (book.id === "vasc2017") {
+        expect(qs).toHaveLength(349);
+        expect(media).toHaveLength(10);
+        expect(unused).toEqual([]);
+        expect(qs.some((q) => q.explanationMedia.some((m) => m.file === "Vascular_Neurosurgery_2017_ch02_q022_Spetzler_Martin_grade.png"))).toBe(true);
+      }
     }, 120_000);
   }
 });

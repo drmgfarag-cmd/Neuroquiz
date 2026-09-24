@@ -76,5 +76,14 @@ Publisher records used for matching: [Thieme book 05](https://shop.thieme.de/en/
 [Springer book 07](https://link.springer.com/book/10.1007/978-3-031-69332-8),
 [Thieme book 08](https://shop.thieme.com/en/Thieme-Test-Prep-for-the-USMLE-Medical-Neuroscience-Q-A/9781626235373).
 
+## Recent source imports
+
+The Neurotrauma, Raj, Neuroanatomy, and Vascular extractions are included from
+their GitHub sources. The Vascular bundle contains ten linked tables; its
+question JSON uses asset IDs, which the importer resolves through the source
+asset manifest to the actual image filenames. Raj's six
+printed “all options false” keys are graded as per-option true/false; the
+source-flagged Q776 remains excluded from scoring until reviewed.
+
 The web preview link holds at most about 60 MB of books in total. Past that,
 use the Android/Windows apps for the full library.
