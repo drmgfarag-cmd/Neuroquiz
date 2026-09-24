@@ -203,6 +203,8 @@ export interface SessionAnswer {
   questionId: string;
   selected: string[];
   correct?: boolean;
+  /** The response was submitted even though the source has no verified key. */
+  unscoredSubmitted?: boolean;
   timeMs: number;
   flagged?: boolean;
   /** Eliminated options (strike-through) in the UI */
