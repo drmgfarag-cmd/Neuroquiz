@@ -6,9 +6,11 @@ import { questionText } from "../ai/tagger";
 import { AiChat } from "../components/AiChat";
 import { Annotations } from "../components/Annotations";
 import { Icon } from "../components/Icons";
+import { useViewer } from "../components/ImageViewer";
 import { Explanation, QuestionView } from "../components/QuestionView";
 import { addAiCards, addQuestionCard } from "../lib/cards";
 import { db } from "../lib/db";
+import { useOnline } from "../lib/platform";
 import { finishSession, isCorrect, recordResult, saveSession, setFlag, setNote } from "../lib/quiz";
 import type { Question, QuizSession, SessionAnswer } from "../lib/types";
 import { formatDuration } from "../lib/util";
@@ -24,6 +26,10 @@ export default function QuizRunner() {
   const [msg, setMsg] = useState("");
   const [, setTick] = useState(0);
   const qStart = useRef(Date.now());
+  const finishing = useRef(false);
+  const galleryRef = useRef<HTMLDivElement>(null);
+  const viewer = useViewer();
+  const online = useOnline();
   const lastTick = useRef(Date.now());
 
   useEffect(() => {
@@ -57,23 +63,43 @@ export default function QuizRunner() {
     return () => clearInterval(t);
   }, [session?.id, paused]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // persist every few seconds
+  // Persist: immediately when answers/position change, and every 5 s for
+  // the clock. (A debounce on `session` never fired because the clock
+  // updates it every second.)
+  const sessionRef = useRef<QuizSession | null>(null);
+  sessionRef.current = session;
+  const answersKey = session ? JSON.stringify([session.current, session.answers]) : "";
   useEffect(() => {
-    if (!session) return;
-    const t = setTimeout(() => saveSession(session), 1500);
-    return () => clearTimeout(t);
-  }, [session]);
+    if (sessionRef.current) saveSession(sessionRef.current);
+  }, [answersKey]);
+  useEffect(() => {
+    if (!session?.id) return;
+    const t = setInterval(() => sessionRef.current && !finishing.current && saveSession(sessionRef.current), 5000);
+    const flush = () => sessionRef.current && !finishing.current && saveSession(sessionRef.current);
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", flush);
+      flush();
+    };
+  }, [session?.id]);
 
   const finish = useCallback(
     async (force = false) => {
-      if (!session) return;
+      if (!session || finishing.current) return;
       if (session.mode === "review") {
+        finishing.current = true;
+        viewer.close();
         await saveSession({ ...session, finishedAt: Date.now() });
         nav("/history");
         return;
       }
       const unanswered = session.questionIds.filter((qid) => !session.answers[qid]?.selected.length).length;
       if (!force && unanswered && !confirm(`${unanswered} question(s) unanswered. Finish anyway?`)) return;
+      finishing.current = true;
+      viewer.close();
       const done = await finishSession(session);
       nav(`/results/${done.id}`, { replace: true });
     },
@@ -84,6 +110,15 @@ export default function QuizRunner() {
   useEffect(() => {
     if (remainingMs !== null && remainingMs <= 0 && session && !session.finishedAt) finish(true);
   }, [remainingMs, session, finish]);
+
+  // keep a docked viewer in step with the question on screen
+  const revealKey = current ? `${current.id}|${session?.answers[current.id]?.correct}` : "";
+  useEffect(() => {
+    const t = setTimeout(() => viewer.refreshDocked(galleryRef.current), 300);
+    return () => clearTimeout(t);
+  }, [revealKey, viewer.docked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const closeViewer = useRef(viewer.close);
+  useEffect(() => () => closeViewer.current(), []);
 
   if (!session) return <div className="muted">Loading…</div>;
   if (!current) return <div className="card">This test's questions are no longer in the library.</div>;
@@ -211,6 +246,7 @@ export default function QuizRunner() {
         </div>
       ) : (
         <>
+          <div data-gallery="" ref={galleryRef}>
           <div className="card">
             <div className="row between small muted" style={{ marginBottom: 6 }}>
               <span>
@@ -255,6 +291,8 @@ export default function QuizRunner() {
                   </button>
                   <button
                     className="small"
+                    disabled={!online}
+                    title={online ? "" : "Needs an internet connection"}
                     onClick={async () => {
                       setMsg("Generating flashcards…");
                       try {
@@ -278,6 +316,7 @@ export default function QuizRunner() {
               </div>
             </>
           )}
+          </div>
 
           <div className="sticky-actions row between">
             <button onClick={() => go(idx - 1)} disabled={idx === 0}>

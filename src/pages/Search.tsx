@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { aiAvailable, aiSearchPlan, describeAiError, type AiSearchPlan } from "../ai/claude";
 import { allCases, allFlashcards, db } from "../lib/db";
 import { plain } from "../lib/markdown";
+import { useOnline } from "../lib/platform";
 import { search, type SearchHit } from "../lib/search";
 import type { Annotation } from "../lib/types";
 
@@ -39,6 +40,7 @@ export default function SearchPage() {
   const [plan, setPlan] = useState<AiSearchPlan | null>(null);
   const [error, setError] = useState("");
   const topicParam = params.get("topic");
+  const online = useOnline();
 
   const topics = useLiveQuery(async () => {
     const anns = await db.annotations.toArray();
@@ -123,7 +125,7 @@ export default function SearchPage() {
           <button className="primary" type="submit" disabled={busy}>
             Search
           </button>
-          <button type="button" disabled={busy || !q.trim() || !aiAvailable()} onClick={runAi} title={aiAvailable() ? "Let Claude interpret the request" : "Add an API key in Settings"}>
+          <button type="button" disabled={busy || !q.trim() || !aiAvailable() || !online} onClick={runAi} title={!online ? "Offline – normal search still works" : aiAvailable() ? "Let Claude interpret the request" : "Add an API key in Settings"}>
             ✦ Smart search
           </button>
         </form>

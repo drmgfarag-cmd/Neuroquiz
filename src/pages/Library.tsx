@@ -1,6 +1,9 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { exportBookZip } from "../import/exporter";
 import { deleteBook } from "../import/importer";
+import { saveFile } from "../lib/platform";
 import { db } from "../lib/db";
 import { clearMediaCache } from "../lib/media";
 import { buildPool, createSession, emptyFilter } from "../lib/quiz";
@@ -9,6 +12,7 @@ import { pct } from "../lib/util";
 
 export default function Library() {
   const nav = useNavigate();
+  const [exporting, setExporting] = useState("");
   const data = useLiveQuery(async () => {
     const [books, chapters, questions, states] = await Promise.all([
       db.books.orderBy("title").toArray(),
@@ -85,6 +89,24 @@ export default function Library() {
                 </button>
                 <button className="small" onClick={() => start("review", `Review – ${b.title}`, [b.id], [])}>
                   Read
+                </button>
+                <button
+                  className="small"
+                  disabled={!!exporting}
+                  title="ZIP with questions, images and tags – import it on another device, no internet needed"
+                  onClick={async () => {
+                    setExporting(b.id);
+                    try {
+                      const { blob, name } = await exportBookZip(b.id);
+                      await saveFile(blob, name);
+                    } catch (e) {
+                      alert(`Export failed: ${(e as Error).message}`);
+                    } finally {
+                      setExporting("");
+                    }
+                  }}
+                >
+                  {exporting === b.id ? "Exporting…" : "Export ZIP"}
                 </button>
                 <button
                   className="small danger"

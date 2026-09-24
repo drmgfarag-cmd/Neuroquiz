@@ -22,7 +22,7 @@ export default function CaseView() {
   const finished = visible >= c.stages.length;
 
   return (
-    <div>
+    <div data-gallery="">
       <div className="row between">
         <h1 style={{ margin: 0 }}>{c.title}</h1>
         <label className="check small">

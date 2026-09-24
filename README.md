@@ -10,11 +10,13 @@ An offline-first quiz app for question banks extracted from neurosurgery books. 
 | **AI tagging** | Claude reads each question with its answer and explanation. It assigns a topic and subtopic from a built-in neurosurgery taxonomy (16 topics, ~80 subtopics), plus concept tags, search keywords and synonyms, a difficulty, a high-yield flag and a one-line teaching point. An offline keyword tagger runs on every import as a first pass. You can correct tags by hand. |
 | **Search** | Full-text search with fuzzy and prefix matching, weighted by tags and topics. **Smart search** lets Claude turn a plain-language request into topics and synonyms. You can browse by topic and turn any result set into a test. |
 | **Test modes** | **Tutor** shows the answer and explanation after each question. **Timed exam** runs a countdown and grades at the end. **Untimed exam** also grades at the end, without a clock. **Read/review** lets you browse questions with answers shown. |
-| **Revision** | Filter by status: unused, incorrect, correct, flagged, or due for revision. Missed questions come back on a spaced-repetition schedule. You can also filter by book, chapter, topic, subtopic, difficulty or high-yield. Other tools: retry incorrect, flag, cross out options, notes, keyboard shortcuts. |
+| **Revision** | Filter by status: unused, incorrect, correct, flagged, or due for revision, or only questions with images (radiology/figure practice). Missed questions come back on a spaced-repetition schedule. You can also filter by book, chapter, topic, subtopic, difficulty or high-yield. Other tools: retry incorrect, flag, cross out options, notes, keyboard shortcuts. |
 | **Flashcards** | Cards come from imported flashcards, from questions (one tap), from Claude (short one-fact cards) or from you. Study with SM-2 spaced repetition or cram mode. |
 | **Cases** | Imported case scenarios reveal step by step: presentation, then stages, each with a question and model answer, then a discussion. Claude can write oral-board style cases from your own questions, and an **AI examiner** chat discusses each case with you. |
+| **Image viewer** | Tap any figure, radiology image or cropped table to open it. You can zoom with the mouse wheel, pinch, double-tap or the +/− buttons, up to 1200% or actual pixels (1:1). Drag to pan. Swipe, use the arrow keys or pick a thumbnail to move between all the images of a question, including its options and explanation. There are brightness and contrast controls: a **W/L** (window/level) drag like a PACS viewer, or right-drag at any time. You can also invert, rotate, flip and go full screen. **Dock** keeps the viewer beside the question on wide screens and follows you to the next question, so you can study a scan while choosing an answer. Keys: `+` `-` `0` `←` `→` `I` `R` `Esc`. |
 | **AI tutor** | Ask Claude about any question: why each option is right or wrong, mnemonics, related facts. |
 | **Stats** | Accuracy by book, topic and weakest subtopic, plus 14-day activity. Tap a weak area to build a test from it. |
+| **Offline** | Everything except the AI features and sync works with no connection: import, tests, flashcards, cases, search, the viewer and stats. The web app installs itself for offline use on first visit. The Android and Windows apps load from local files. AI buttons are disabled while offline, and AI tagging stops cleanly if the connection drops, then continues from where it stopped when you run it again. Sync catches up automatically when you reconnect. |
 | **Sync** | Progress, flags, notes, tags, history and generated cards and cases sync through a small self-hosted server or a backup file. |
 
 ## Quick start (development)
@@ -65,6 +67,8 @@ SYNC_TOKEN=pick-a-secret PORT=8787 npm run sync-server
 ```
 
 On each device, open **Settings → Sync** and enter `http://<pc-ip>:8787` and the token. Each device syncs when the app starts, every 5 minutes and when you reopen the app. You can also press **Sync now**. For access away from home, put the server behind HTTPS (e.g. a reverse proxy or Tailscale). The server stores only progress data (JSON in `sync-server/data/`).
+
+**Moving books without internet.** **Library → Export ZIP** packs a book with its images and AI tags into one file. Import that ZIP on the other device (on Android it opens the share sheet, so you can send it to Drive, Files, etc.). Question IDs come out identical, so progress and tags line up between devices.
 
 **Option B – backup file (manual).** In Settings, use **Export progress file** on one device. Move the file with Drive, OneDrive or USB, then use **Merge progress file** on the other. Merging works in both directions: for each item, the newest change wins, and deletions carry over.
 

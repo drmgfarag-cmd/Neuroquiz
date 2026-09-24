@@ -9,6 +9,7 @@ import { Explanation, QuestionView } from "../components/QuestionView";
 import { addAiCards, addQuestionCard } from "../lib/cards";
 import { db } from "../lib/db";
 import { setFlag } from "../lib/quiz";
+import { useOnline } from "../lib/platform";
 import { pct } from "../lib/util";
 
 export default function QuestionPage() {
@@ -16,6 +17,7 @@ export default function QuestionPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [msg, setMsg] = useState("");
+  const online = useOnline();
   const data = useLiveQuery(async () => {
     const q = await db.questions.get(id!);
     if (!q) return null;
@@ -30,6 +32,7 @@ export default function QuestionPage() {
       <div className="muted small">
         {book?.title} › {ch?.title} › Q{q.number}
       </div>
+      <div data-gallery="">
       <div className="card" style={{ marginTop: 8 }}>
         <QuestionView q={q} selected={selected} revealed={revealed} onSelect={(k) => setSelected(q.answer.length > 1 ? (selected.includes(k) ? selected.filter((x) => x !== k) : [...selected, k]) : [k])} />
         <div className="row" style={{ marginTop: 10 }}>
@@ -49,6 +52,7 @@ export default function QuestionPage() {
         </div>
       </div>
       {revealed && <Explanation q={q} selected={selected} />}
+      </div>
       <Annotations id={q.id} kind="question" extraTags={q.sourceTags} />
       {st?.note && (
         <div className="card small">
@@ -62,6 +66,7 @@ export default function QuestionPage() {
           </button>
           <button
             className="small"
+            disabled={!online}
             onClick={async () => {
               setMsg("Generating…");
               try {

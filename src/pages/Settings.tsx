@@ -2,6 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { db, getMeta } from "../lib/db";
 import { DEFAULT_MODEL, updateSettings, useSettings } from "../lib/settings";
+import { isNative, saveFile } from "../lib/platform";
 import { exportBackup, importBackup, syncWithServer } from "../lib/sync";
 
 const MODELS = [
@@ -10,13 +11,6 @@ const MODELS = [
   { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (cheapest, fastest)" }
 ];
 
-function download(blob: Blob, name: string) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-}
 
 export default function SettingsPage() {
   const s = useSettings();
@@ -26,8 +20,13 @@ export default function SettingsPage() {
   const lastSync = useLiveQuery(() => getMeta<number>("sync.lastAt", 0));
 
   useEffect(() => {
-    navigator.storage?.estimate?.().then((e) => setStorage(`${((e.usage ?? 0) / 1e6).toFixed(1)} MB used of ~${((e.quota ?? 0) / 1e9).toFixed(1)} GB available`));
-    navigator.storage?.persist?.();
+    Promise.all([navigator.storage?.estimate?.(), navigator.storage?.persisted?.()]).then(([e, persisted]) => {
+      if (!e) return;
+      setStorage(
+        `${((e.usage ?? 0) / 1e6).toFixed(1)} MB used of ~${((e.quota ?? 0) / 1e9).toFixed(1)} GB available · ` +
+          (persisted || isNative() ? "protected from automatic clean-up" : "not yet protected – install the app (Add to Home screen / Install) so the browser keeps your library")
+      );
+    });
   }, []);
 
   return (
@@ -102,7 +101,7 @@ export default function SettingsPage() {
         </p>
         <hr style={{ margin: "4px 0" }} />
         <div className="row">
-          <button onClick={async () => download(await exportBackup(), `neuroquiz-progress-${new Date().toISOString().slice(0, 10)}.json`)}>Export progress file</button>
+          <button onClick={async () => saveFile(await exportBackup(), `neuroquiz-progress-${new Date().toISOString().slice(0, 10)}.json`)}>Export progress file</button>
           <label className="btn">
             Merge progress file
             <input

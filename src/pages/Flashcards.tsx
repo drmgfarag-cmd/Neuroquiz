@@ -182,7 +182,7 @@ function Study() {
           End session
         </button>
       </div>
-      <div className="card flashcard" onClick={() => setFlipped(true)}>
+      <div className="card flashcard" data-gallery="" onClick={() => setFlipped(true)}>
         <div className="side-label">Front</div>
         <Rich text={card.front} bookId={card.bookId} />
         <MediaList media={card.frontMedia} bookId={card.bookId} />
@@ -240,7 +240,7 @@ function Browse({ focus }: { focus: string | null }) {
               {st && <span className="small muted">{st.suspended ? "suspended" : `due ${new Date(st.srs.due).toLocaleDateString()}`}</span>}
             </div>
             {open === c.id && (
-              <div className="stack" style={{ padding: "6px 0 14px" }}>
+              <div className="stack" style={{ padding: "6px 0 14px" }} data-gallery="">
                 <Rich text={c.front} bookId={c.bookId} />
                 <MediaList media={c.frontMedia} bookId={c.bookId} />
                 <hr style={{ margin: "4px 0" }} />

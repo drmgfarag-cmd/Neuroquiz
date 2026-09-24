@@ -95,8 +95,9 @@ export async function runAiTagging(
   const byId = new Map(items.map((i) => [i.id, i]));
 
   let next = 0;
+  let stopped = false;
   async function worker() {
-    while (next < batches.length && !signal.aborted) {
+    while (next < batches.length && !signal.aborted && !stopped) {
       const batch = batches[next++];
       try {
         const input: TagInput[] = batch.map((b) => ({ id: b.id, text: b.text + (b.sourceTags.length ? `\nSource tags: ${b.sourceTags.join(", ")}` : "") }));
@@ -121,6 +122,13 @@ export async function runAiTagging(
         progress.failed += batch.length - tags.length;
       } catch (e) {
         if (signal.aborted) break;
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          // connection lost: stop cleanly – a later run picks up where this left off
+          stopped = true;
+          progress.lastError = "Connection lost – stopped. Run again when online to continue.";
+          onProgress({ ...progress });
+          break;
+        }
         progress.failed += batch.length;
         progress.lastError = e instanceof Error ? e.message : String(e);
       }

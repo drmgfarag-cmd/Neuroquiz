@@ -11,7 +11,10 @@
  * Field names are matched case-insensitively against lists of common aliases
  * (question/stem/text, options/choices, answer/correct_answer, ...).
  */
-import type { CaseStage, MediaRef, Option } from "../lib/types";
+import type { Annotation, CaseStage, MediaRef, Option } from "../lib/types";
+
+/** Tags carried inside NeuroQuiz's own book export (restored on import). */
+export type ParsedAnnotation = Omit<Annotation, "id" | "kind">;
 import { IMAGE_EXT } from "../lib/util";
 
 type Json = unknown;
@@ -32,6 +35,7 @@ export interface ParsedQuestion {
   stemMedia: MediaRef[];
   explanationMedia: MediaRef[];
   sourceTags: string[];
+  annotation?: ParsedAnnotation;
 }
 
 export interface ParsedFlashcard {
@@ -40,6 +44,7 @@ export interface ParsedFlashcard {
   frontMedia: MediaRef[];
   backMedia: MediaRef[];
   sourceTags: string[];
+  annotation?: ParsedAnnotation;
 }
 
 export interface ParsedCase {
@@ -49,6 +54,7 @@ export interface ParsedCase {
   stages: CaseStage[];
   discussion: string;
   sourceTags: string[];
+  annotation?: ParsedAnnotation;
 }
 
 export interface ParsedChapter {
@@ -74,7 +80,7 @@ const F = {
   answer: ["correct_answer", "correctanswer", "answer", "correct", "correct_option", "correctoption", "key", "answer_key", "right_answer", "solution", "correct_choice", "correct_answers"],
   answerIndex: ["answer_index", "answerindex", "correct_index", "correctindex"],
   explanation: ["explanation", "explanations", "rationale", "discussion", "answer_explanation", "commentary", "reasoning", "feedback", "solution_text", "notes", "comment"],
-  stemMedia: ["images", "image", "figures", "figure", "media", "question_images", "question_image", "question_figures", "img", "imgs", "pictures", "attachments", "tables_images", "diagram", "diagrams", "table_image", "table_images"],
+  stemMedia: ["stem_media", "images", "image", "figures", "figure", "media", "question_images", "question_image", "question_figures", "img", "imgs", "pictures", "attachments", "tables_images", "diagram", "diagrams", "table_image", "table_images"],
   explanationMedia: ["explanation_images", "explanation_image", "answer_images", "answer_image", "explanation_figures", "rationale_images", "solution_images", "explanation_media", "answer_media"],
   tables: ["tables", "table"],
   explanationTables: ["explanation_tables", "explanation_table", "answer_tables"],
@@ -444,9 +450,29 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     options,
     answer,
     explanation: linkInlineImages(explanation),
+    annotation: parseAnnotation(o),
     stemMedia: toMedia(pick(o, F.stemMedia)),
     explanationMedia,
     sourceTags: tagList(tags)
+  };
+}
+
+function parseAnnotation(o: Obj): ParsedAnnotation | undefined {
+  const a = pick(o, ["annotation", "neuroquiz_tags"]);
+  if (!isObj(a) || typeof a.topic !== "string") return undefined;
+  const strs = (v: Json) => (Array.isArray(v) ? v.map(toText).filter(Boolean) : []);
+  const src = a.source === "ai" || a.source === "manual" || a.source === "local" ? a.source : "ai";
+  const diff = a.difficulty === "easy" || a.difficulty === "medium" || a.difficulty === "hard" ? a.difficulty : undefined;
+  return {
+    topic: a.topic,
+    subtopic: toText(a.subtopic),
+    tags: strs(a.tags),
+    keywords: strs(a.keywords),
+    difficulty: diff,
+    highYield: a.highYield === true || a.high_yield === true,
+    summary: a.summary ? toText(a.summary) : undefined,
+    source: src,
+    updatedAt: typeof a.updatedAt === "number" ? a.updatedAt : 0
   };
 }
 
@@ -464,8 +490,9 @@ function parseFlashcard(o: Obj): ParsedFlashcard | null {
   return {
     front: linkInlineImages(front),
     back: linkInlineImages(back),
-    frontMedia: toMedia(pick(o, ["front_image", "front_images", "image", "images", "figure"])),
-    backMedia: toMedia(pick(o, ["back_image", "back_images", "answer_image", "answer_images"])),
+    annotation: parseAnnotation(o),
+    frontMedia: toMedia(pick(o, ["front_media", "front_image", "front_images", "image", "images", "figure"])),
+    backMedia: toMedia(pick(o, ["back_media", "back_image", "back_images", "answer_image", "answer_images"])),
     sourceTags: tagList(pick(o, F.tags))
   };
 }
@@ -504,7 +531,8 @@ function parseCase(o: Obj, opts: NormalizeOptions): ParsedCase | null {
   return {
     title,
     presentation: linkInlineImages(presentation),
-    presentationMedia: toMedia(pick(o, ["images", "image", "figures", "figure", "media", "imaging"])),
+    annotation: parseAnnotation(o),
+    presentationMedia: toMedia(pick(o, ["presentation_media", "images", "image", "figures", "figure", "media", "imaging"])),
     stages,
     discussion: linkInlineImages(discussion),
     sourceTags: tagList(pick(o, F.tags))

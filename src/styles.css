@@ -104,6 +104,10 @@ code { background: var(--surface-2); padding: 1px 4px; border-radius: 4px; }
   .bottom-nav .nav-link.active { background: transparent; }
 }
 
+.banner { padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; background: var(--warn-soft); color: var(--warn); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.banner.accent { background: var(--accent-soft); color: var(--accent); }
+.banner.good { background: var(--good-soft); color: var(--good); }
+
 /* ---------- primitives ---------- */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
 .card + .card { margin-top: 12px; }
@@ -175,8 +179,58 @@ button.chip { min-height: 0; cursor: pointer; }
 .media-thumb { display: flex; flex-direction: column; gap: 4px; max-width: 100%; }
 .media-thumb figcaption { font-size: 0.85em; color: var(--muted); }
 .media-missing { padding: 10px; border: 1px dashed var(--border); border-radius: 6px; color: var(--muted); font-size: 0.85em; }
-.lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 10px; touch-action: pinch-zoom; }
-.lightbox img { max-width: 100%; max-height: 100%; background: #fff; }
+.rich img[data-zoomable], .media-thumb img { cursor: zoom-in; }
+
+/* ---------- image viewer ---------- */
+.viewer {
+  position: fixed; z-index: 100; display: flex; flex-direction: column; background: #0b0d10; color: #e8edf3;
+  font-size: 14px; user-select: none; -webkit-user-select: none;
+}
+.viewer.modal { inset: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.viewer.docked { top: 0; right: 0; bottom: 0; width: 44vw; border-left: 1px solid #2a323c; }
+body.viewer-docked .main { margin-right: 44vw; max-width: none; }
+body.viewer-modal { overflow: hidden; }
+.viewer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; background: #151a21; border-bottom: 1px solid #2a323c; }
+.vbtn {
+  min-height: 34px; min-width: 34px; padding: 4px 9px; border-radius: 7px; border: 1px solid #2f3945; background: #1c232c; color: #e8edf3;
+  font-size: 13px; justify-content: center;
+}
+.vbtn:hover:not(:disabled) { background: #26303b; }
+.vbtn.on { background: #2b5f99; border-color: #4d8fd6; color: #fff; }
+.viewer-count, .viewer-zoom { font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; color: #aab6c3; }
+.viewer-sep { width: 1px; height: 22px; background: #2f3945; margin: 0 4px; }
+.viewer-spacer { flex: 1; }
+.viewer-adjust { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 6px 12px; background: #11161c; border-bottom: 1px solid #2a323c; }
+.viewer-adjust label { display: flex; align-items: center; gap: 8px; color: #aab6c3; }
+.viewer-adjust input[type="range"] { width: 160px; accent-color: #4d8fd6; }
+.viewer-stage {
+  position: relative; flex: 1; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  touch-action: none; cursor: zoom-in;
+}
+.viewer-stage.can-pan { cursor: grab; }
+.viewer-stage.can-pan:active { cursor: grabbing; }
+.viewer-stage.wl { cursor: crosshair; }
+.viewer-stage img {
+  max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center center; will-change: transform;
+  image-rendering: auto; pointer-events: none;
+}
+.viewer-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border-radius: 10px; border: 0;
+  background: rgba(20, 26, 33, 0.65); color: #fff; font-size: 34px; line-height: 1; justify-content: center; padding: 0;
+}
+.viewer-nav:hover { background: rgba(43, 95, 153, 0.85) !important; }
+.viewer-nav.prev { left: 8px; }
+.viewer-nav.next { right: 8px; }
+.viewer-caption { padding: 6px 12px; color: #cfd8e2; background: #11161c; border-top: 1px solid #2a323c; }
+.viewer-dim { color: #7d8a98; font-size: 12px; }
+.viewer-thumbs { display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; background: #151a21; border-top: 1px solid #2a323c; }
+.viewer-thumbs button { padding: 2px; min-height: 0; border: 2px solid transparent; background: #000; border-radius: 6px; flex: none; }
+.viewer-thumbs button.on { border-color: #4d8fd6; }
+.viewer-thumbs img { height: 54px; width: 72px; object-fit: cover; display: block; border-radius: 4px; }
+@media (max-width: 760px) {
+  .viewer-sep, .viewer-zoom { display: none; }
+  .vbtn { min-width: 38px; min-height: 38px; }
+}
 
 /* ---------- quiz ---------- */
 .quiz-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }

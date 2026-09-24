@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { runLocalTagging } from "../ai/tagger";
 import { collectFiles, executeImport, planImport, type GroupingMode, type ImportPlan, type ImportResult, type SourceFile } from "../import/importer";
 import { clearMediaCache } from "../lib/media";
+import { isNative } from "../lib/platform";
 import { updateSettings, useSettings } from "../lib/settings";
 
 export default function ImportPage() {
@@ -104,7 +105,7 @@ export default function ImportPage() {
           <div className="row" style={{ justifyContent: "center" }}>
             <label className="btn primary">
               Choose files / ZIP
-              <input type="file" multiple accept=".json,.zip,image/*,application/json,application/zip" hidden onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))} />
+              <input type="file" multiple accept={isNative() ? undefined : ".json,.zip,image/*,application/json,application/zip"} hidden onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))} />
             </label>
             <label className="btn">
               Choose folder

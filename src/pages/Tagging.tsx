@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { aiAvailable, describeAiError } from "../ai/claude";
 import { runAiTagging, runLocalTagging, type AiTagProgress, type ItemKind, type TagScope } from "../ai/tagger";
 import { db } from "../lib/db";
+import { useOnline } from "../lib/platform";
 import { useSettings } from "../lib/settings";
 
 export default function Tagging() {
@@ -16,6 +17,7 @@ export default function Tagging() {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState("");
   const abort = useRef<AbortController | null>(null);
+  const online = useOnline();
 
   const stats = useLiveQuery(async () => {
     const [anns, qCount, bookList] = await Promise.all([db.annotations.toArray(), db.questions.count(), db.books.orderBy("title").toArray()]);
@@ -87,7 +89,7 @@ export default function Tagging() {
           </select>
         </label>
         <div className="row">
-          <button className="primary" disabled={running || !aiAvailable() || !kinds.length} onClick={runAi}>
+          <button className="primary" disabled={running || !aiAvailable() || !kinds.length || !online} onClick={runAi} title={online ? "" : "Offline – run it later; the offline keyword tagger works now"}>
             ✦ Run AI tagging
           </button>
           {running && <button onClick={() => abort.current?.abort()}>Stop</button>}

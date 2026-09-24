@@ -1,0 +1,177 @@
+import { db } from "./db";
+import { newSrs, review } from "./srs";
+import type { Difficulty, Question, QuestionState, QuizMode, QuizSession, SessionAnswer } from "./types";
+import { shuffle, uid } from "./util";
+
+export type QuestionStatus = "all" | "unused" | "incorrect" | "flagged" | "due" | "correct";
+
+export interface PoolFilter {
+  bookIds: string[];
+  chapterIds: string[];
+  topics: string[];
+  subtopics: string[];
+  tags: string[];
+  status: QuestionStatus;
+  difficulties: Difficulty[];
+  highYieldOnly: boolean;
+  /** Only questions whose stem or options show an image (radiology/figure practice). */
+  withImagesOnly?: boolean;
+  ids?: string[];
+}
+
+export const emptyFilter = (): PoolFilter => ({
+  bookIds: [],
+  chapterIds: [],
+  topics: [],
+  subtopics: [],
+  tags: [],
+  status: "all",
+  difficulties: [],
+  highYieldOnly: false
+});
+
+export async function buildPool(f: PoolFilter): Promise<Question[]> {
+  let qs: Question[];
+  if (f.ids?.length) qs = (await db.questions.bulkGet(f.ids)).filter((q): q is Question => !!q);
+  else if (f.chapterIds.length) qs = await db.questions.where("chapterId").anyOf(f.chapterIds).toArray();
+  else if (f.bookIds.length) qs = await db.questions.where("bookId").anyOf(f.bookIds).toArray();
+  else qs = await db.questions.toArray();
+
+  if (f.withImagesOnly) qs = qs.filter(hasQuestionImage);
+
+  const needAnn = f.topics.length || f.subtopics.length || f.tags.length || f.difficulties.length || f.highYieldOnly;
+  if (needAnn) {
+    const anns = await db.annotations.bulkGet(qs.map((q) => q.id));
+    qs = qs.filter((q, i) => {
+      const a = anns[i];
+      if (!a) return false;
+      if (f.topics.length && !f.topics.includes(a.topic)) return false;
+      if (f.subtopics.length && !f.subtopics.includes(a.subtopic)) return false;
+      if (f.tags.length && !f.tags.some((t) => a.tags.includes(t) || q.sourceTags.includes(t))) return false;
+      if (f.difficulties.length && (!a.difficulty || !f.difficulties.includes(a.difficulty))) return false;
+      if (f.highYieldOnly && !a.highYield) return false;
+      return true;
+    });
+  }
+
+  if (f.status !== "all") {
+    const states = await db.questionStates.bulkGet(qs.map((q) => q.id));
+    const now = Date.now();
+    qs = qs.filter((_, i) => {
+      const s = states[i];
+      switch (f.status) {
+        case "unused":
+          return !s || s.timesSeen === 0;
+        case "incorrect":
+          return !!s && s.lastCorrect === false;
+        case "correct":
+          return !!s && s.lastCorrect === true;
+        case "flagged":
+          return !!s?.flagged;
+        case "due":
+          return !!s && s.timesSeen > 0 && s.srs.due <= now;
+      }
+      return true;
+    });
+  }
+  return qs.sort((a, b) => a.order - b.order);
+}
+
+/** Image visible before answering (stem or options); explanation images don't count. */
+export function hasQuestionImage(q: Question): boolean {
+  const inline = (t: string) => /!\[[^\]]*\]\(|<img\b/i.test(t);
+  return q.stemMedia.length > 0 || inline(q.stem) || q.options.some((o) => o.media.length > 0 || inline(o.text));
+}
+
+export interface SessionOptions {
+  mode: QuizMode;
+  title: string;
+  count: number;
+  shuffleQuestions: boolean;
+  shuffleOptions: boolean;
+  secondsPerQuestion: number;
+}
+
+export async function createSession(pool: Question[], o: SessionOptions): Promise<QuizSession> {
+  let chosen = o.shuffleQuestions ? shuffle(pool) : pool.slice();
+  if (o.count > 0) chosen = chosen.slice(0, o.count);
+  if (!o.shuffleQuestions) chosen.sort((a, b) => a.order - b.order);
+  const now = Date.now();
+  const s: QuizSession = {
+    id: uid("s_"),
+    mode: o.mode,
+    title: o.title,
+    questionIds: chosen.map((q) => q.id),
+    answers: {},
+    current: 0,
+    startedAt: now,
+    timeLimitSec: o.mode === "timed" ? Math.round(chosen.length * o.secondsPerQuestion) : undefined,
+    shuffleOptions: o.shuffleOptions,
+    optionOrder: o.shuffleOptions ? Object.fromEntries(chosen.map((q) => [q.id, shuffle(q.options.map((x) => x.key))])) : undefined,
+    updatedAt: now
+  };
+  await db.sessions.put(s);
+  return s;
+}
+
+export function isCorrect(q: Question, selected: string[]): boolean {
+  if (!q.answer.length) return false;
+  const a = new Set(q.answer);
+  return selected.length === a.size && selected.every((k) => a.has(k));
+}
+
+function freshState(questionId: string): QuestionState {
+  return { questionId, timesSeen: 0, timesCorrect: 0, flagged: false, note: "", srs: newSrs(), updatedAt: Date.now() };
+}
+
+export async function getState(questionId: string): Promise<QuestionState> {
+  return (await db.questionStates.get(questionId)) ?? freshState(questionId);
+}
+
+/** Persist a graded answer into the long-term per-question state (+ revision schedule). */
+export async function recordResult(q: Question, correct: boolean): Promise<void> {
+  const s = await getState(q.id);
+  const now = Date.now();
+  await db.questionStates.put({
+    ...s,
+    timesSeen: s.timesSeen + 1,
+    timesCorrect: s.timesCorrect + (correct ? 1 : 0),
+    lastCorrect: correct,
+    lastSeenAt: now,
+    srs: review(s.srs, correct ? "good" : "again", now),
+    updatedAt: now
+  });
+}
+
+export async function setFlag(questionId: string, flagged: boolean): Promise<void> {
+  const s = await getState(questionId);
+  await db.questionStates.put({ ...s, flagged, updatedAt: Date.now() });
+}
+
+export async function setNote(questionId: string, note: string): Promise<void> {
+  const s = await getState(questionId);
+  await db.questionStates.put({ ...s, note, updatedAt: Date.now() });
+}
+
+export async function saveSession(s: QuizSession): Promise<void> {
+  await db.sessions.put({ ...s, updatedAt: Date.now() });
+}
+
+/** Grades all answers of an exam/timed session and writes per-question results. */
+export async function finishSession(s: QuizSession): Promise<QuizSession> {
+  const qs = (await db.questions.bulkGet(s.questionIds)).filter((q): q is Question => !!q);
+  const answers: Record<string, SessionAnswer> = { ...s.answers };
+  let score = 0;
+  for (const q of qs) {
+    const a = answers[q.id];
+    if (!a || !a.selected.length) continue;
+    const already = a.correct !== undefined;
+    const c = isCorrect(q, a.selected);
+    answers[q.id] = { ...a, correct: c };
+    if (c) score++;
+    if (!already && s.mode !== "review") await recordResult(q, c);
+  }
+  const done: QuizSession = { ...s, answers, score, finishedAt: Date.now(), updatedAt: Date.now() };
+  await db.sessions.put(done);
+  return done;
+}

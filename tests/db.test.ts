@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { localTag } from "../src/ai/taxonomy";
 import { runLocalTagging } from "../src/ai/tagger";
-import { executeImport, planImport, type SourceFile } from "../src/import/importer";
+import { exportBookZip } from "../src/import/exporter";
+import { collectFiles, executeImport, planImport, type SourceFile } from "../src/import/importer";
 import { db, deleteSynced } from "../src/lib/db";
 import { buildPool, emptyFilter, recordResult } from "../src/lib/quiz";
 import { search } from "../src/lib/search";
@@ -73,6 +74,40 @@ describe("import → tag → search → quiz → sync", () => {
     const later = Date.now() + 10_000;
     await applyChanges([{ table: "annotations", id: "q1", updatedAt: later, row: { id: "q1", updatedAt: later } as never }]);
     expect(await db.annotations.get("q1")).toBeTruthy();
+  });
+});
+
+describe("book export", () => {
+  it("round-trips a book through a ZIP with stable ids, images and tags", async () => {
+    await executeImport(await planImport(sampleFiles(), "auto", 1));
+    const before = await db.questions.toArray();
+    const q = before.find((x) => x.stem.includes("thunderclap"))!;
+    await db.annotations.put({ id: q.id, kind: "question", topic: "Cerebrovascular", subtopic: "Aneurysms & SAH", tags: ["AComm"], keywords: ["sah"], difficulty: "easy", highYield: true, summary: "AComm commonest.", source: "ai", updatedAt: 500 });
+    await recordResult(q, true);
+
+    const { blob, name } = await exportBookZip("sample-neurosurgery-review");
+    expect(name).toBe("sample-neurosurgery-review.zip");
+
+    // simulate the other device: empty database, import the ZIP
+    await Promise.all(db.tables.map((t) => t.clear()));
+    const files = await collectFiles([new File([blob], name)]);
+    const res = await executeImport(await planImport(files, "auto", 1));
+    expect(res).toMatchObject({ books: 1, questions: 8, flashcards: 3, cases: 1, images: 2, missingImages: [] });
+
+    const after = await db.questions.toArray();
+    expect(after.map((x) => x.id).sort()).toEqual(before.map((x) => x.id).sort());
+    const q2 = after.find((x) => x.id === q.id)!;
+    expect(q2.answer).toEqual(q.answer);
+    expect(q2.stemMedia).toEqual(q.stemMedia);
+    expect(q2.options).toEqual(q.options);
+    const ann = await db.annotations.get(q.id);
+    expect(ann).toMatchObject({ source: "ai", subtopic: "Aneurysms & SAH", highYield: true, summary: "AComm commonest." });
+  });
+
+  it("filters questions that show an image before answering", async () => {
+    await executeImport(await planImport(sampleFiles(), "auto", 1));
+    const pool = await buildPool({ ...emptyFilter(), withImagesOnly: true });
+    expect(pool.map((p) => p.number).sort()).toEqual(["1", "6"]);
   });
 });
 

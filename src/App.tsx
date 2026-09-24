@@ -1,8 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { Icon } from "./components/Icons";
 import { useSettings } from "./lib/settings";
 import { syncWithServer } from "./lib/sync";
+import { closeOpenViewer } from "./components/ImageViewer";
+import { installBackButton, requestPersistentStorage, useOnline } from "./lib/platform";
+import { onPwaEvent, applyPwaUpdate } from "./pwa";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
 import ImportPage from "./pages/Import";
@@ -35,6 +38,14 @@ const NAV = [
 
 export default function App() {
   const settings = useSettings();
+  const online = useOnline();
+  const [pwa, setPwa] = useState<"" | "offline-ready" | "update">("");
+
+  useEffect(() => {
+    requestPersistentStorage();
+    installBackButton(closeOpenViewer);
+    return onPwaEvent(setPwa);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -46,14 +57,17 @@ export default function App() {
   // Background sync every 5 minutes and when the app regains focus.
   useEffect(() => {
     if (!settings.syncUrl) return;
-    const run = () => syncWithServer().catch(() => undefined);
+    // offline changes stay queued locally and go out on the next sync
+    const run = () => navigator.onLine && syncWithServer().catch(() => undefined);
     run();
     const t = setInterval(run, 5 * 60_000);
     const vis = () => document.visibilityState === "visible" && run();
     document.addEventListener("visibilitychange", vis);
+    window.addEventListener("online", run);
     return () => {
       clearInterval(t);
       document.removeEventListener("visibilitychange", vis);
+      window.removeEventListener("online", run);
     };
   }, [settings.syncUrl, settings.syncToken]);
 
@@ -70,6 +84,26 @@ export default function App() {
         ))}
       </nav>
       <main className="main">
+        {!online && <div className="banner">Offline – everything works except AI features and sync, which resume when you reconnect.</div>}
+        {pwa === "update" && (
+          <div className="banner accent">
+            A new version is ready.{" "}
+            <button className="small primary" onClick={applyPwaUpdate}>
+              Update now
+            </button>{" "}
+            <button className="small" onClick={() => setPwa("")}>
+              Later
+            </button>
+          </div>
+        )}
+        {pwa === "offline-ready" && (
+          <div className="banner good">
+            Installed for offline use.{" "}
+            <button className="small" onClick={() => setPwa("")}>
+              OK
+            </button>
+          </div>
+        )}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/library" element={<Library />} />

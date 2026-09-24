@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { aiAvailable, aiChat, describeAiError, type ChatTurn } from "../ai/claude";
+import { useOnline } from "../lib/platform";
 import { Rich } from "./Rich";
 
 export function AiChat({ context, starters, placeholder }: { context: string; starters: string[]; placeholder?: string }) {
@@ -10,6 +11,7 @@ export function AiChat({ context, starters, placeholder }: { context: string; st
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const abort = useRef<AbortController | null>(null);
+  const online = useOnline();
 
   if (!aiAvailable())
     return (
@@ -19,7 +21,7 @@ export function AiChat({ context, starters, placeholder }: { context: string; st
     );
 
   const send = async (text: string) => {
-    if (!text.trim() || busy) return;
+    if (!text.trim() || busy || !online) return;
     const history: ChatTurn[] = [...turns, { role: "user", content: text.trim() }];
     setTurns(history);
     setDraft("");
@@ -57,10 +59,11 @@ export function AiChat({ context, starters, placeholder }: { context: string; st
       ))}
       {busy && <div className="bubble assistant">{streaming ? <Rich text={streaming} /> : <span className="muted">Thinking…</span>}</div>}
       {error && <div className="error small">{error}</div>}
+      {!online && <div className="small muted">You're offline – the AI tutor will be available when you reconnect. Everything else keeps working.</div>}
       {!turns.length && (
         <div className="row">
           {starters.map((s) => (
-            <button key={s} className="small" onClick={() => send(s)}>
+            <button key={s} className="small" disabled={!online} onClick={() => send(s)}>
               {s}
             </button>
           ))}
@@ -82,7 +85,7 @@ export function AiChat({ context, starters, placeholder }: { context: string; st
         {busy ? (
           <button onClick={() => abort.current?.abort()}>Stop</button>
         ) : (
-          <button className="primary" disabled={!draft.trim()} onClick={() => send(draft)}>
+          <button className="primary" disabled={!draft.trim() || !online} onClick={() => send(draft)}>
             Send
           </button>
         )}

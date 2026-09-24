@@ -215,6 +215,9 @@ export default function QuizSetup() {
           <label className="check small">
             <input type="checkbox" checked={filter.highYieldOnly} onChange={(e) => setFilter({ ...filter, highYieldOnly: e.target.checked })} /> High-yield only
           </label>
+          <label className="check small">
+            <input type="checkbox" checked={!!filter.withImagesOnly} onChange={(e) => setFilter({ ...filter, withImagesOnly: e.target.checked })} /> Only questions with images (radiology/figures)
+          </label>
         </div>
       </div>
 

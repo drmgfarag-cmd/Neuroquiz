@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { db } from "../lib/db";
-import type { Book, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question } from "../lib/types";
+import type { Annotation, Book, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question } from "../lib/types";
 import { hash, IMAGE_EXT, normaliseFileName, slugify } from "../lib/util";
 import { normalizeBookJson, type ParsedFile } from "./normalize";
 
@@ -180,6 +180,7 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
     const flashcards: Flashcard[] = [];
     const cases: CaseScenario[] = [];
     const referenced = new Set<string>();
+    const carriedTags: Annotation[] = [];
     const seenIds = new Set<string>();
     const uniqueId = (base: string) => {
       let id = base;
@@ -196,19 +197,22 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       for (const ch of src.parsed.chapters) {
         const chapterId = uniqueId(`${bookId}:${slugify(ch.title)}`);
         chapters.push({ id: chapterId, bookId, title: ch.title, order: chapterOrder++ });
-        ch.questions.forEach((q) => {
+        ch.questions.forEach(({ annotation, ...q }) => {
           const id = uniqueId(`${bookId}:q:${hash(q.stem + "|" + q.options.map((o) => o.text).join("|"))}`);
           questions.push({ ...q, id, bookId, chapterId, order: order++ });
+          if (annotation) carriedTags.push({ ...annotation, id, kind: "question" });
           [...refs(q.stemMedia), ...refs(q.explanationMedia), ...q.options.flatMap((o) => refs(o.media)), ...inlineRefs(q.stem), ...inlineRefs(q.explanation), ...q.options.flatMap((o) => inlineRefs(o.text))].forEach((r) => referenced.add(r));
         });
-        ch.flashcards.forEach((f) => {
+        ch.flashcards.forEach(({ annotation, ...f }) => {
           const id = uniqueId(`${bookId}:f:${hash(f.front + "|" + f.back)}`);
           flashcards.push({ ...f, id, bookId, chapterId, origin: "imported", createdAt: now });
+          if (annotation) carriedTags.push({ ...annotation, id, kind: "flashcard" });
           [...refs(f.frontMedia), ...refs(f.backMedia), ...inlineRefs(f.front), ...inlineRefs(f.back)].forEach((r) => referenced.add(r));
         });
-        ch.cases.forEach((c) => {
+        ch.cases.forEach(({ annotation, ...c }) => {
           const id = uniqueId(`${bookId}:c:${hash(c.title + "|" + c.presentation)}`);
           cases.push({ ...c, id, bookId, chapterId, origin: "imported", createdAt: now });
+          if (annotation) carriedTags.push({ ...annotation, id, kind: "case" });
           [...refs(c.presentationMedia), ...c.stages.flatMap((s) => refs(s.media)), ...inlineRefs(c.presentation), ...inlineRefs(c.discussion)].forEach((r) => referenced.add(r));
         });
       }
@@ -251,6 +255,19 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       await db.cases.bulkPut(cases);
       if (media.length) await db.media.bulkPut(media);
     });
+
+    // Tags exported from another device: keep whichever is newer, and never
+    // replace AI/manual tags with keyword ones.
+    if (carriedTags.length) {
+      const local = await db.annotations.bulkGet(carriedTags.map((a) => a.id));
+      const rank = { local: 0, ai: 1, manual: 2 } as const;
+      await db.annotations.bulkPut(
+        carriedTags.filter((a, i) => {
+          const l = local[i];
+          return !l || rank[a.source] > rank[l.source] || (rank[a.source] === rank[l.source] && a.updatedAt > l.updatedAt);
+        })
+      );
+    }
 
     res.books++;
     res.chapters += chapters.length;

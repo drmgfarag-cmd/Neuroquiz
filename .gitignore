@@ -6,4 +6,14 @@ desktop/node_modules
 desktop/dist
 desktop/app
 sync-server/data
+tsconfig.tsbuildinfo
 *.log
+
+# The repository root .gitignore (from MediaHub) ignores every lib/ and
+# public folder, lockfiles and zips – NeuroQuiz needs all of these.
+!src/lib/
+!public/
+!public/sample/
+!public/sample/*.zip
+!package-lock.json
+!desktop/package-lock.json

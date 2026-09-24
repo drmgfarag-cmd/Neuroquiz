@@ -6,6 +6,7 @@ import { questionText } from "../ai/tagger";
 import { TOPICS } from "../ai/taxonomy";
 import { allCases, db, deleteSynced } from "../lib/db";
 import { plain } from "../lib/markdown";
+import { useOnline } from "../lib/platform";
 import { shuffle, uid } from "../lib/util";
 
 export default function Cases() {
@@ -19,6 +20,7 @@ export default function Cases() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
+  const online = useOnline();
 
   const generate = async () => {
     const subject = custom.trim() || topic;
@@ -70,7 +72,7 @@ export default function Cases() {
             ))}
           </select>
           <input type="text" placeholder="or specific subject, e.g. “ruptured PComm aneurysm with third nerve palsy”" value={custom} onChange={(e) => setCustom(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
-          <button className="primary" disabled={busy || !aiAvailable() || (!topic && !custom.trim())} onClick={generate}>
+          <button className="primary" disabled={busy || !aiAvailable() || !online || (!topic && !custom.trim())} onClick={generate}>
             {busy ? "Writing case…" : "Generate"}
           </button>
         </div>

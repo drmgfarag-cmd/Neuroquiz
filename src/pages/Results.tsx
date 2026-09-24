@@ -120,7 +120,7 @@ export default function Results() {
                 <span className="small muted">{a?.selected.join(",") || "–"} / {q.answer.join(",")}</span>
               </div>
               {open === q.id && (
-                <div style={{ padding: "8px 0 16px" }}>
+                <div style={{ padding: "8px 0 16px" }} data-gallery="">
                   <QuestionView q={q} selected={a?.selected ?? []} revealed />
                   <Explanation q={q} selected={a?.selected ?? []} />
                   <Link to={`/question/${encodeURIComponent(q.id)}`} className="small">
