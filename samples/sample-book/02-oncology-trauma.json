@@ -1,0 +1,28 @@
+[
+  {
+    "chapter": "Neuro-oncology",
+    "qno": "4",
+    "stem": "In IDH-wildtype glioblastoma, which molecular marker best predicts benefit from temozolomide?",
+    "choices": ["EGFR amplification", "MGMT promoter methylation", "TERT promoter mutation", "1p/19q codeletion"],
+    "correct_answer": 2,
+    "rationale": "**MGMT promoter methylation** silences the DNA repair enzyme O6-methylguanine-DNA methyltransferase, so alkylating damage from temozolomide persists; methylated tumours show longer survival with chemoradiotherapy (Stupp protocol). 1p/19q codeletion defines oligodendroglioma, not glioblastoma.",
+    "tags": ["glioblastoma", "MGMT"]
+  },
+  {
+    "chapter": "Neuro-oncology",
+    "qno": "5",
+    "stem": "Which is the most common malignant brain tumour of childhood, typically arising in the vermis and showing Homer Wright rosettes?",
+    "choices": ["Pilocytic astrocytoma", "Ependymoma", "Medulloblastoma", "Atypical teratoid/rhabdoid tumour"],
+    "correct_answer": 3,
+    "rationale": "Medulloblastoma (WHO grade 4) is the most common malignant paediatric brain tumour. Molecular groups: WNT (best prognosis), SHH, group 3 (worst), group 4. Pilocytic astrocytoma is more common overall but benign."
+  },
+  {
+    "chapter": "Neurotrauma",
+    "qno": "6",
+    "stem": "A young man has a brief loss of consciousness after a temporal blow, a lucid interval, then deterioration. CT is shown [image: fig_edh.svg]. Which vessel is most commonly responsible?",
+    "choices": ["Bridging cortical veins", "Middle meningeal artery", "Superior sagittal sinus", "Lenticulostriate arteries"],
+    "correct_answer": 2,
+    "rationale": "Extradural haematoma is classically arterial from the **middle meningeal artery** after a squamous temporal fracture. It is biconvex (lentiform) and does not cross suture lines. Acute subdural haematoma is crescentic from torn bridging veins.",
+    "figures": [{ "file": "fig_edh.svg", "caption": "Biconvex extra-axial collection" }]
+  }
+]

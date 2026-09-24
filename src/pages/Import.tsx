@@ -1,0 +1,288 @@
+import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { runLocalTagging } from "../ai/tagger";
+import { collectFiles, executeImport, planImport, type GroupingMode, type ImportPlan, type ImportResult, type SourceFile } from "../import/importer";
+import { clearMediaCache } from "../lib/media";
+import { updateSettings, useSettings } from "../lib/settings";
+
+export default function ImportPage() {
+  const settings = useSettings();
+  const [files, setFiles] = useState<SourceFile[]>([]);
+  const [mode, setMode] = useState<GroupingMode>("auto");
+  const [plan, setPlan] = useState<ImportPlan | null>(null);
+  const [titles, setTitles] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState("");
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [over, setOver] = useState(false);
+  const folderRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = async (list: File[]) => {
+    setBusy("Reading files…");
+    setResult(null);
+    try {
+      const got = await collectFiles(list);
+      const all = [...files, ...got];
+      setFiles(all);
+      await replan(all, mode);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const replan = async (fs: SourceFile[], m: GroupingMode, base = settings.numericAnswerBase) => {
+    const p = await planImport(fs, m, base);
+    setPlan(p);
+    setTitles(Object.fromEntries(p.books.map((b) => [b.key, b.title])));
+  };
+
+  const loadSample = async () => {
+    setBusy("Loading sample…");
+    try {
+      const res = await fetch("./sample/sample-book.zip");
+      const blob = await res.blob();
+      await addFiles([new File([blob], "sample-book.zip")]);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const doImport = async () => {
+    if (!plan) return;
+    const p: ImportPlan = { ...plan, books: plan.books.map((b) => ({ ...b, title: titles[b.key]?.trim() || b.title })) };
+    setBusy("Importing…");
+    try {
+      const r = await executeImport(p, setBusy);
+      clearMediaCache();
+      setBusy("Tagging with offline keyword tagger…");
+      await runLocalTagging(["question", "flashcard", "case"], null, "untagged");
+      setResult(r);
+      setFiles([]);
+      setPlan(null);
+    } catch (e) {
+      alert(`Import failed: ${(e as Error).message}`);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const counts = (b: ImportPlan["books"][number]) =>
+    b.sources.reduce(
+      (a, s) => {
+        s.parsed.chapters.forEach((c) => {
+          a.ch++;
+          a.q += c.questions.length;
+          a.f += c.flashcards.length;
+          a.c += c.cases.length;
+        });
+        return a;
+      },
+      { ch: 0, q: 0, f: 0, c: 0 }
+    );
+
+  return (
+    <div>
+      <h1>Import books</h1>
+      <div className="card stack">
+        <p className="muted small" style={{ margin: 0 }}>
+          Select JSON files and their image files (or a whole folder, or a ZIP). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name.
+        </p>
+        <div
+          className={`dropzone ${over ? "over" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setOver(true);
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setOver(false);
+            addFiles(Array.from(e.dataTransfer.files));
+          }}
+        >
+          <div className="row" style={{ justifyContent: "center" }}>
+            <label className="btn primary">
+              Choose files / ZIP
+              <input type="file" multiple accept=".json,.zip,image/*,application/json,application/zip" hidden onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))} />
+            </label>
+            <label className="btn">
+              Choose folder
+              <input
+                ref={(el) => {
+                  folderRef.current = el;
+                  el?.setAttribute("webkitdirectory", "");
+                }}
+                type="file"
+                multiple
+                hidden
+                onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))}
+              />
+            </label>
+            <button onClick={loadSample}>Load sample book</button>
+          </div>
+          <div className="muted small" style={{ marginTop: 8 }}>
+            …or drag & drop here. On Android, pick a ZIP or multi-select JSON + images.
+          </div>
+        </div>
+
+        <div className="row">
+          <label className="field">
+            Grouping
+            <select
+              value={mode}
+              onChange={(e) => {
+                const m = e.target.value as GroupingMode;
+                setMode(m);
+                if (files.length) replan(files, m);
+              }}
+            >
+              <option value="auto">Auto (by book title in JSON, else by folder)</option>
+              <option value="single">All selected files are chapters of ONE book</option>
+              <option value="per-file">Each JSON file is a separate book</option>
+            </select>
+          </label>
+          <label className="field">
+            Numeric answers (e.g. "answer": 2) mean
+            <select
+              value={settings.numericAnswerBase}
+              onChange={(e) => {
+                const base = Number(e.target.value) as 0 | 1;
+                updateSettings({ numericAnswerBase: base });
+                if (files.length) replan(files, mode, base);
+              }}
+            >
+              <option value={1}>1 = first option (1-based)</option>
+              <option value={0}>0 = first option (0-based)</option>
+            </select>
+          </label>
+        </div>
+        {busy && <div className="muted">{busy}</div>}
+      </div>
+
+      {plan && (
+        <div className="card">
+          <div className="row between">
+            <h2 style={{ margin: 0 }}>Preview</h2>
+            <span className="muted small">
+              {files.filter((f) => /\.json$/i.test(f.path)).length} JSON · {plan.images.length} images
+            </span>
+          </div>
+          {plan.errors.map((e) => (
+            <div key={e} className="error small">
+              {e}
+            </div>
+          ))}
+          {plan.books.map((b) => {
+            const c = counts(b);
+            const warnings = b.sources.flatMap((s) => s.parsed.warnings);
+            return (
+              <div className="list-item" key={b.key}>
+                <div style={{ flex: 1 }} className="stack">
+                  <label className="field">
+                    Book title
+                    <input type="text" value={titles[b.key] ?? ""} onChange={(e) => setTitles({ ...titles, [b.key]: e.target.value })} />
+                  </label>
+                  <div className="small">
+                    {b.sources.length} file(s) · {c.ch} chapters · <strong>{c.q}</strong> questions · {c.f} flashcards · {c.c} cases · {b.images.length} images
+                  </div>
+                  <details>
+                    <summary className="small clickable">Chapters & files</summary>
+                    {b.sources.map((s) => (
+                      <div key={s.path} className="small">
+                        <code>{s.path}</code>: {s.parsed.chapters.map((ch) => `${ch.title} (${ch.questions.length}q)`).join(", ") || "nothing recognised"}
+                      </div>
+                    ))}
+                  </details>
+                  {warnings.length > 0 && (
+                    <details>
+                      <summary className="small clickable" style={{ color: "var(--warn)" }}>
+                        {warnings.length} warning(s)
+                      </summary>
+                      <div className="small muted" style={{ maxHeight: 200, overflow: "auto" }}>
+                        {warnings.slice(0, 300).map((w, i) => (
+                          <div key={i}>{w}</div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="primary" disabled={!!busy || !plan.books.length} onClick={doImport}>
+              Import {plan.books.length} book(s)
+            </button>
+            <button
+              onClick={() => {
+                setFiles([]);
+                setPlan(null);
+              }}
+            >
+              Clear
+            </button>
+            <span className="muted small">Re-importing a book with the same title replaces its content but keeps your progress and tags.</span>
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }} className="success">
+            Import complete
+          </h2>
+          <p>
+            {result.books} book(s), {result.chapters} chapters, {result.questions} questions, {result.flashcards} flashcards, {result.cases} cases, {result.images} images.
+          </p>
+          <p className="small muted">Questions were given quick offline topic tags. For accurate context-aware categorisation run AI tagging.</p>
+          {result.missingImages.length > 0 && (
+            <details>
+              <summary className="clickable" style={{ color: "var(--warn)" }}>
+                {result.missingImages.length} referenced image(s) not found
+              </summary>
+              <div className="small muted" style={{ maxHeight: 200, overflow: "auto" }}>
+                {result.missingImages.map((m) => (
+                  <div key={m}>{m}</div>
+                ))}
+              </div>
+              <p className="small">Import the missing images again together with the same book title – they will attach automatically.</p>
+            </details>
+          )}
+          <div className="row">
+            <Link className="btn primary" to="/tagging">
+              Run AI tagging
+            </Link>
+            <Link className="btn" to="/library">
+              Open library
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>Supported JSON</h2>
+        <p className="small muted">Field names are flexible (question/stem/text, options/choices, answer/correct_answer, explanation/rationale, images/figures…). Examples:</p>
+        <pre className="small" style={{ overflow: "auto", background: "var(--surface-2)", padding: 10, borderRadius: 8 }}>{`{
+  "book": "Neurosurgery Review",
+  "chapters": [{
+    "title": "Vascular",
+    "questions": [{
+      "id": 12,
+      "question": "Most common site of ... See figure.",
+      "images": ["fig_12.png"],
+      "options": {"A": "...", "B": "...", "C": "...", "D": "..."},
+      "answer": "C",
+      "explanation": "... ![](table_3.png)",
+      "explanation_images": [{"file": "fig_12b.jpg", "caption": "Angiogram"}]
+    }],
+    "flashcards": [{"front": "...", "back": "..."}],
+    "cases": [{"title": "...", "presentation": "...",
+               "stages": [{"content": "...", "question": "...", "answer": "..."}],
+               "discussion": "..."}]
+  }]
+}`}</pre>
+      </div>
+    </div>
+  );
+}
