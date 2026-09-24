@@ -59,7 +59,13 @@ export default function App() {
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
     const channel = new BroadcastChannel("neuroquiz-profile");
-    channel.onmessage = () => location.reload();
+    channel.onmessage = (event) => {
+      // sessionStorage belongs to each tab; carry Guest's session marker to
+      // other open tabs before they reload the shared IndexedDB profile.
+      if (event.data === "guest") sessionStorage.setItem("neuroquiz.guestSession", "1");
+      else sessionStorage.removeItem("neuroquiz.guestSession");
+      location.reload();
+    };
     return () => channel.close();
   }, []);
 
