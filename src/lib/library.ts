@@ -36,9 +36,11 @@ export type BundledState = "not-installed" | "installed" | "update";
 // renamed that book; other titles are treated as their own choice.
 const formerTitles: Record<string, string> = {
   "01": "Neurology & Neurosurgery MCQs (Book 01)",
+  "02": "Spine Self-Assessment (Book 02)",
   "05": "Neurosurgery Self-Assessment (Book 05)",
   "07": "Spine Surgery Review (Book 07)",
   "08": "Neuroanatomy Review (Book 08)",
+  "09": "Neurosurgery Board Questions (Book 09)",
   inbr: "Intensive Neurosurgery Board Review (INBR)",
   nbr3: "Neurosurgery Board Review, Third Edition"
 };
@@ -142,7 +144,16 @@ export async function installBundledIfEmpty(onProgress: (msg: string) => void): 
     (await Promise.all(books.map((b) => getMeta<string | null>(`bundle:${b.id}`, null)))).some(Boolean);
   if (!started && (await db.books.count()) > 0) return false;
   await setMeta("bundle:first-run-started", true);
-  for (const b of books) if ((await bundledState(b)) !== "installed") await installBundled(b, onProgress);
+  const failed: string[] = [];
+  for (const b of books) {
+    if ((await bundledState(b)) === "installed") continue;
+    try {
+      await installBundled(b, onProgress);
+    } catch (error) {
+      failed.push(`${b.title}: ${(error as Error).message}`);
+    }
+  }
+  if (failed.length) throw new Error(`Some books could not be installed: ${failed.join("; ")}`);
   await setMeta("bundle:first-run-done", true);
   return true;
 }
@@ -160,10 +171,16 @@ export async function retireIncompleteQbne(): Promise<void> {
 /** Install newly added books for people who already have a library. Do not restore later deletions. */
 export async function installNewStudyBooks(onProgress: (msg: string) => void): Promise<void> {
   const ids = new Set(["neurosurgery-rounds-2e", "nbr3", "nper"]);
+  const failed: string[] = [];
   for (const b of await bundledBooks()) {
     if (!ids.has(b.id)) continue;
     if (await getMeta<string | null>(`bundle:${b.id}`, null)) continue;
     if (await db.books.get(b.id)) continue;
-    await installBundled(b, onProgress);
+    try {
+      await installBundled(b, onProgress);
+    } catch (error) {
+      failed.push(`${b.title}: ${(error as Error).message}`);
+    }
   }
+  if (failed.length) throw new Error(`Some new books could not be installed: ${failed.join("; ")}`);
 }

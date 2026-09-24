@@ -67,10 +67,11 @@ export default function App() {
   useEffect(() => {
     (async () => {
       await retireIncompleteQbne();
-      await installBundledIfEmpty(setSetup);
-      await installNewStudyBooks(setSetup);
-      await syncBundledBookTitles();
-      setSetup("");
+      const failures: string[] = [];
+      try { await installBundledIfEmpty(setSetup); } catch (error) { failures.push((error as Error).message); }
+      try { await installNewStudyBooks(setSetup); } catch (error) { failures.push((error as Error).message); }
+      try { await syncBundledBookTitles(); } catch (error) { failures.push((error as Error).message); }
+      setSetup(failures.length ? `${failures.join(" ")} Open Library → Included books to retry.` : "");
     })().catch((e) => setSetup(`Could not set up the built-in books: ${(e as Error).message}`));
   }, []);
 

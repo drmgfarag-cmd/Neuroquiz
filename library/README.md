@@ -61,9 +61,10 @@ not change book or question IDs, so saved study activity stays attached.
 
 The supplied PDFs for **02** (100 spine questions) and **09** (1,000
 neurosurgery questions) start with questions and do not contain a title page,
-ISBN or embedded title. Their current names are descriptive placeholders;
-replace them when a cover or original bibliographic details are supplied.
-Book 09's own extraction README also explicitly notes the absent title.
+ISBN or embedded title. Their original names were supplied by the owner:
+**AAOS Adult Spine Self-Assessment Examination (2015)** and **Neurosurgery:
+Board and Certification Review, 2023 Edition**. The book 09 extraction README
+records why that title could not be recovered from the PDF alone.
 
 Publisher records used for matching: [Thieme book 05](https://shop.thieme.de/en/The-Comprehensive-Neurosurgery-Board-Preparation-Book/9781626232808),
 [Springer book 07](https://link.springer.com/book/10.1007/978-3-031-69332-8),
