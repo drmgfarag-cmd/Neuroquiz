@@ -14,6 +14,29 @@
       "id": "nbr2013",
       "title": "Neurosurgery Board Review (2013)",
       "source": "sources/NBR2013_extraction.json"
+    },
+    {
+      "id": "05",
+      "title": "Neurosurgery Self-Assessment (Book 05)",
+      "source": [
+        "sources/05.json",
+        "sources/05_images.zip.001"
+      ]
+    },
+    {
+      "id": "07",
+      "title": "Spine Surgery Review (Book 07)",
+      "source": "sources/07.zip.001"
+    },
+    {
+      "id": "08",
+      "title": "Neuroanatomy Review (Book 08)",
+      "source": "sources/08.zip.001"
+    },
+    {
+      "id": "09",
+      "title": "Neurosurgery Board Questions (Book 09)",
+      "source": "sources/09.zip"
     }
   ]
 }

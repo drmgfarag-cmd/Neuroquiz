@@ -15,6 +15,17 @@ export interface BundledBook {
   title: string;
   version: string;
   files: string[];
+  /** web preview: images packed into JSON files of data URIs */
+  packs?: string[];
+}
+
+function dataUriToBlob(uri: string): Blob {
+  const [head, b64] = uri.split(",", 2);
+  const mime = /data:([^;]+)/.exec(head)?.[1] ?? "application/octet-stream";
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
 }
 
 export type BundledState = "not-installed" | "installed" | "update";
@@ -44,6 +55,13 @@ export async function installBundled(b: BundledBook, onProgress?: (msg: string) 
       return { path: f, blob: await res.blob() };
     })
   );
+  for (const [i, p] of (b.packs ?? []).entries()) {
+    onProgress?.(`Loading images for “${b.title}” (${i + 1}/${b.packs!.length})…`);
+    const res = await fetch(`./library/${p}`);
+    if (!res.ok) throw new Error(`Missing library file ${p}`);
+    const pack = (await res.json()) as Record<string, string>;
+    for (const [rel, uri] of Object.entries(pack)) files.push({ path: `${b.id}/${rel}`, blob: dataUriToBlob(uri) });
+  }
   const plan = await planImport(files, "single", getSettings().numericAnswerBase);
   if (plan.errors.length) throw new Error(plan.errors.join("\n"));
   const existing = await db.books.get(b.id);

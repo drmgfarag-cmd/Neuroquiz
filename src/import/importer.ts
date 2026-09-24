@@ -51,6 +51,9 @@ const MIME: Record<string, string> = {
   tiff: "image/tiff"
 };
 
+/** Reports that travel with an extraction but hold no questions (audit, OCR dumps). */
+const NOT_A_BOOK = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest)[^/]*\.json$|contact_sheet/i;
+
 function folderOf(path: string): string {
   const parts = path.replace(/\\/g, "/").split("/");
   parts.pop();
@@ -69,12 +72,12 @@ export async function collectFiles(files: File[]): Promise<SourceFile[]> {
       const prefix = f.name.replace(/\.zip$/i, "");
       const entries = Object.values(zip.files).filter((e) => !e.dir && !/(^|\/)(__MACOSX|\.)/.test(e.name));
       for (const e of entries) {
-        if (!/\.json$/i.test(e.name) && !IMAGE_EXT.test(e.name)) continue;
+        if ((!/\.json$/i.test(e.name) && !IMAGE_EXT.test(e.name)) || NOT_A_BOOK.test(e.name)) continue;
         const ext = e.name.split(".").pop()!.toLowerCase();
         const blob = await e.async("blob");
         out.push({ path: `${prefix}/${e.name}`, blob: ext in MIME ? new Blob([blob], { type: MIME[ext] }) : blob });
       }
-    } else if (/\.json$/i.test(f.name) || IMAGE_EXT.test(f.name)) {
+    } else if ((/\.json$/i.test(f.name) && !NOT_A_BOOK.test(f.name)) || IMAGE_EXT.test(f.name)) {
       out.push({ path, blob: f });
     }
   }
@@ -96,7 +99,9 @@ export async function planImport(
       const text = await f.blob.text();
       const json = JSON.parse(text.replace(/^﻿/, ""));
       const p = normalizeBookJson(json, { fileName: f.path, numericAnswerBase });
-      parsed.push({ path: f.path, folder: folderOf(f.path), parsed: p });
+      // a JSON without questions (a report, a settings file) doesn't become a book
+      if (p.chapters.length) parsed.push({ path: f.path, folder: folderOf(f.path), parsed: p });
+      else errors.push(`${f.path}: no questions, flashcards or cases found – skipped`);
     } catch (e) {
       errors.push(`${f.path}: ${(e as Error).message}`);
     }

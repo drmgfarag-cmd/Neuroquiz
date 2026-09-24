@@ -44,6 +44,11 @@ export interface ParsedQuestion {
   groupId?: string;
   /** EMI set the question belongs to in the source (merged into one matching question) */
   emiSet?: string;
+  /** the source's own question id and section – used to match source-level flags */
+  sourceId?: string;
+  section?: string;
+  /** warning from the source about this question (unresolved mismatch, needs review…) */
+  sourceWarning?: string;
 }
 
 export interface ParsedFlashcard {
@@ -97,8 +102,8 @@ const F = {
   /** generic image fields – may mix question and answer images */
   stemMedia: ["images", "image", "figures", "figure", "media", "img", "imgs", "pictures", "attachments", "tables_images", "diagram", "diagrams", "table_image", "table_images"],
   explanationMedia: ["explanation_images", "explanation_image", "answer_images", "answer_image", "explanation_figures", "rationale_images", "solution_images", "explanation_media", "answer_media"],
-  tables: ["tables", "table"],
-  explanationTables: ["explanation_tables", "explanation_table", "answer_tables"],
+  tables: ["tables", "table", "question_table_markdown", "question_tables"],
+  explanationTables: ["explanation_tables", "explanation_table", "answer_tables", "answer_table_markdown"],
   number: ["printed_number", "number", "question_number", "questionnumber", "qno", "q_no", "no", "num", "id", "qid", "index"],
   tags: ["tags", "keywords", "topic", "topics", "category", "categories", "subject", "subtopic", "section"],
   chapterName: ["chapter", "chapter_title", "chaptertitle", "chapter_name", "section_title"],
@@ -166,6 +171,8 @@ const LIST_LINE = /^\s*(?:[-*•]\s|\d{1,3}[.)]\s|[a-z][.)]\s|[ivx]{1,5}[.)]\s|\
  * lists, tables, headings and "a. TRUE —" style statements on their own lines.
  */
 export function reflow(text: string): string {
+  // soft hyphens left by PDF line breaks ("blad\u00ad der" → "bladder")
+  if (text) text = text.replace(/\u00ad\s*/g, "");
   if (!text || !text.includes("\n")) return text;
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const paras: string[][] = [];
@@ -553,10 +560,23 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const stemRaw = pick(o, F.stem);
   let stem = reflow(toText(stemRaw));
   if (!stem) return null;
-  const vignette = reflow(toText(pick(o, ["case_scenario", "vignette", "case", "scenario", "clinical_presentation", "history", "passage", "context"])));
-  if (vignette && vignette !== stem && !stem.startsWith(vignette)) stem = `${vignette}\n\n${stem}`;
+  // shared text printed once for a group of questions ("Use the following figure to
+  // answer questions 46–48", a case read before questions 1–3) goes before the question
+  const shared = [
+    pick(o, ["shared_directions", "directions", "instructions"]),
+    pick(o, ["case_scenario", "shared_vignette", "vignette", "case", "scenario", "clinical_presentation", "history", "passage", "context"])
+  ]
+    .map((v) => reflow(toText(v)))
+    .filter(Boolean);
+  const squash = (t: string) => t.replace(/\s+/g, " ").trim();
+  for (const pre of shared.reverse()) if (!squash(stem).includes(squash(pre))) stem = `${pre}\n\n${stem}`;
   const { options, flagged, optionExplanations, stemTail } = parseOptions(o);
   if (stemTail) stem = `${stem} ${stemTail}`;
+
+  // options drawn inside an image ("which patient, A–E, …"): labels only
+  const visual = pick(o, ["visual_option_labels", "image_option_labels"]);
+  if (!options.length && Array.isArray(visual))
+    visual.forEach((l) => options.push({ key: toText(l).toUpperCase(), text: "(see image)", media: [] }));
 
   // True/False without options
   const ansRaw = pick(o, F.answer);
@@ -620,13 +640,15 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   } else if (answer.length > 1) format = "multi";
 
   let explanation = reflow(toText(pick(o, F.explanation)));
+  const sharedAnswer = reflow(toText(pick(o, ["shared_answer_context", "shared_explanation"])));
+  if (sharedAnswer && !squash(explanation).includes(squash(sharedAnswer))) explanation = [sharedAnswer, explanation].filter(Boolean).join("\n\n");
   if (!explanation && isObj(ansRaw)) explanation = reflow(toText(pick(ansRaw, F.explanation)));
   if (optionExplanations.length) explanation = [explanation, optionExplanations.join("\n\n")].filter(Boolean).join("\n\n");
 
   const tables = tableToText(pick(o, F.tables));
-  if (tables) stem = `${stem}\n\n${tables}`;
+  if (tables && !squash(stem).includes(squash(tables))) stem = `${stem}\n\n${tables}`;
   const exTables = tableToText(pick(o, F.explanationTables));
-  if (exTables) explanation = `${explanation}\n\n${exTables}`;
+  if (exTables && !squash(explanation).includes(squash(exTables))) explanation = `${explanation}\n\n${exTables}`;
 
   let explanationMedia = toMedia(pick(o, F.explanationMedia));
   if (isObj(ansRaw)) explanationMedia = explanationMedia.concat(toMedia(pick(ansRaw, ["images", "image", "figures"])));
@@ -636,12 +658,26 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   // Question images: prefer explicit question-image fields; a generic "images"
   // list can contain answer images too, which must not be shown before answering.
   const answerFiles = new Set(explanationMedia.map((m) => m.file));
-  const stemMedia = hasKey(o, F.questionMedia) ? toMedia(pick(o, F.questionMedia)) : toMedia(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file));
+  let stemMedia: MediaRef[];
+  if (hasKey(o, F.questionMedia)) stemMedia = toMedia(pick(o, F.questionMedia));
+  else {
+    // a mixed list: "…_answer_image1.jpg" belongs to the answer
+    const generic = toMedia(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file));
+    const isAnswer = (f: string) => /(^|[_\-\s/])(answer|ans|explanation|expl)[_\-\s]?(image|img|fig|figure|pic)/i.test(f);
+    stemMedia = generic.filter((m) => !isAnswer(m.file));
+    explanationMedia = explanationMedia.concat(generic.filter((m) => isAnswer(m.file)));
+  }
+
+  // image credit printed with the figure
+  const credit = toText(pick(o, ["image_attribution", "image_credit", "figure_credit"]));
+  if (credit) stemMedia = stemMedia.map((m) => (m.caption ? m : { ...m, caption: credit }));
 
   const num = pick(o, F.number);
   const tags = pick(o, F.tags);
   const group = pick(o, ["group_id", "parent_vignette_id", "emi_set_id", "case_group_id", "vignette_id", "shared_stem_id"]);
   const emi = pick(o, ["emi_set_id", "emi_set", "emi_group_id"]);
+  const srcId = pick(o, ["question_id", "qid"]);
+  const section = pick(o, ["section_id", "section_name"]);
   const groupId = typeof group === "string" || typeof group === "number" ? String(group) : undefined;
   return {
     number: num !== undefined && (typeof num === "string" || typeof num === "number") ? String(num) : String(idx + 1),
@@ -658,7 +694,9 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     explanationMedia,
     sourceTags: tagList(tags),
     ...(groupId ? { groupId } : {}),
-    ...(typeof emi === "string" || typeof emi === "number" ? { emiSet: String(emi) } : {})
+    ...(typeof emi === "string" || typeof emi === "number" ? { emiSet: String(emi) } : {}),
+    ...(typeof srcId === "string" || typeof srcId === "number" ? { sourceId: String(srcId) } : {}),
+    ...(typeof section === "string" ? { section } : {})
   };
 }
 
@@ -803,6 +841,33 @@ export function mergeEmiSets(questions: ParsedQuestion[], groups: Obj[] = []): P
   return out;
 }
 
+/** Book-level lists of questions the extraction flagged, and what they mean. */
+const FLAG_LISTS: [string, string][] = [
+  ["known_unresolved_mismatches", "The book's extraction lists an unresolved mismatch for this question (for example answer key vs explanation). Double-check it against the book."],
+  ["review_required", "The book's extraction flagged this question for review."],
+  ["flagged_questions", "The book's extraction flagged this question for review."]
+];
+
+/**
+ * Marks questions named in book-level flag lists. Entries are either a
+ * question id ("09_s10_q1000") or a path "Chapter[/Section]/Q17".
+ */
+function applySourceFlags(chapters: ParsedChapter[], flags: { ref: string; message: string }[]) {
+  if (!flags.length) return;
+  const norm = (t: string) => t.replace(/\s+–\s+/g, "/").replace(/\s+/g, " ").trim().toLowerCase();
+  for (const { ref, message } of flags) {
+    const parts = ref.split("/");
+    const qid = parts.pop()!.trim().toLowerCase();
+    const where = norm(parts.join("/"));
+    for (const ch of chapters)
+      for (const q of ch.questions) {
+        const id = (q.sourceId ?? "").toLowerCase();
+        const hit = id === ref.toLowerCase() || (id === qid && (!where || norm(ch.title) === where || norm(`${ch.title}/${q.section ?? ""}`) === where));
+        if (hit && !q.sourceWarning) q.sourceWarning = message;
+      }
+  }
+}
+
 function emptyChapter(title: string): ParsedChapter {
   return { title, questions: [], flashcards: [], cases: [] };
 }
@@ -823,6 +888,7 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   let bookTitle: string | undefined;
   let bookId: string | undefined;
   const sharedGroups: Obj[] = [];
+  const flags: { ref: string; message: string }[] = [];
   const chapterNo = (o: Obj): number | undefined => {
     const v = pick(o, ["chapter_id", "chapter_number", "chapter_no", "chapterid"]);
     const m = /(\d+)/.exec(String(v ?? ""));
@@ -834,10 +900,19 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   function addItems(list: Json[], chapter: ParsedChapter) {
     // flat question arrays may carry their own chapter field → group
     const groups = new Map<string, ParsedChapter>();
+    // a chapter holding several sections (a 5-section practice exam) is split by section
+    const sectionOf = (o: Obj) => {
+      const v = pick(o, ["section_id", "section_name"]);
+      return typeof v === "string" && v.trim() ? v.trim() : undefined;
+    };
+    const sections = new Set(list.filter(isObj).map((o) => sectionOf(o as Obj)).filter(Boolean));
+    const splitSections = sections.size >= 2;
     const target = (o: Obj): ParsedChapter => {
       const ch = pick(o, F.chapterName);
-      if (ch === undefined || typeof ch === "object") return chapter;
-      const name = toText(ch);
+      let name = ch === undefined || typeof ch === "object" ? chapter.title : toText(ch);
+      const sec = splitSections ? sectionOf(o) : undefined;
+      if (sec && sec !== name) name = `${name} – ${sec}`;
+      if (name === chapter.title) return chapter;
       if (!groups.has(name)) groups.set(name, emptyChapter(name));
       return groups.get(name)!;
     };
@@ -910,7 +985,16 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
     const bid = pick(node, ["book_id", "bookid"]);
     if (!bookId && (typeof bid === "string" || typeof bid === "number") && String(bid).trim()) bookId = String(bid).trim();
 
-    const subChapters = pick(node, F.chapters);
+    let subChapters = pick(node, F.chapters);
+    // chapters as a named map: { "1. Physiology": { questions: [...] }, ... }
+    if (isObj(subChapters))
+      subChapters = Object.entries(subChapters).flatMap(([name, v]) =>
+        isObj(v) ? [{ chapter_name: name, ...v }] : Array.isArray(v) ? [{ chapter_name: name, questions: v }] : []
+      );
+    for (const [key, message] of FLAG_LISTS) {
+      const v = node[key];
+      if (Array.isArray(v)) flags.push(...v.filter((x): x is string => typeof x === "string").map((ref) => ({ ref, message })));
+    }
     if (Array.isArray(subChapters)) {
       if (!bookTitle) {
         const t = pick(node, ["title", "name"]);
@@ -962,6 +1046,7 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   }
   const out = Array.from(merged.values());
   for (const ch of out) ch.questions = mergeEmiSets(ch.questions, sharedGroups);
+  applySourceFlags(out, flags);
   if (!out.length) warnings.push(`${opts.fileName}: no questions, flashcards or cases recognised`);
   return { bookTitle, ...(bookId ? { bookId } : {}), chapters: out, warnings };
 }

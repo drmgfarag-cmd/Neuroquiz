@@ -40,8 +40,10 @@ describe.skipIf(!list.length)("built-in library", () => {
       const noExplanation = qs.filter((q) => !q.explanation.trim()).length;
       const withImages = qs.filter((q) => q.stemMedia.length || q.explanationMedia.length).length;
       const media = await db.media.toArray();
-      const used = new Set(qs.flatMap((q) => [...q.stemMedia, ...q.explanationMedia, ...q.options.flatMap((o) => o.media)].map((m) => m.file.split("/").pop()!.toLowerCase())));
-      const unused = media.filter((m) => !used.has(m.name)).map((m) => m.name);
+      // references may omit the extension ("…_figQ_p0001_01")
+      const base = (f: string) => f.split("/").pop()!.toLowerCase().replace(/\.[a-z0-9]+$/, "");
+      const used = new Set(qs.flatMap((q) => [...q.stemMedia, ...q.explanationMedia, ...q.options.flatMap((o) => o.media)].map((m) => base(m.file))));
+      const unused = media.filter((m) => !used.has(base(m.name))).map((m) => m.name);
       console.log(
         [
           `\n== ${book.id} · ${book.title}`,

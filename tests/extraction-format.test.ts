@@ -206,6 +206,59 @@ describe("EMI sets stored as separate questions", () => {
   });
 });
 
+describe("layouts of books 05, 07, 08 and 09", () => {
+  it("reads chapters stored as a named map and splits a multi-section chapter", () => {
+    const q = (id: string, section: string, extra: Record<string, unknown> = {}) => ({ question_id: id, section_id: section, question: `Q ${id}?`, answers: { A: "a", B: "b" }, correct_answer: "A", ...extra });
+    const r = parse({
+      book_id: "05",
+      known_unresolved_mismatches: ["1. Physiology/Q2", "Practice Exam/Section 2 of 2/Q1"],
+      chapters: {
+        "1. Physiology": { questions: [q("Q1", "I Questions"), q("Q2", "I Questions")] },
+        "Practice Exam": { questions: [q("Q1", "Section 1 of 2"), q("Q1", "Section 2 of 2")] }
+      }
+    });
+    expect(r.bookId).toBe("05");
+    expect(r.chapters.map((c) => [c.title, c.questions.length])).toEqual([
+      ["1. Physiology", 2],
+      ["Practice Exam – Section 1 of 2", 1],
+      ["Practice Exam – Section 2 of 2", 1]
+    ]);
+    const flagged = r.chapters.flatMap((c) => c.questions.filter((x) => x.sourceWarning).map((x) => `${c.title}/${x.sourceId}`));
+    expect(flagged).toEqual(["1. Physiology/Q2", "Practice Exam – Section 2 of 2/Q1"]);
+  });
+
+  it("keeps answer images from a mixed images list out of the question", () => {
+    const [q] = parse([{ question: "Q?", answers: { A: "a", B: "b" }, correct_answer: "A", images: ["Book05_Ch01_Q28_image1.jpg", "Book05_Ch01_Q28_answer_image1.jpg"] }]).chapters[0].questions;
+    expect(q.stemMedia.map((m) => m.file)).toEqual(["Book05_Ch01_Q28_image1.jpg"]);
+    expect(q.explanationMedia.map((m) => m.file)).toEqual(["Book05_Ch01_Q28_answer_image1.jpg"]);
+  });
+
+  it("adds shared directions and answer context once, and labels picture options", () => {
+    const [a, b] = parse([
+      {
+        question: "Patient with neck pain. Next step?",
+        shared_directions: "Use the following figure to answer questions 46–48.",
+        answers: { A: "x", B: "y" },
+        correct_answer: "A",
+        explanation: "Because.",
+        shared_answer_context: "Consider the following explanation for answers 46 and 47: context."
+      },
+      { question: "A 58-year-old man has hemianopia.\n\nWhich lesion?", shared_vignette: "A 58-year-old man has hemianopia.", answers: {}, visual_option_labels: ["A", "B", "C"], correct_answer: "B" }
+    ]).chapters[0].questions;
+    expect(a.stem).toBe("Use the following figure to answer questions 46–48.\n\nPatient with neck pain. Next step?");
+    expect(a.explanation).toBe("Consider the following explanation for answers 46 and 47: context.\n\nBecause.");
+    expect(b.stem).toBe("A 58-year-old man has hemianopia.\n\nWhich lesion?");
+    expect(b.options.map((o) => o.key)).toEqual(["A", "B", "C"]);
+    expect(b.answer).toEqual(["B"]);
+  });
+
+  it("removes soft hyphens and doesn't repeat a table already in the text", () => {
+    const table = "| Test | Value |\n|---|---|\n| Na | 130 |";
+    const [q] = parse([{ question: `The blad\u00ad der is full.\n\n${table}`, question_table_markdown: table, answers: { A: "a", B: "b" }, correct_answer: "A" }]).chapters[0].questions;
+    expect(q.stem).toBe(`The bladder is full.\n\n${table}`);
+  });
+});
+
 describe("grading", () => {
   const qs = parse(book).chapters[0].questions.map(asQ);
   const [single, tf, emi] = qs;

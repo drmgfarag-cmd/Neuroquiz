@@ -19,6 +19,7 @@ export function QuestionView(props: Props) {
   const f = formatOf(q);
   return (
     <div>
+      {q.sourceWarning && !q.edited && <div className="banner small source-warning">⚠ {q.sourceWarning}</div>}
       <Rich text={q.stem} bookId={q.bookId} />
       <MediaList media={q.stemMedia} bookId={q.bookId} />
       {f === "truefalse" ? <TrueFalse {...props} /> : f === "matching" ? <Matching {...props} /> : <Choices {...props} />}

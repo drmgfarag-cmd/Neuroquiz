@@ -65,6 +65,10 @@ export interface Question {
   groupId?: string;
   /** true when the learner's correction is applied (see Correction) */
   edited?: boolean;
+  /** the source's own question id (e.g. "Q17", "07_089") */
+  sourceId?: string;
+  /** warning from the book's extraction (unresolved mismatch, needs review…) */
+  sourceWarning?: string;
   explanation: string;
   stemMedia: MediaRef[];
   explanationMedia: MediaRef[];
