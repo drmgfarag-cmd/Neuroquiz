@@ -66,6 +66,12 @@ describe.skipIf(!list.length)("built-in library", () => {
       expect(res.questions).toBeGreaterThan(0);
       expect(res.missingImages).toEqual([]);
       expect(res.conflictingImageRoles).toEqual([]);
+      if (book.id === "05") {
+        const hemangioblastoma = qs.find((q) => q.stem.includes("MRI scans of the brain of a 33-year-old man"));
+        expect(hemangioblastoma?.options.find((o) => o.key === "B")?.text).toBe("Hemangioblastoma");
+        expect(hemangioblastoma?.answer).toEqual(["B"]);
+        expect(res.unscorable).toEqual([]);
+      }
     }, 120_000);
   }
 });
