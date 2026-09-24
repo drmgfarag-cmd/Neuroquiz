@@ -233,12 +233,12 @@ export async function finishSession(s: QuizSession): Promise<QuizSession> {
     const a = answers[q.id];
     if (!a || !a.selected.length) continue;
     if (unscorableReason(q)) {
-      answers[q.id] = { ...a, correct: undefined, unscoredSubmitted: true };
+      answers[q.id] = { ...a, correct: undefined, pendingResult: false, unscoredSubmitted: true };
       continue;
     }
-    const already = a.correct !== undefined;
+    const already = a.correct !== undefined && !a.pendingResult;
     const c = isCorrect(q, a.selected);
-    answers[q.id] = { ...a, correct: c };
+    answers[q.id] = { ...a, correct: c, pendingResult: false };
     if (c) score++;
     if (!already && s.mode !== "review") await recordResult(q, c, a.confidence);
   }
