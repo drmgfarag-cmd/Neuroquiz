@@ -45,6 +45,7 @@ describe("study content isolation", () => {
       answers: { [q.id]: { questionId: q.id, selected: ["A"], correct: false, timeMs: 100 } },
       current: 0, startedAt: Date.now(), updatedAt: Date.now()
     };
+    await db.sessions.put(session);
     const done = await finishSession(session);
     expect(done.answers[q.id].correct).toBeUndefined();
     expect(done.answers[q.id].unscoredSubmitted).toBe(true);
