@@ -205,6 +205,8 @@ export interface SessionAnswer {
   correct?: boolean;
   /** The response was submitted even though the source has no verified key. */
   unscoredSubmitted?: boolean;
+  /** Tutor feedback has been shown, but study statistics are pending until finish. */
+  pendingResult?: boolean;
   timeMs: number;
   flagged?: boolean;
   /** Eliminated options (strike-through) in the UI */
