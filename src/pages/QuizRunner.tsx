@@ -6,6 +6,7 @@ import { describeAiError } from "../ai/claude";
 import { questionText } from "../ai/tagger";
 import { AiChat } from "../components/AiChat";
 import { Annotations } from "../components/Annotations";
+import { QuestionEditor } from "../components/QuestionEditor";
 import { ReportIssue } from "../components/ReportIssue";
 import { Icon } from "../components/Icons";
 import { useViewer } from "../components/ImageViewer";
@@ -26,6 +27,7 @@ export default function QuizRunner() {
   const [paused, setPaused] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [showAi, setShowAi] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [msg, setMsg] = useState("");
   const [, setTick] = useState(0);
   const qStart = useRef(Date.now());
@@ -160,6 +162,7 @@ export default function QuizRunner() {
     if (i < 0 || i >= total) return;
     update({ ...ans, timeMs: ans.timeMs + spent() }, { current: i });
     setShowAi(false);
+    setEditing(false);
     setMsg("");
     window.scrollTo({ top: 0 });
   };
@@ -252,6 +255,7 @@ export default function QuizRunner() {
             <div className="row between small muted" style={{ marginBottom: 6 }}>
               <span>
                 Q{current.number} · <BookChapter q={current} />
+                {current.edited && <span className="chip accent" style={{ marginLeft: 6 }}>edited</span>}
               </span>
               <button className={`small ${state?.flagged ? "active" : ""}`} onClick={toggleFlag} title="Flag (F)">
                 <Icon.flag size={14} /> {state?.flagged ? "Flagged" : "Flag"}
@@ -277,7 +281,20 @@ export default function QuizRunner() {
                   My notes
                   <NoteBox key={current.id} initial={state?.note ?? ""} onSave={(n) => setNote(current.id, n)} />
                 </label>
+                {editing && (
+                  <QuestionEditor
+                    q={current}
+                    issue={state?.issue}
+                    onDone={(q) => {
+                      setQuestions((m) => new Map(m).set(q.id, q));
+                      setEditing(false);
+                    }}
+                  />
+                )}
                 <div className="row">
+                  <button className="small" onClick={() => setEditing(!editing)}>
+                    ✎ Edit question
+                  </button>
                   <ReportIssue questionId={current.id} issue={state?.issue} />
                   <button className="small" onClick={() => setShowAi(!showAi)}>
                     <Icon.sparkle size={14} /> {showAi ? "Hide AI tutor" : "Ask AI tutor"}

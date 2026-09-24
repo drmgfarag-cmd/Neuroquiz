@@ -15,12 +15,21 @@ const list: { id: string; title: string; source: string | string[] }[] = existsS
   ? JSON.parse(readFileSync(new URL("books.json", LIB), "utf8")).books
   : [];
 
+/** Same rule as scripts/build-library.mjs: "x.zip.001" = parts .001, .002 … joined. */
+function readSource(src: string): Buffer {
+  if (!src.endsWith(".001")) return readFileSync(new URL(src, LIB));
+  const parts: Buffer[] = [];
+  for (let n = 1; existsSync(new URL(src.replace(/\.001$/, "." + String(n).padStart(3, "0")), LIB)); n++)
+    parts.push(readFileSync(new URL(src.replace(/\.001$/, "." + String(n).padStart(3, "0")), LIB)));
+  return Buffer.concat(parts);
+}
+
 describe.skipIf(!list.length)("built-in library", () => {
   for (const book of list) {
     it(`${book.id}: ${book.title}`, async () => {
       await Promise.all(db.tables.map((t) => t.clear()));
       const sources = Array.isArray(book.source) ? book.source : [book.source];
-      const files = await collectFiles(sources.map((s) => new File([readFileSync(new URL(s, LIB))], s.split("/").pop()!)));
+      const files = await collectFiles(sources.map((s) => new File([readSource(s)], s.split("/").pop()!.replace(/\.001$/, ""))));
       const plan = await planImport(files, "single", 1);
       expect(plan.errors).toEqual([]);
       plan.books[0].id = book.id;

@@ -5,6 +5,7 @@ import { localTag } from "../src/ai/taxonomy";
 import { runLocalTagging } from "../src/ai/tagger";
 import { exportBookZip } from "../src/import/exporter";
 import { collectFiles, executeImport, planImport, type SourceFile } from "../src/import/importer";
+import { revertCorrection, saveCorrection } from "../src/lib/corrections";
 import { db, deleteSynced } from "../src/lib/db";
 import { buildPool, createSession, emptyFilter, recordResult } from "../src/lib/quiz";
 import { search } from "../src/lib/search";
@@ -164,5 +165,32 @@ describe("books split into chapter files", () => {
         if (q!.number === "1") expect(qs[i + 1]!.number).toBe("2"); // Q2 of the same case follows Q1
       });
     }
+  });
+});
+
+describe("question corrections", () => {
+  it("survive re-import, sync to other devices and can be reverted", async () => {
+    await executeImport(await planImport(sampleFiles(), "auto", 1));
+    const q = (await db.questions.toArray()).find((x) => x.stem.includes("thunderclap"))!;
+    const fixed = await saveCorrection(q, { answer: ["C"], explanation: "Corrected explanation." });
+    expect(fixed).toMatchObject({ answer: ["C"], explanation: "Corrected explanation.", edited: true });
+
+    // book updated → correction re-applied, original refreshed from the book
+    await executeImport(await planImport(sampleFiles(), "auto", 1));
+    expect(await db.questions.get(q.id)).toMatchObject({ answer: ["C"], edited: true });
+    expect((await db.corrections.get(q.id))!.original).toMatchObject({ answer: q.answer, explanation: q.explanation });
+
+    // other device: gets the correction through sync
+    const records = await collectChanges(0);
+    const corr = records.filter((r) => r.table === "corrections");
+    await revertCorrection((await db.questions.get(q.id))!);
+    expect(await db.questions.get(q.id)).toMatchObject({ answer: q.answer, explanation: q.explanation, edited: false });
+    await db.tombstones.clear();
+    await applyChanges(corr.map((r) => ({ ...r, updatedAt: Date.now() + 1000, row: { ...r.row!, updatedAt: Date.now() + 1000 } })));
+    expect(await db.questions.get(q.id)).toMatchObject({ answer: ["C"], edited: true });
+
+    // reverted on the other device → tombstone restores the book text here
+    await applyChanges([{ table: "corrections", id: q.id, updatedAt: Date.now() + 5000, deleted: true }]);
+    expect(await db.questions.get(q.id)).toMatchObject({ answer: q.answer, edited: false });
   });
 });

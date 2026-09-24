@@ -42,6 +42,8 @@ export interface ParsedQuestion {
   matches?: Record<string, string>;
   /** questions sharing a case, an EMI list or a parent question (kept together when shuffling) */
   groupId?: string;
+  /** EMI set the question belongs to in the source (merged into one matching question) */
+  emiSet?: string;
 }
 
 export interface ParsedFlashcard {
@@ -639,6 +641,7 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const num = pick(o, F.number);
   const tags = pick(o, F.tags);
   const group = pick(o, ["group_id", "parent_vignette_id", "emi_set_id", "case_group_id", "vignette_id", "shared_stem_id"]);
+  const emi = pick(o, ["emi_set_id", "emi_set", "emi_group_id"]);
   const groupId = typeof group === "string" || typeof group === "number" ? String(group) : undefined;
   return {
     number: num !== undefined && (typeof num === "string" || typeof num === "number") ? String(num) : String(idx + 1),
@@ -654,7 +657,8 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     stemMedia,
     explanationMedia,
     sourceTags: tagList(tags),
-    ...(groupId ? { groupId } : {})
+    ...(groupId ? { groupId } : {}),
+    ...(typeof emi === "string" || typeof emi === "number" ? { emiSet: String(emi) } : {})
   };
 }
 
@@ -744,6 +748,61 @@ function parseCase(o: Obj, opts: NormalizeOptions): ParsedCase | null {
 // Walker
 // --------------------------------------------------------------------------
 
+/**
+ * Extended matching: a source may store an EMI set as separate single-answer
+ * questions that repeat one option list (tagged with the same emi_set_id).
+ * They become one matching question – the list once, one item per scenario.
+ */
+export function mergeEmiSets(questions: ParsedQuestion[], groups: Obj[] = []): ParsedQuestion[] {
+  const sets = new Map<string, ParsedQuestion[]>();
+  for (const q of questions) if (q.emiSet && (q.format ?? "single") === "single") (sets.get(q.emiSet) ?? sets.set(q.emiSet, []).get(q.emiSet)!).push(q);
+  const optionKey = (q: ParsedQuestion) => q.options.map((o) => `${o.key}=${o.text.replace(/\s+/g, " ").trim().toLowerCase()}`).join("|");
+  const done = new Set<string>();
+  const out: ParsedQuestion[] = [];
+  for (const q of questions) {
+    const set = q.emiSet ? sets.get(q.emiSet) : undefined;
+    const mergeable = set && set.length >= 2 && set.every((x) => optionKey(x) === optionKey(set[0]) && x.answer.length === 1);
+    if (!mergeable) {
+      out.push(q);
+      continue;
+    }
+    if (done.has(q.emiSet!)) continue;
+    done.add(q.emiSet!);
+    const nums = set.map((x) => x.number);
+    const numeric = nums.map((n) => Number(n)).filter((n) => Number.isFinite(n));
+    // lead-in from the book's "responses for questions 10 through 14" block
+    const group = groups.find((g) => {
+      const first = Number(pick(g, ["first", "from", "start"]));
+      const last = Number(pick(g, ["last", "to", "end"]));
+      return numeric.length && numeric.every((n) => n >= first && n <= last);
+    });
+    const groupText = group ? toText(pick(group, ["text", "body", "content"])) : "";
+    const lead = (groupText && parseChoiceList(groupText, set[0].options.every((o) => /^\d+$/.test(o.key)))?.tail) || "Match each item with the most likely answer from the list. Each answer may be used once, more than once or not at all.";
+    const explanations = Array.from(new Set(set.map((x) => x.explanation).filter(Boolean)));
+    out.push({
+      number: nums.length > 1 ? `${nums[0]}–${nums[nums.length - 1]}` : nums[0],
+      stem: lead,
+      options: set.map((x) => ({ key: x.number, text: x.stem, media: x.stemMedia })),
+      answer: [],
+      format: "matching",
+      choices: set[0].options.map((o) => ({ key: o.key.toLowerCase(), text: o.text })),
+      matches: Object.fromEntries(set.map((x) => [x.number, x.answer[0].toLowerCase()])),
+      explanation:
+        explanations.length === 1 && set.length > 1
+          ? explanations[0]
+          : set
+              .filter((x) => x.explanation)
+              .map((x) => `**${x.number}.** ${x.explanation}`)
+              .join("\n\n"),
+      stemMedia: [],
+      explanationMedia: set.flatMap((x) => x.explanationMedia).filter((m, i, all) => all.findIndex((y) => y.file === m.file) === i),
+      sourceTags: Array.from(new Set(set.flatMap((x) => x.sourceTags))),
+      annotation: set[0].annotation
+    });
+  }
+  return out;
+}
+
 function emptyChapter(title: string): ParsedChapter {
   return { title, questions: [], flashcards: [], cases: [] };
 }
@@ -763,6 +822,7 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   const chapters: ParsedChapter[] = [];
   let bookTitle: string | undefined;
   let bookId: string | undefined;
+  const sharedGroups: Obj[] = [];
   const chapterNo = (o: Obj): number | undefined => {
     const v = pick(o, ["chapter_id", "chapter_number", "chapter_no", "chapterid"]);
     const m = /(\d+)/.exec(String(v ?? ""));
@@ -845,6 +905,8 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
 
     const bt = pick(node, F.bookTitle);
     if (!bookTitle && typeof bt === "string") bookTitle = bt.trim();
+    const groups = pick(node, ["case_groups", "shared_groups", "question_groups"]);
+    if (Array.isArray(groups)) sharedGroups.push(...(groups.filter(isObj) as Obj[]));
     const bid = pick(node, ["book_id", "bookid"]);
     if (!bookId && (typeof bid === "string" || typeof bid === "number") && String(bid).trim()) bookId = String(bid).trim();
 
@@ -899,6 +961,7 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
     } else merged.set(c.title, c);
   }
   const out = Array.from(merged.values());
+  for (const ch of out) ch.questions = mergeEmiSets(ch.questions, sharedGroups);
   if (!out.length) warnings.push(`${opts.fileName}: no questions, flashcards or cases recognised`);
   return { bookTitle, ...(bookId ? { bookId } : {}), chapters: out, warnings };
 }

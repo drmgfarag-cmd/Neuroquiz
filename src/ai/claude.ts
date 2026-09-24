@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { BetaMessageParam } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import * as z from "zod/v4";
+import { webPreview } from "../lib/platform";
 import { getSettings } from "../lib/settings";
 import { taxonomyText, TOPICS } from "./taxonomy";
 
@@ -16,7 +17,14 @@ export class AiNotConfiguredError extends Error {
 }
 
 export function aiAvailable(): boolean {
-  return !!getSettings().apiKey.trim();
+  return !webPreview && !!getSettings().apiKey.trim();
+}
+
+/** Why AI features can't run right now (null when they can). */
+export function aiUnavailableReason(): string | null {
+  if (webPreview) return "AI features work in the Windows and Android apps; the web preview can't reach the AI service.";
+  if (!getSettings().apiKey.trim()) return "Add your Anthropic API key in Settings to use AI features.";
+  return null;
 }
 
 function client(): Anthropic {
@@ -251,4 +259,50 @@ export function describeAiError(e: unknown): string {
   if (e instanceof Anthropic.APIError) return `API error ${e.status ?? ""}: ${e.message}`;
   if (e instanceof Error && e.name === "AbortError") return "Cancelled.";
   return e instanceof Error ? e.message : String(e);
+}
+
+// ---------------------------------------------------------------------------
+// Answer-key check
+// ---------------------------------------------------------------------------
+
+const CHECK_SYSTEM = `You are a neurosurgery board examiner auditing a question bank that was extracted from books by OCR. For each question decide whether the stated correct answer is right.
+
+- verdict "agree": the stated answer is correct.
+- verdict "disagree": the stated answer is wrong, or contradicts the explanation (e.g. the explanation argues for a different option), or the key points at the wrong option letter.
+- verdict "unsure": the question is ambiguous, garbled by OCR, missing information (e.g. depends on an image you cannot see), or current evidence is genuinely divided.
+
+suggested_keys: the option keys you consider correct (for single/multiple-answer questions), else an empty list.
+suggestion: your correct answer in words (for true/false or matching questions list each item, e.g. "a TRUE, b FALSE").
+reason: one or two sentences citing the decisive fact, guideline or classification. Mention OCR problems if you see them.
+Judge by current evidence and standard neurosurgical references; do not flag a question just because the wording is awkward.`;
+
+const CheckItem = z.object({
+  id: z.string(),
+  verdict: z.enum(["agree", "disagree", "unsure"]),
+  suggested_keys: z.array(z.string()),
+  suggestion: z.string(),
+  reason: z.string()
+});
+export type AiCheck = z.infer<typeof CheckItem>;
+const CheckResponse = z.object({ items: z.array(CheckItem) });
+
+export async function aiCheckAnswers(items: TagInput[], signal?: AbortSignal): Promise<AiCheck[]> {
+  const { model } = getSettings();
+  const body = items.map((it) => `<question id="${it.id}">\n${it.text.slice(0, 8000)}\n</question>`).join("\n\n");
+  const res = await client().beta.messages.parse(
+    {
+      model,
+      max_tokens: 16000,
+      ...fallbackParams(model),
+      system: [{ type: "text", text: CHECK_SYSTEM, cache_control: { type: "ephemeral" } }],
+      output_config: { effort: "medium", format: betaZodOutputFormat(CheckResponse) },
+      messages: [{ role: "user", content: `Audit these ${items.length} questions. Return one entry per question id.\n\n${body}` }]
+    },
+    { signal }
+  );
+  const refused = refusalMessage(res.stop_reason);
+  if (refused) throw new Error(refused);
+  if (!res.parsed_output) throw new Error(`Could not read Claude's answer check (stop reason: ${res.stop_reason}).`);
+  const valid = new Set(items.map((i) => i.id));
+  return res.parsed_output.items.filter((c) => valid.has(c.id));
 }

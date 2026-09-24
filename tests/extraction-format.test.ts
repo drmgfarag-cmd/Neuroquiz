@@ -174,6 +174,38 @@ describe("extraction format", () => {
   });
 });
 
+describe("EMI sets stored as separate questions", () => {
+  it("merges questions sharing an emi_set_id and option list into one matching question", () => {
+    const opts = { "1": "Infection", "2": "Pseudarthrosis", "3": "Sagittal imbalance" };
+    const r = parse({
+      book_id: "02",
+      case_groups: [{ kind: "SHARED_OPTIONS", first: 10, last: 11, text: "1- Infection 2- Pseudarthrosis 3- Sagittal imbalance Please match the scenario described below with the most likely complication listed above." }],
+      chapters: [
+        {
+          chapter_name: "Spine",
+          questions: [
+            { printed_number: "9", question: "Standalone?", answers: { A: "x", B: "y" }, correct_answer: "A" },
+            { printed_number: "10", question: "Stooped posture after fusion.", answers: opts, correct_answer: "3", emi_set_id: "EMI_10-11", explanation: "Shared." },
+            { printed_number: "11", question: "Fever two weeks after surgery.", answers: opts, correct_answer: "1", emi_set_id: "EMI_10-11", explanation: "Shared." }
+          ]
+        }
+      ]
+    });
+    const [single, emi] = r.chapters[0].questions;
+    expect(single.number).toBe("9");
+    expect(emi).toMatchObject({
+      number: "10–11",
+      format: "matching",
+      stem: "Please match the scenario described below with the most likely complication listed above.",
+      matches: { "10": "3", "11": "1" },
+      explanation: "Shared."
+    });
+    expect(emi.options.map((o) => [o.key, o.text])).toEqual([["10", "Stooped posture after fusion."], ["11", "Fever two weeks after surgery."]]);
+    expect(emi.choices?.map((c) => c.text)).toEqual(["Infection", "Pseudarthrosis", "Sagittal imbalance"]);
+    expect(isCorrect(asQ(emi), correctSelection(asQ(emi)))).toBe(true);
+  });
+});
+
 describe("grading", () => {
   const qs = parse(book).chapters[0].questions.map(asQ);
   const [single, tf, emi] = qs;

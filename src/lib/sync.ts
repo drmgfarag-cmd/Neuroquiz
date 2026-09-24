@@ -10,6 +10,7 @@
  * deletions travel as tombstones.
  */
 import { db, getMeta, setMeta, SYNC_KEY, SYNC_TABLES, type SyncTable, type Tombstone } from "./db";
+import { reapplyCorrections } from "./corrections";
 import { getSettings } from "./settings";
 
 export interface SyncRecord {
@@ -43,7 +44,8 @@ export async function collectChanges(sinceLocal: number): Promise<SyncRecord[]> 
 export async function applyChanges(records: SyncRecord[]): Promise<number> {
   let changed = 0;
   const tables = SYNC_TABLES.map((t) => db.table(t));
-  await db.transaction("rw", [...tables, db.tombstones], async () => {
+  const correctionIds: string[] = [];
+  await db.transaction("rw", [...tables, db.tombstones, db.questions], async () => {
     for (const r of records) {
       if (!SYNC_TABLES.includes(r.table)) continue;
       const table = db.table(r.table);
@@ -51,6 +53,11 @@ export async function applyChanges(records: SyncRecord[]): Promise<number> {
       const localTime = local ? rowTime(local) : -1;
       if (r.deleted) {
         if (local && localTime <= r.updatedAt) {
+          if (r.table === "corrections") {
+            // reverted on another device: restore the imported values here too
+            const q = await db.questions.get(r.id);
+            if (q) await db.questions.put({ ...q, ...((local as { original?: object }).original ?? {}), edited: false });
+          }
           await table.delete(r.id);
           changed++;
         }
@@ -60,10 +67,12 @@ export async function applyChanges(records: SyncRecord[]): Promise<number> {
         const tomb = await db.tombstones.get(`${r.table}:${r.id}`);
         if (tomb && tomb.updatedAt >= r.updatedAt) continue;
         await table.put(r.row);
+        if (r.table === "corrections") correctionIds.push(r.id);
         changed++;
       }
     }
   });
+  if (correctionIds.length) await reapplyCorrections(correctionIds);
   return changed;
 }
 

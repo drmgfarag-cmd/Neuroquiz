@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { reapplyCorrections } from "../lib/corrections";
 import { db } from "../lib/db";
 import type { Annotation, Book, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question } from "../lib/types";
 import { hash, IMAGE_EXT, normaliseFileName, slugify } from "../lib/util";
@@ -281,6 +282,9 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       await db.cases.bulkPut(cases);
       if (media.length) await db.media.bulkPut(media);
     });
+
+    // the learner's own fixes survive a re-import
+    await reapplyCorrections(questions.map((q) => q.id), true);
 
     // Tags exported from another device: keep whichever is newer, and never
     // replace AI/manual tags with keyword ones.

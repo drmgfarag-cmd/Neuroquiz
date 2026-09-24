@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { aiAvailable, aiChat, describeAiError, type ChatTurn } from "../ai/claude";
+import { aiAvailable, aiChat, aiUnavailableReason, describeAiError, type ChatTurn } from "../ai/claude";
 import { useOnline } from "../lib/platform";
 import { Rich } from "./Rich";
 
@@ -16,7 +16,7 @@ export function AiChat({ context, starters, placeholder }: { context: string; st
   if (!aiAvailable())
     return (
       <p className="small muted">
-        Add an Anthropic API key in <Link to="/settings">Settings</Link> to discuss with the AI tutor.
+        {aiUnavailableReason()} <Link to="/settings">Settings</Link>
       </p>
     );
 

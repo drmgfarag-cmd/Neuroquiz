@@ -96,14 +96,20 @@ export interface SessionOptions {
   shuffleQuestions: boolean;
   shuffleOptions: boolean;
   secondsPerQuestion: number;
+  /** keep the pool's order as given (mock exams build their own order) */
+  preserveOrder?: boolean;
+  /** exact exam length in seconds (timed mode); default secondsPerQuestion × count */
+  timeLimitSec?: number;
 }
 
-export async function createSession(pool: Question[], o: SessionOptions): Promise<QuizSession> {
-  // Linked questions (shared case, EMI list, parts of one question) move as
-  // one unit, keep their internal order and aren't split by the count limit.
+/**
+ * Linked questions (shared case, EMI list, parts of one question) as units that
+ * move together and keep their internal order.
+ */
+export function toUnits(pool: Question[], sortByOrder = true): Question[][] {
   const units: Question[][] = [];
   const byGroup = new Map<string, Question[]>();
-  for (const q of pool.slice().sort((a, b) => a.order - b.order)) {
+  for (const q of sortByOrder ? pool.slice().sort((a, b) => a.order - b.order) : pool) {
     if (!q.groupId) units.push([q]);
     else if (byGroup.has(q.groupId)) byGroup.get(q.groupId)!.push(q);
     else {
@@ -112,8 +118,14 @@ export async function createSession(pool: Question[], o: SessionOptions): Promis
       units.push(unit);
     }
   }
+  return units;
+}
+
+export async function createSession(pool: Question[], o: SessionOptions): Promise<QuizSession> {
+  // linked questions move as one unit and aren't split by the count limit
+  const units = toUnits(pool, !o.preserveOrder);
   const chosen: Question[] = [];
-  for (const unit of o.shuffleQuestions ? shuffle(units) : units) {
+  for (const unit of o.shuffleQuestions && !o.preserveOrder ? shuffle(units) : units) {
     if (o.count > 0 && chosen.length >= o.count) break;
     chosen.push(...unit);
   }
@@ -126,7 +138,7 @@ export async function createSession(pool: Question[], o: SessionOptions): Promis
     answers: {},
     current: 0,
     startedAt: now,
-    timeLimitSec: o.mode === "timed" ? Math.round(chosen.length * o.secondsPerQuestion) : undefined,
+    timeLimitSec: o.mode === "timed" ? (o.timeLimitSec ?? Math.round(chosen.length * o.secondsPerQuestion)) : undefined,
     shuffleOptions: o.shuffleOptions,
     // item-by-item questions keep their order (labels often refer to a diagram)
     optionOrder: o.shuffleOptions ? Object.fromEntries(chosen.filter((q) => !isItemised(q)).map((q) => [q.id, shuffle(q.options.map((x) => x.key))])) : undefined,

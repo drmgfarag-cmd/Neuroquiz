@@ -125,6 +125,9 @@ export default function Home() {
       <div className="grid">
         {[
           ["/library", "Library", "Books & chapters", Icon.book],
+          ["/mock", "Mock exam", "Timed exam mixing several books", Icon.timer],
+          ["/atlas", "Image atlas", "Every figure and scan, with its question", Icon.image],
+          ["/answer-check", "Answer check", "Let Claude flag suspicious answer keys", Icon.sparkle],
           ["/search", "Search", "Find by topic, keyword or question", Icon.search],
           ["/tagging", "AI tagging", "Categorise questions by topic", Icon.tag],
           ["/history", "History", "Past tests & results", Icon.history],

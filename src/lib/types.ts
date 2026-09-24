@@ -63,6 +63,8 @@ export interface Question {
   matches?: Record<string, string>;
   /** Questions sharing a case, an EMI answer list or a parent question; kept together when shuffled. */
   groupId?: string;
+  /** true when the learner's correction is applied (see Correction) */
+  edited?: boolean;
   explanation: string;
   stemMedia: MediaRef[];
   explanationMedia: MediaRef[];
@@ -209,4 +211,29 @@ export interface Settings {
   deviceName: string;
   theme: "system" | "light" | "dark";
   fontScale: number;
+}
+
+/** Fields of a question the learner can correct. */
+export type EditableFields = Partial<Pick<Question, "stem" | "options" | "answer" | "verdicts" | "matches" | "choices" | "explanation">>;
+
+/** A learner's fix to an imported question; re-applied after every re-import and synced. */
+export interface Correction {
+  questionId: string;
+  changes: EditableFields;
+  /** the imported values, for "Revert to original" */
+  original: EditableFields;
+  updatedAt: number;
+}
+
+/** Claude's opinion on a question's answer key. */
+export interface AiReview {
+  questionId: string;
+  verdict: "agree" | "disagree" | "unsure";
+  /** option keys Claude considers correct (single/multi questions) */
+  suggestedKeys: string[];
+  suggestion: string;
+  reason: string;
+  model: string;
+  dismissed?: boolean;
+  updatedAt: number;
 }

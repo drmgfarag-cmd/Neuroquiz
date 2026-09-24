@@ -23,15 +23,21 @@ import Tagging from "./pages/Tagging";
 import Stats from "./pages/Stats";
 import SettingsPage from "./pages/Settings";
 import QuestionPage from "./pages/QuestionPage";
+import AnswerCheck from "./pages/AnswerCheck";
+import MockExam from "./pages/MockExam";
+import ImageAtlas from "./pages/ImageAtlas";
 
 const NAV = [
   { to: "/", label: "Home", icon: Icon.home, end: true, mobile: true },
   { to: "/library", label: "Library", icon: Icon.book, mobile: false },
   { to: "/quiz", label: "Tests", icon: Icon.quiz, mobile: true },
+  { to: "/mock", label: "Mock exam", icon: Icon.timer, mobile: false },
   { to: "/flashcards", label: "Flashcards", icon: Icon.cards, mobile: true },
   { to: "/cases", label: "Cases", icon: Icon.cases, mobile: true },
   { to: "/search", label: "Search", icon: Icon.search, mobile: true },
+  { to: "/atlas", label: "Image atlas", icon: Icon.image, mobile: false },
   { to: "/tagging", label: "AI tagging", icon: Icon.tag, mobile: false },
+  { to: "/answer-check", label: "Answer check", icon: Icon.sparkle, mobile: false },
   { to: "/history", label: "History", icon: Icon.history, mobile: false },
   { to: "/stats", label: "Statistics", icon: Icon.stats, mobile: false },
   { to: "/import", label: "Import", icon: Icon.upload, mobile: false },
@@ -134,6 +140,9 @@ export default function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/question/:id" element={<QuestionPage />} />
           <Route path="/tagging" element={<Tagging />} />
+          <Route path="/answer-check" element={<AnswerCheck />} />
+          <Route path="/mock" element={<MockExam />} />
+          <Route path="/atlas" element={<ImageAtlas />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

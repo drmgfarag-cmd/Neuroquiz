@@ -19,6 +19,22 @@ const libDir = join(root, "library");
 const outDir = join(root, "public", "library");
 const KEEP = /\.(json|png|jpe?g|gif|webp|svg|avif)$/i;
 
+/**
+ * Reads a source file. "book.zip.001" means a ZIP split into numbered parts
+ * (to get past upload size limits): .001, .002, … are joined in order.
+ */
+function readSource(src) {
+  const path = join(libDir, src);
+  if (!/\.001$/.test(src)) return readFileSync(path);
+  const parts = [];
+  for (let n = 1; ; n++) {
+    const part = path.replace(/\.001$/, "." + String(n).padStart(3, "0"));
+    if (!existsSync(part)) break;
+    parts.push(readFileSync(part));
+  }
+  return Buffer.concat(parts);
+}
+
 rmSync(outDir, { recursive: true, force: true });
 const listFile = join(libDir, "books.json");
 if (!existsSync(listFile)) {
@@ -40,10 +56,9 @@ for (const book of books) {
     files.push(posix.join(book.id, rel));
   };
   for (const src of sources) {
-    const path = join(libDir, src);
-    const data = readFileSync(path);
+    const data = readSource(src);
     hash.update(data);
-    if (/\.zip$/i.test(src)) {
+    if (/\.zip(\.001)?$/i.test(src)) {
       const zip = await JSZip.loadAsync(data);
       for (const entry of Object.values(zip.files)) {
         if (entry.dir || /(^|\/)(__MACOSX|\.)/.test(entry.name) || !KEEP.test(entry.name)) continue;

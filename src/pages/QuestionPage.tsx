@@ -5,6 +5,7 @@ import { describeAiError } from "../ai/claude";
 import { questionText } from "../ai/tagger";
 import { AiChat } from "../components/AiChat";
 import { Annotations } from "../components/Annotations";
+import { QuestionEditor } from "../components/QuestionEditor";
 import { ReportIssue } from "../components/ReportIssue";
 import { Explanation, QuestionView } from "../components/QuestionView";
 import { addAiCards, addQuestionCard } from "../lib/cards";
@@ -20,6 +21,7 @@ export default function QuestionPage() {
   const [revealed, setRevealed] = useState(false);
   const [msg, setMsg] = useState("");
   const online = useOnline();
+  const [editing, setEditing] = useState(false);
   const data = useLiveQuery(async () => {
     const q = await db.questions.get(id!);
     if (!q) return null;
@@ -62,7 +64,11 @@ export default function QuestionPage() {
         </div>
       )}
       <div className="card stack">
+        {editing && <QuestionEditor q={q} issue={st?.issue} onDone={() => setEditing(false)} />}
         <div className="row">
+          <button className="small" onClick={() => setEditing(!editing)}>
+            ✎ Edit question{q.edited ? " (edited)" : ""}
+          </button>
           <ReportIssue questionId={q.id} issue={st?.issue} />
           <button className="small" onClick={async () => (await addQuestionCard(q), setMsg("Added to flashcards."))}>
             + Flashcard
