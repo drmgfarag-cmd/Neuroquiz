@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { ask } from "../components/Dialog";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { aiAvailable, aiGenerateCase, describeAiError } from "../ai/claude";
@@ -97,7 +98,7 @@ export default function Cases() {
               <div className="small">{plain(c.presentation, 160)}</div>
             </Link>
             {c.origin !== "imported" && (
-              <button className="small ghost" onClick={() => confirm("Delete this case?") && deleteSynced("userCases", c.id)}>
+              <button className="small ghost" onClick={async () => (await ask("Delete this case?", { confirmLabel: "Delete", danger: true })) && deleteSynced("userCases", c.id)}>
                 ✕
               </button>
             )}

@@ -1,0 +1,43 @@
+{
+  "book": "Sample Neurosurgery Review",
+  "chapters": [
+    {
+      "title": "Spine & Functional",
+      "questions": [
+        {
+          "question": "Which clinical triad characterises normal pressure hydrocephalus?",
+          "answers": [
+            { "text": "Headache, papilloedema, vomiting", "correct": false },
+            { "text": "Gait apraxia, cognitive decline, urinary incontinence", "correct": true },
+            { "text": "Ataxia, nystagmus, intention tremor", "correct": false },
+            { "text": "Ophthalmoplegia, ataxia, confusion", "correct": false }
+          ],
+          "explanation": "Hakim's triad: gait disturbance (usually first and most responsive to shunting), dementia, urinary incontinence. Ophthalmoplegia/ataxia/confusion is Wernicke's encephalopathy."
+        },
+        {
+          "question": "Which features should prompt emergency MRI for suspected cauda equina syndrome? (select all that apply)",
+          "options": ["Saddle anaesthesia", "Painless urinary retention", "Unilateral L5 dermatomal pain alone", "Reduced anal tone"],
+          "answer": ["A", "B", "D"],
+          "explanation": "Red flags: saddle/perineal sensory loss, bladder dysfunction (retention with overflow), bowel dysfunction, reduced anal tone, bilateral sciatica. Isolated unilateral radicular pain is not a red flag."
+        }
+      ],
+      "flashcards": [
+        { "front": "First-line drug for classical trigeminal neuralgia?", "back": "**Carbamazepine** (oxcarbazepine is an alternative)." },
+        { "front": "Chiari I malformation – radiological definition?", "back": "Cerebellar tonsillar descent **≥ 5 mm** below the foramen magnum (McRae line)." },
+        { "term": "Brown-Séquard syndrome", "definition": "Hemicord lesion: ipsilateral weakness and loss of proprioception/vibration, contralateral loss of pain and temperature below the lesion." }
+      ],
+      "cases": [
+        {
+          "title": "Sudden headache in a 48-year-old",
+          "presentation": "A 48-year-old smoker presents with sudden 'worst ever' headache during exertion, followed by vomiting. GCS 14 (E3V5M6), neck stiffness, no focal deficit. BP 170/95.",
+          "stages": [
+            { "title": "Initial workup", "content": "You are called from the emergency department.", "question": "What is your immediate investigation and what would you do if it is negative at 12 hours?", "answer": "Non-contrast CT head (sensitivity near 100% within 6 h). If negative beyond 6 h, lumbar puncture ≥ 12 h from ictus for xanthochromia (spectrophotometry)." },
+            { "title": "Imaging", "content": "CT shows diffuse basal cistern SAH with thick clot. CTA shows a 7 mm AComm aneurysm.", "images": ["fig_cow.svg"], "question": "Grade this patient and outline the key early management.", "answer": "WFNS grade 2 (GCS 14, no deficit); modified Fisher 3-4 depending on IVH. Secure the aneurysm early (within 24-72 h) by coiling or clipping per MDT; nimodipine 60 mg 4-hourly for 21 days; euvolaemia; BP control until secured; monitor for hydrocephalus." },
+            { "title": "Day 6", "content": "She becomes confused with new right leg weakness. Sodium 131.", "question": "Differential and management?", "answer": "Delayed cerebral ischaemia from vasospasm (ACA territory), hydrocephalus, hyponatraemia (cerebral salt wasting vs SIADH), seizure, rebleed. CT/CTA/CTP, maintain euvolaemia, induced hypertension, correct sodium without fluid restriction, consider endovascular therapy (angioplasty/intra-arterial vasodilators)." }
+          ],
+          "discussion": "Key points: timing of LP, grading scales (WFNS, Hunt & Hess, modified Fisher), ISAT favouring coiling where both options are feasible, nimodipine as the only drug shown to improve outcome, and fluid restriction avoided in SAH-related hyponatraemia."
+        }
+      ]
+    }
+  ]
+}

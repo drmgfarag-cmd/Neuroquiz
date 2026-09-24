@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { ask } from "../components/Dialog";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Annotations } from "../components/Annotations";
@@ -258,7 +259,7 @@ function Browse({ focus }: { focus: string | null }) {
                     Reset schedule
                   </button>
                   {c.origin !== "imported" && (
-                    <button className="small danger" onClick={() => confirm("Delete this card?") && deleteSynced("userFlashcards", c.id)}>
+                    <button className="small danger" onClick={async () => (await ask("Delete this card?", { confirmLabel: "Delete", danger: true })) && deleteSynced("userFlashcards", c.id)}>
                       Delete
                     </button>
                   )}

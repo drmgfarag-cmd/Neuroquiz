@@ -3,6 +3,12 @@ import { useSyncExternalStore } from "react";
 
 export const isNative = (): boolean => Capacitor.isNativePlatform();
 
+/**
+ * Build for the private web preview link (VITE_WEB_PREVIEW=1): it runs inside
+ * a sandboxed frame without service workers or file downloads.
+ */
+export const webPreview = !!import.meta.env.VITE_WEB_PREVIEW;
+
 /** Electron shell serves the app from app://, Capacitor from https://localhost. */
 export const canUseServiceWorker = (): boolean =>
   typeof navigator !== "undefined" && "serviceWorker" in navigator && /^https?:$/.test(location.protocol) && !isNative();
@@ -46,6 +52,11 @@ function blobToBase64(blob: Blob): Promise<string> {
  * handed to the share sheet so it can go to Drive, Files, WhatsApp, etc.
  */
 export async function saveFile(blob: Blob, name: string): Promise<void> {
+  if (webPreview) {
+    const { notify } = await import("../components/Dialog");
+    await notify("Saving files isn't available in the web preview. Use the Windows or Android app to export books and progress.");
+    return;
+  }
   if (isNative()) {
     const [{ Filesystem, Directory }, { Share }] = await Promise.all([import("@capacitor/filesystem"), import("@capacitor/share")]);
     const res = await Filesystem.writeFile({ path: name, data: await blobToBase64(blob), directory: Directory.Cache });

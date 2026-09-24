@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { ask } from "../components/Dialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { describeAiError } from "../ai/claude";
@@ -98,7 +99,7 @@ export default function QuizRunner() {
         return;
       }
       const unanswered = session.questionIds.filter((qid) => !session.answers[qid]?.selected.length).length;
-      if (!force && unanswered && !confirm(`${unanswered} question(s) unanswered. Finish anyway?`)) return;
+      if (!force && unanswered && !(await ask(`${unanswered} question(s) unanswered. Finish anyway?`, { confirmLabel: "Finish test" }))) return;
       finishing.current = true;
       viewer.close();
       const done = await finishSession(session);

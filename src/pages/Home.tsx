@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { notify } from "../components/Dialog";
 import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "../components/Icons";
 import { allFlashcards, db } from "../lib/db";
@@ -36,7 +37,7 @@ export default function Home() {
 
   const quick = async (status: "due" | "incorrect" | "unused" | "flagged", title: string) => {
     const pool = await buildPool({ ...emptyFilter(), status });
-    if (!pool.length) return alert("No questions match.");
+    if (!pool.length) return void notify("No questions match.");
     const s = await createSession(pool, { mode: "tutor", title, count: 40, shuffleQuestions: true, shuffleOptions: false, secondsPerQuestion: 90 });
     nav(`/quiz/${s.id}`);
   };

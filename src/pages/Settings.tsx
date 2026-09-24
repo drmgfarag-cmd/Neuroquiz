@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { ask } from "../components/Dialog";
 import { useEffect, useState } from "react";
 import { db, getMeta } from "../lib/db";
 import { DEFAULT_MODEL, updateSettings, useSettings } from "../lib/settings";
@@ -157,7 +158,7 @@ export default function SettingsPage() {
           <button
             className="danger"
             onClick={async () => {
-              if (!confirm("Erase ALL progress, tags and history on this device? Books stay.")) return;
+              if (!(await ask("Erase all progress, tags and history on this device? Your books stay.", { confirmLabel: "Erase progress", danger: true }))) return;
               await Promise.all([db.questionStates.clear(), db.cardStates.clear(), db.sessions.clear(), db.annotations.clear(), db.tombstones.clear(), db.meta.clear()]);
             }}
           >
@@ -166,7 +167,7 @@ export default function SettingsPage() {
           <button
             className="danger"
             onClick={async () => {
-              if (!confirm("Delete EVERYTHING on this device (books, images, progress)?")) return;
+              if (!(await ask("Delete everything on this device: books, images and progress?", { confirmLabel: "Delete everything", danger: true }))) return;
               await db.delete();
               location.reload();
             }}

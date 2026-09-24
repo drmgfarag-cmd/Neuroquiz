@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { notify } from "../components/Dialog";
 import { Link } from "react-router-dom";
 import { runLocalTagging } from "../ai/tagger";
 import { collectFiles, executeImport, planImport, type GroupingMode, type ImportPlan, type ImportResult, type SourceFile } from "../import/importer";
@@ -26,7 +27,7 @@ export default function ImportPage() {
       setFiles(all);
       await replan(all, mode);
     } catch (e) {
-      alert((e as Error).message);
+      notify((e as Error).message);
     } finally {
       setBusy("");
     }
@@ -41,9 +42,19 @@ export default function ImportPage() {
   const loadSample = async () => {
     setBusy("Loading sample…");
     try {
-      const res = await fetch("./sample/sample-book.zip");
-      const blob = await res.blob();
-      await addFiles([new File([blob], "sample-book.zip")]);
+      // served as plain files (not a zip) so every host can deliver them
+      const names = ["01-vascular.json", "02-oncology-trauma.json", "03-spine-functional.json", "fig_cow.svg", "fig_edh.svg"];
+      const files = await Promise.all(
+        names.map(async (n) => {
+          const res = await fetch(`./sample/${n}`);
+          if (!res.ok) throw new Error(`Could not load sample file ${n}`);
+          const type = n.endsWith(".svg") ? "image/svg+xml" : "application/json";
+          return new File([await res.blob()], n, { type });
+        })
+      );
+      await addFiles(files);
+    } catch (e) {
+      notify((e as Error).message);
     } finally {
       setBusy("");
     }
@@ -62,7 +73,7 @@ export default function ImportPage() {
       setFiles([]);
       setPlan(null);
     } catch (e) {
-      alert(`Import failed: ${(e as Error).message}`);
+      notify(`Import failed: ${(e as Error).message}`);
     } finally {
       setBusy("");
     }

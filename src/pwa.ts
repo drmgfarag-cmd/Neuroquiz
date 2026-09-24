@@ -4,7 +4,7 @@
  * Not used inside the Android (Capacitor) or Windows (Electron) shells, which
  * load the app from local files anyway.
  */
-import { canUseServiceWorker } from "./lib/platform";
+import { canUseServiceWorker, webPreview } from "./lib/platform";
 
 type PwaEvent = "offline-ready" | "update";
 let listener: ((e: PwaEvent) => void) | null = null;
@@ -31,7 +31,8 @@ export function applyPwaUpdate(): void {
 }
 
 export async function registerPwa(): Promise<void> {
-  if (!canUseServiceWorker() || import.meta.env.DEV) return;
+  // the embedded web preview host doesn't allow service workers
+  if (!canUseServiceWorker() || import.meta.env.DEV || webPreview) return;
   const { registerSW } = await import("virtual:pwa-register");
   update = registerSW({
     immediate: true,

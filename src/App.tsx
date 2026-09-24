@@ -3,8 +3,9 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import { Icon } from "./components/Icons";
 import { useSettings } from "./lib/settings";
 import { syncWithServer } from "./lib/sync";
+import { DialogHost } from "./components/Dialog";
 import { closeOpenViewer } from "./components/ImageViewer";
-import { installBackButton, requestPersistentStorage, useOnline } from "./lib/platform";
+import { installBackButton, requestPersistentStorage, useOnline, webPreview } from "./lib/platform";
 import { onPwaEvent, applyPwaUpdate } from "./pwa";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
@@ -84,6 +85,11 @@ export default function App() {
         ))}
       </nav>
       <main className="main">
+        {webPreview && (
+          <div className="banner accent small">
+            Web preview: your books and progress are saved in this browser only. Install the Windows or Android app to keep them for real use and to export.
+          </div>
+        )}
         {!online && <div className="banner">Offline – everything works except AI features and sync, which resume when you reconnect.</div>}
         {pwa === "update" && (
           <div className="banner accent">
@@ -122,6 +128,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
+      <DialogHost />
       <nav className="bottom-nav" aria-label="Main mobile">
         {NAV.filter((n) => n.mobile).map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className="nav-link">

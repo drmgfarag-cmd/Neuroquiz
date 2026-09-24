@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { ask, notify } from "../components/Dialog";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { exportBookZip } from "../import/exporter";
@@ -37,7 +38,7 @@ export default function Library() {
 
   const start = async (mode: QuizMode, title: string, bookIds: string[], chapterIds: string[]) => {
     const pool = await buildPool({ ...emptyFilter(), bookIds, chapterIds });
-    if (!pool.length) return alert("No questions in this selection.");
+    if (!pool.length) return void notify("No questions in this selection.");
     const s = await createSession(pool, { mode, title, count: 0, shuffleQuestions: false, shuffleOptions: false, secondsPerQuestion: 90 });
     nav(`/quiz/${s.id}`);
   };
@@ -100,7 +101,7 @@ export default function Library() {
                       const { blob, name } = await exportBookZip(b.id);
                       await saveFile(blob, name);
                     } catch (e) {
-                      alert(`Export failed: ${(e as Error).message}`);
+                      notify(`Export failed: ${(e as Error).message}`);
                     } finally {
                       setExporting("");
                     }
@@ -111,7 +112,7 @@ export default function Library() {
                 <button
                   className="small danger"
                   onClick={async () => {
-                    if (!confirm(`Delete “${b.title}” and its images? Your progress is kept and reattaches if you re-import.`)) return;
+                    if (!(await ask(`Delete “${b.title}” and its images? Your progress is kept and reattaches if you re-import the book.`, { confirmLabel: "Delete book", danger: true }))) return;
                     await deleteBook(b.id);
                     clearMediaCache();
                   }}

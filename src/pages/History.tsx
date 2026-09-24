@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { ask } from "../components/Dialog";
 import { Link } from "react-router-dom";
 import { db, deleteSynced } from "../lib/db";
 import { pct } from "../lib/util";
@@ -32,7 +33,7 @@ export default function History() {
                     {s.mode === "review" ? "Open" : "Resume"}
                   </Link>
                 )}
-                <button className="small ghost" onClick={() => confirm("Delete this test from history?") && deleteSynced("sessions", s.id)}>
+                <button className="small ghost" onClick={async () => (await ask("Delete this test from history?", { confirmLabel: "Delete", danger: true })) && deleteSynced("sessions", s.id)}>
                   ✕
                 </button>
               </div>

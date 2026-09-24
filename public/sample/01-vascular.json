@@ -1,0 +1,34 @@
+{
+  "book": "Sample Neurosurgery Review",
+  "chapter": "Cerebrovascular",
+  "questions": [
+    {
+      "id": 1,
+      "question": "A 52-year-old woman presents with a thunderclap headache. CT angiography is shown. Which is the most common location of intracranial saccular aneurysms?",
+      "images": ["fig_cow.svg"],
+      "options": {
+        "A": "Posterior communicating artery",
+        "B": "Anterior communicating artery",
+        "C": "Middle cerebral artery bifurcation",
+        "D": "Basilar apex",
+        "E": "Posterior inferior cerebellar artery"
+      },
+      "answer": "B",
+      "explanation": "The **anterior communicating artery** complex is the most frequent site (~30-35%), followed by the PComm origin and the MCA bifurcation. About 85-95% of saccular aneurysms arise in the anterior circulation."
+    },
+    {
+      "id": 2,
+      "question": "A 4 cm AVM is located in the left motor cortex and drains only into superficial cortical veins. What is its Spetzler-Martin grade?",
+      "options": { "A": "I", "B": "II", "C": "III", "D": "IV", "E": "V" },
+      "answer": "C",
+      "explanation": "Size 3-6 cm = 2 points, eloquent location = 1, superficial drainage only = 0. Total **grade III**.\n\n| Feature | Points |\n|---|---|\n| Size < 3 cm / 3-6 cm / > 6 cm | 1 / 2 / 3 |\n| Eloquent cortex | 0 / 1 |\n| Deep venous drainage | 0 / 1 |"
+    },
+    {
+      "id": 3,
+      "question": "A patient with aneurysmal SAH is drowsy and confused with a mild focal deficit. What is the Hunt and Hess grade?",
+      "options": ["A. Grade 1", "B. Grade 2", "C. Grade 3", "D. Grade 4", "E. Grade 5"],
+      "answer": "C. Grade 3",
+      "explanation": "Hunt and Hess: 1 asymptomatic/mild headache; 2 moderate-severe headache, nuchal rigidity, cranial nerve palsy only; **3 drowsiness, confusion or mild focal deficit**; 4 stupor, moderate-severe hemiparesis; 5 deep coma, decerebrate posturing."
+    }
+  ]
+}

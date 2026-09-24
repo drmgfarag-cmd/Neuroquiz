@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { notify } from "../components/Dialog";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../lib/db";
@@ -71,7 +72,7 @@ export default function QuizSetup() {
 
   const start = async () => {
     const pool = await buildPool(filter);
-    if (!pool.length) return alert("No questions match these filters.");
+    if (!pool.length) return void notify("No questions match these filters.");
     const s = await createSession(pool, {
       mode,
       title: preset.title ?? `${MODES.find((m) => m.id === mode)!.label} – ${new Date().toLocaleDateString()}`,
