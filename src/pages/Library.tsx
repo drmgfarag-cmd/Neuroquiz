@@ -174,7 +174,7 @@ function BookQualityReport({ bookId }: { bookId: string }) {
     return auditBook(questions, mediaKeys.map((k) => String(k).slice(bookId.length + 1)));
   }, [bookId]);
   if (!report) return null;
-  const count = report.unscorable.length + report.missingImages.length + report.unreferencedImages.length + report.conflictingImageRoles.length;
+  const count = report.unscorable.length + report.sourceWarnings.length + report.missingImages.length + report.unreferencedImages.length + report.conflictingImageRoles.length;
   return (
     <details style={{ marginTop: 8 }}>
       <summary className="clickable small" style={count ? { color: "var(--warn)" } : undefined}>
@@ -183,6 +183,9 @@ function BookQualityReport({ bookId }: { bookId: string }) {
       </summary>
       {report.unscorable.length > 0 && <div className="small"><strong>Unresolved answers · excluded from scored tests</strong>
         {report.unscorable.map((q) => <div key={q.id}><Link to={`/question/${encodeURIComponent(q.id)}`}>Q{q.number}: {q.sourceId ?? q.stem.slice(0, 70)}</Link></div>)}
+      </div>}
+      {report.sourceWarnings.length > 0 && <div className="small" style={{ marginTop: 8 }}><strong>Source and historical guidance flags ({report.sourceWarnings.length})</strong>
+        <div style={{ maxHeight: 160, overflow: "auto" }}>{report.sourceWarnings.map((q) => <div key={q.id}><Link to={`/question/${encodeURIComponent(q.id)}`}>Q{q.number}: {q.sourceId ?? q.stem.slice(0, 50)}</Link> · {q.sourceWarning}</div>)}</div>
       </div>}
       {([
         ["Missing image files", report.missingImages],
