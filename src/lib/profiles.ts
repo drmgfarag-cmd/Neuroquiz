@@ -57,10 +57,6 @@ export async function switchProfile(targetId: string): Promise<void> {
     if (target.guest) await db.profiles.put(target);
     await setMeta("profile:active", target.id);
   });
-  if (typeof sessionStorage !== "undefined") {
-    if (target.guest) sessionStorage.setItem("neuroquiz.guestSession", "1");
-    else sessionStorage.removeItem("neuroquiz.guestSession");
-  }
   if (typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("neuroquiz-profile");
     channel.postMessage(target.id);
@@ -68,16 +64,6 @@ export async function switchProfile(targetId: string): Promise<void> {
   }
   // Invalidate all live queries and in-memory session state after the atomic swap.
   location.reload();
-}
-
-/** A guest session lasts only for the current browser session. */
-export async function resumeProfile(): Promise<StudyProfile> {
-  const profile = await activeProfile();
-  if (profile.guest && typeof sessionStorage !== "undefined" && !sessionStorage.getItem("neuroquiz.guestSession")) {
-    await switchProfile("default");
-    return DEFAULT;
-  }
-  return profile;
 }
 
 /** Keep flags, issues, notes and the shared book content while starting scores over. */
