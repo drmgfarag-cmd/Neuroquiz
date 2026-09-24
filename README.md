@@ -22,7 +22,6 @@ An offline-first quiz app for question banks extracted from neurosurgery books. 
 ## Quick start (development)
 
 ```bash
-cd neuroquiz
 npm install
 npm run dev          # http://localhost:5173
 npm test             # unit + integration tests
@@ -52,7 +51,7 @@ The app is one web build (`dist/`) packaged three ways:
    npm run dist:win         # NSIS installer + portable .exe in desktop/dist/ (build on Windows)
    ```
 
-The **NeuroQuiz apps** GitHub Actions workflow (`.github/workflows/neuroquiz-apps.yml`, run it manually from the Actions tab) builds the Android APK and the Windows installer for you and attaches them as artifacts.
+The **NeuroQuiz apps** GitHub Actions workflow (`.github/workflows/apps.yml`, run it manually from the Actions tab or push a `v*` tag) builds the Android APK and the Windows installer for you and attaches them as artifacts.
 
 On Android, choose a **ZIP** (or multi-select JSON and image files) when importing. Folder picking only works on desktop.
 
