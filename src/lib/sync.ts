@@ -27,18 +27,21 @@ function rowTime(row: Record<string, unknown>): number {
 }
 
 export async function collectChanges(sinceLocal: number): Promise<SyncRecord[]> {
-  const out: SyncRecord[] = [];
-  for (const table of SYNC_TABLES) {
-    const key = SYNC_KEY[table];
-    const rows = (await db.table(table).toArray()) as Record<string, unknown>[];
-    for (const row of rows) {
-      const t = rowTime(row);
-      if (t > sinceLocal) out.push({ table, id: String(row[key]), updatedAt: t, row });
+  return db.transaction("r", [...SYNC_TABLES.map((table) => db.table(table)), db.tombstones, db.meta], async () => {
+    if ((await getMeta("profile:active", "default")) !== "default") throw new Error("Switch to My profile before syncing progress.");
+    const out: SyncRecord[] = [];
+    for (const table of SYNC_TABLES) {
+      const key = SYNC_KEY[table];
+      const rows = (await db.table(table).toArray()) as Record<string, unknown>[];
+      for (const row of rows) {
+        const t = rowTime(row);
+        if (t > sinceLocal) out.push({ table, id: String(row[key]), updatedAt: t, row });
+      }
     }
-  }
-  const tombs = await db.tombstones.where("updatedAt").above(sinceLocal).toArray();
-  for (const t of tombs) out.push({ table: t.table, id: t.id, updatedAt: t.updatedAt, deleted: true });
-  return out;
+    const tombs = await db.tombstones.where("updatedAt").above(sinceLocal).toArray();
+    for (const t of tombs) out.push({ table: t.table, id: t.id, updatedAt: t.updatedAt, deleted: true });
+    return out;
+  });
 }
 
 /** Merge remote records; returns how many rows changed locally. */
@@ -46,7 +49,8 @@ export async function applyChanges(records: SyncRecord[]): Promise<number> {
   let changed = 0;
   const tables = SYNC_TABLES.map((t) => db.table(t));
   const correctionIds: string[] = [];
-  await db.transaction("rw", [...tables, db.tombstones, db.questions], async () => {
+  await db.transaction("rw", [...tables, db.tombstones, db.questions, db.meta], async () => {
+    if ((await getMeta("profile:active", "default")) !== "default") throw new Error("Profile changed during sync; retry from My profile.");
     for (const r of records) {
       if (!SYNC_TABLES.includes(r.table)) continue;
       const table = db.table(r.table);
@@ -92,6 +96,7 @@ export async function syncWithServer(): Promise<SyncOutcome> {
   const lastSeq = await getMeta<number>("sync.lastSeq", 0);
   const startedAt = Date.now();
   const changes = await collectChanges(lastPush);
+  if ((await activeProfile()).id !== "default") throw new Error("Profile changed during sync; retry from My profile.");
 
   const res = await fetch(`${syncUrl.replace(/\/+$/, "")}/sync`, {
     method: "POST",
