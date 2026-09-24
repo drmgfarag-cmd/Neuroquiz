@@ -206,6 +206,26 @@ describe("EMI sets stored as separate questions", () => {
   });
 });
 
+describe("EMI sets whose items repeat the lead-in", () => {
+  it("moves the shared lead-in and a shared image to the question", () => {
+    const opts = { A: "Scan 1", B: "Scan 2", C: "Both" };
+    const item = (n: string, text: string, key: string) => ({
+      printed_number: n,
+      question: `Match these MRI findings with the comments:\n\n${text}`,
+      shared_directions: "Match these MRI findings with the comments:",
+      answers: opts,
+      correct_answer: key,
+      emi_set_id: "EMI_47",
+      question_images: ["scans.png"]
+    });
+    const [q] = parse([item("47", "Hypertension", "A"), item("48", "Hearing loss", "B")]).chapters[0].questions;
+    expect(q.stem).toBe("Match these MRI findings with the comments:");
+    expect(q.options.map((o) => [o.key, o.text, o.media.length])).toEqual([["47", "Hypertension", 0], ["48", "Hearing loss", 0]]);
+    expect(q.stemMedia).toEqual([{ file: "scans.png" }]);
+    expect(q.matches).toEqual({ "47": "a", "48": "b" });
+  });
+});
+
 describe("layouts of books 05, 07, 08 and 09", () => {
   it("reads chapters stored as a named map and splits a multi-section chapter", () => {
     const q = (id: string, section: string, extra: Record<string, unknown> = {}) => ({ question_id: id, section_id: section, question: `Q ${id}?`, answers: { A: "a", B: "b" }, correct_answer: "A", ...extra });

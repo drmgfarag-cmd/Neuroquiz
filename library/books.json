@@ -37,6 +37,11 @@
       "id": "09",
       "title": "Neurosurgery Board Questions (Book 09)",
       "source": "sources/09.zip"
+    },
+    {
+      "id": "npqa2",
+      "title": "Neurosurgery Practice Questions and Answers, 2nd Edition",
+      "source": "sources/NPQA2.zip"
     }
   ]
 }

@@ -815,12 +815,24 @@ export function mergeEmiSets(questions: ParsedQuestion[], groups: Obj[] = []): P
       return numeric.length && numeric.every((n) => n >= first && n <= last);
     });
     const groupText = group ? toText(pick(group, ["text", "body", "content"])) : "";
-    const lead = (groupText && parseChoiceList(groupText, set[0].options.every((o) => /^\d+$/.test(o.key)))?.tail) || "Match each item with the most likely answer from the list. Each answer may be used once, more than once or not at all.";
+    // text every item starts with ("Match these MRI findings…") is the lead-in, not part of each item
+    const paras = set.map((x) => x.stem.split("\n\n"));
+    let common = 0;
+    while (paras.every((p) => p.length > common + 1 && p[common] === paras[0][common])) common++;
+    const shared = paras[0].slice(0, common).join("\n\n");
+    const itemText = (x: ParsedQuestion, i: number) => paras[i].slice(common).join("\n\n") || x.stem;
+    // …and so is an image every item shows
+    const mediaKey = (x: ParsedQuestion) => x.stemMedia.map((m) => m.file).join("|");
+    const sharedMedia = set.every((x) => x.stemMedia.length && mediaKey(x) === mediaKey(set[0])) ? set[0].stemMedia : [];
+    const lead =
+      (groupText && parseChoiceList(groupText, set[0].options.every((o) => /^\d+$/.test(o.key)))?.tail) ||
+      shared ||
+      "Match each item with the most likely answer from the list. Each answer may be used once, more than once or not at all.";
     const explanations = Array.from(new Set(set.map((x) => x.explanation).filter(Boolean)));
     out.push({
       number: nums.length > 1 ? `${nums[0]}–${nums[nums.length - 1]}` : nums[0],
-      stem: lead,
-      options: set.map((x) => ({ key: x.number, text: x.stem, media: x.stemMedia })),
+      stem: shared && lead !== shared ? `${shared}\n\n${lead}` : lead,
+      options: set.map((x, i) => ({ key: x.number, text: itemText(x, i), media: sharedMedia.length ? [] : x.stemMedia })),
       answer: [],
       format: "matching",
       choices: set[0].options.map((o) => ({ key: o.key.toLowerCase(), text: o.text })),
@@ -832,7 +844,7 @@ export function mergeEmiSets(questions: ParsedQuestion[], groups: Obj[] = []): P
               .filter((x) => x.explanation)
               .map((x) => `**${x.number}.** ${x.explanation}`)
               .join("\n\n"),
-      stemMedia: [],
+      stemMedia: sharedMedia,
       explanationMedia: set.flatMap((x) => x.explanationMedia).filter((m, i, all) => all.findIndex((y) => y.file === m.file) === i),
       sourceTags: Array.from(new Set(set.flatMap((x) => x.sourceTags))),
       annotation: set[0].annotation
