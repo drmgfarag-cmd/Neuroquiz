@@ -18,6 +18,7 @@ import { db } from "../lib/db";
 import { applyChoice, canShuffle, correctSelection, formatOf, isComplete, isItemised, pickable, selectionSummary } from "../lib/grading";
 import { useOnline } from "../lib/platform";
 import { finishSession, isCorrect, recordResult, saveSession, setFlag, setNote } from "../lib/quiz";
+import { unscorableReason } from "../lib/quality";
 import type { Confidence, Question, QuizSession, SessionAnswer } from "../lib/types";
 import { formatDuration } from "../lib/util";
 
@@ -137,7 +138,7 @@ export default function QuizRunner() {
   const ans: SessionAnswer = session.answers[current.id] ?? { questionId: current.id, selected: [], timeMs: 0 };
   const tutor = session.mode === "tutor";
   const review = session.mode === "review";
-  const revealed = review || (tutor && ans.correct !== undefined);
+  const revealed = review || (tutor && (ans.correct !== undefined || !!ans.unscoredSubmitted));
   const itemised = isItemised(current);
   const fmt = formatOf(current);
   // recall mode: answer in your head first (only for questions with a list of options)
@@ -160,6 +161,10 @@ export default function QuizRunner() {
 
   const submit = async () => {
     if (!complete) return;
+    if (unscorableReason(current)) {
+      update({ ...ans, correct: undefined, unscoredSubmitted: true, timeMs: ans.timeMs + spent() });
+      return;
+    }
     const correct = isCorrect(current, ans.selected);
     update({ ...ans, correct, timeMs: ans.timeMs + spent() });
     await recordResult(current, correct, ans.confidence);
@@ -328,7 +333,7 @@ export default function QuizRunner() {
               <QuestionView
                 q={current}
                 selected={review ? correctSelection(current) : ans.selected}
-                revealed={revealed}
+                revealed={revealed && !unscorableReason(current)}
                 onSelect={select}
                 struck={ans.struck}
                 onStrike={review || !canShuffle(current) ? undefined : strike}
