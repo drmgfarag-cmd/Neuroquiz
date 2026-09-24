@@ -289,3 +289,22 @@ table.data th, table.data td { padding: 7px 8px; border-bottom: 1px solid var(--
 table.data th { font-size: 0.85em; color: var(--muted); font-weight: 600; }
 .dropzone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 26px; text-align: center; }
 .dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- true/false & matching items ---------- */
+.option.item { cursor: default; align-items: center; flex-wrap: wrap; }
+.option.item:hover { border-color: var(--border); }
+.option.item.missed { border-color: var(--warn); }
+.tf { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex: none; }
+.tf button { border: 0; border-radius: 0; min-height: 36px; padding: 4px 14px; }
+.tf button + button { border-left: 1px solid var(--border); }
+.tf button.active { background: var(--accent); color: var(--accent-contrast); }
+.tf button.is-answer { box-shadow: inset 0 -3px 0 var(--good); }
+.tf button:disabled { opacity: 1; cursor: default; }
+.match-select { flex: 0 1 260px; min-width: 150px; }
+.match-list { padding: 10px 14px; margin: 10px 0; }
+.match-list ol { list-style: none; padding: 0; margin: 6px 0 0; columns: 2 220px; column-gap: 24px; }
+.match-list li { break-inside: avoid; padding: 2px 0; }
+@media (max-width: 760px) {
+  .option.item .tf, .option.item .match-select { margin-left: 38px; }
+  .match-select { flex-basis: 100%; }
+}

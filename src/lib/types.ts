@@ -32,6 +32,19 @@ export interface Option {
   media: MediaRef[];
 }
 
+/**
+ * single     – one best answer (default)
+ * multi      – select all that apply
+ * truefalse  – mark every statement (option) true or false
+ * matching   – extended matching (EMI): pick one choice from a shared list per item
+ */
+export type QuestionFormat = "single" | "multi" | "truefalse" | "matching";
+
+export interface MatchChoice {
+  key: string; // "i", "ii", … or "1", "2", …
+  text: string;
+}
+
 export interface Question {
   id: string;
   bookId: string;
@@ -39,8 +52,15 @@ export interface Question {
   number: string;
   stem: string;
   options: Option[];
-  /** Keys of the correct options (multiple for "select all that apply"). */
+  /** Keys of the correct options (multiple for "select all that apply"; the TRUE statements for truefalse). */
   answer: string[];
+  format?: QuestionFormat;
+  /** truefalse: correct verdict per option key */
+  verdicts?: Record<string, boolean>;
+  /** matching: the shared list to choose from … */
+  choices?: MatchChoice[];
+  /** … and the correct choice key per item (option key) */
+  matches?: Record<string, string>;
   explanation: string;
   stemMedia: MediaRef[];
   explanationMedia: MediaRef[];

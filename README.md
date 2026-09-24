@@ -104,6 +104,13 @@ The importer recognises many shapes and field names. The key parts are:
 - A plain array of questions works, as does `{ "questions": [...] }`. A flat array with a `chapter` field on each question is grouped into chapters.
 - When a book is split across files, name the book in the files (`"book": …`) or keep the files in one folder. Import mode **"All selected files are chapters of ONE book"** forces this.
 - Images are matched by file name, ignoring folders and letter case, from `images`/`figures` fields, markdown `![](x.png)`, `<img src>`, `[Figure: x.png]`, `{{x.png}}` or a bare `x.png` in the text. After import you get a list of any referenced images that were not found.
+- **Question types.** Besides single-best-answer and select-all questions, the importer recognises:
+  - **true/false statement sets**: `option_verdicts: {"A": "TRUE", "B": "FALSE"}`, or an `answer_key_map` of TRUE/FALSE values. You mark each statement.
+  - **extended matching (EMI)**: `answer_key_map: {"A": "IV", "B": "I"}`. The answer list comes from `choice_list`, or is read from the question text ("i. GBM ii. Meningioma …"). You pick from a drop-down for each item. Items with no text (structures a–e on a diagram) are supported.
+  - **multi-part questions**: `parts: [{part, text, answers, correct_answer | answer_key_map}]`. These become questions 3a, 3b, 3c…, sharing the case and images.
+
+  Both itemised types (true/false and matching) show a score such as "4 / 5 correct" and count as correct only when every item is right.
+- Case text in `case_scenario` is placed before the question. Images in `question_images` are shown with the question and `answer_images` only with the answer, even when a generic `images` list mixes both. Hard line breaks and page breaks from PDF/OCR extraction are joined back into paragraphs.
 - For numeric answers, you choose in the import screen whether `1` means the first option (default) or `0` does. `answer_index` is always 0-based.
 
 ## Project layout

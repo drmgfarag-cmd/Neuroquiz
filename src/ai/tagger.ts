@@ -1,5 +1,6 @@
 import { allCases, allFlashcards, db } from "../lib/db";
 import type { Annotation, CaseScenario, Flashcard, Question } from "../lib/types";
+import { answerSummary } from "../lib/grading";
 import { chunk } from "../lib/util";
 import { aiTagBatch, type TagInput } from "./claude";
 import { localTag } from "./taxonomy";
@@ -12,8 +13,11 @@ function stripMd(s: string): string {
 }
 
 export function questionText(q: Question): string {
-  const opts = q.options.map((o) => `${o.key}. ${o.text}`).join("\n");
-  return stripMd(`${q.stem}\n${opts}\nCorrect: ${q.answer.join(", ")}\nExplanation: ${q.explanation}`);
+  const opts = [
+    ...q.options.map((o) => `${o.key}. ${o.text}`),
+    ...(q.choices?.length ? ["Answer list: " + q.choices.map((c) => `${c.key}. ${c.text}`).join("; ")] : [])
+  ].join("\n");
+  return stripMd(`${q.stem}\n${opts}\nCorrect: ${answerSummary(q)}\nExplanation: ${q.explanation}`);
 }
 
 export function flashcardText(f: Flashcard): string {

@@ -10,6 +10,7 @@ import { useViewer } from "../components/ImageViewer";
 import { Explanation, QuestionView } from "../components/QuestionView";
 import { addAiCards, addQuestionCard } from "../lib/cards";
 import { db } from "../lib/db";
+import { applyChoice, correctSelection, isComplete, isItemised, selectionSummary } from "../lib/grading";
 import { useOnline } from "../lib/platform";
 import { finishSession, isCorrect, recordResult, saveSession, setFlag, setNote } from "../lib/quiz";
 import type { Question, QuizSession, SessionAnswer } from "../lib/types";
@@ -129,7 +130,7 @@ export default function QuizRunner() {
   const tutor = session.mode === "tutor";
   const review = session.mode === "review";
   const revealed = review || (tutor && ans.correct !== undefined);
-  const multi = current.answer.length > 1;
+  const itemised = isItemised(current);
 
   const update = (a: SessionAnswer, patch: Partial<QuizSession> = {}) =>
     setSession((s) => (s ? { ...s, ...patch, answers: { ...s.answers, [a.questionId]: a } } : s));
@@ -140,16 +141,14 @@ export default function QuizRunner() {
     return d;
   };
 
-  const select = (key: string) => {
+  const select = (key: string, value?: string) => {
     if (revealed) return;
-    let sel: string[];
-    if (multi) sel = ans.selected.includes(key) ? ans.selected.filter((k) => k !== key) : [...ans.selected, key];
-    else sel = [key];
-    update({ ...ans, selected: sel });
+    update({ ...ans, selected: applyChoice(current, ans.selected, key, value) });
   };
+  const complete = isComplete(current, ans.selected);
 
   const submit = async () => {
-    if (!ans.selected.length) return;
+    if (!complete) return;
     const correct = isCorrect(current, ans.selected);
     update({ ...ans, correct, timeMs: ans.timeMs + spent() });
     await recordResult(current, correct);
@@ -180,9 +179,9 @@ export default function QuizRunner() {
         if (paused) return;
         const order = session.optionOrder?.[current.id] ?? current.options.map((o) => o.key);
         const n = /^[1-8]$/.test(k) ? Number(k) - 1 : /^[a-h]$/i.test(k) ? k.toUpperCase().charCodeAt(0) - 65 : -1;
-        if (n >= 0 && n < order.length) select(order[n]);
+        if (!itemised && n >= 0 && n < order.length) select(order[n]);
         else if (k === "Enter") {
-          if (tutor && !revealed && ans.selected.length) submit();
+          if (tutor && !revealed && complete) submit();
           else go(idx + 1);
         } else if (k === "ArrowRight") go(idx + 1);
         else if (k === "ArrowLeft") go(idx - 1);
@@ -258,18 +257,18 @@ export default function QuizRunner() {
             </div>
             <QuestionView
               q={current}
-              selected={review ? current.answer : ans.selected}
+              selected={review ? correctSelection(current) : ans.selected}
               revealed={revealed}
               onSelect={select}
               struck={ans.struck}
-              onStrike={review ? undefined : strike}
+              onStrike={review || itemised ? undefined : strike}
               order={session.optionOrder?.[current.id]}
             />
           </div>
 
           {revealed && (
             <>
-              <Explanation q={current} selected={review ? current.answer : ans.selected} />
+              <Explanation q={current} selected={review ? correctSelection(current) : ans.selected} />
               <Annotations id={current.id} kind="question" extraTags={current.sourceTags} />
               <div className="card stack">
                 <label className="field">
@@ -309,7 +308,7 @@ export default function QuizRunner() {
                 </div>
                 {showAi && (
                   <AiChat
-                    context={`Question the resident just answered:\n${questionText(current)}\nResident selected: ${ans.selected.join(", ") || "(none)"}`}
+                    context={`Question the resident just answered:\n${questionText(current)}\nResident's answer: ${selectionSummary(current, ans.selected)}`}
                     starters={["Explain why each option is right or wrong", "What is the key concept and how is it examined?", "Give me a mnemonic", "Quiz me with a related question"]}
                   />
                 )}
@@ -323,7 +322,7 @@ export default function QuizRunner() {
               ← Prev
             </button>
             {tutor && !revealed ? (
-              <button className="primary" disabled={!ans.selected.length} onClick={submit}>
+              <button className="primary" disabled={!complete} onClick={submit} title={complete ? "" : itemised ? "Answer every item first" : ""}>
                 Submit answer
               </button>
             ) : idx === total - 1 ? (

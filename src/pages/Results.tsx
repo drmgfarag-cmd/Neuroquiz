@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Explanation, QuestionView } from "../components/QuestionView";
 import { db } from "../lib/db";
+import { answerSummary, isItemised, score, selectionSummary } from "../lib/grading";
 import { plain } from "../lib/markdown";
 import { createSession } from "../lib/quiz";
 import type { Question } from "../lib/types";
@@ -117,7 +118,9 @@ export default function Results() {
               <div className="list-item clickable" onClick={() => setOpen(open === q.id ? null : q.id)}>
                 <span className={`chip ${a?.correct ? "good" : a?.selected.length ? "bad" : ""}`}>{i + 1}</span>
                 <div style={{ flex: 1 }}>{plain(q.stem, 160)}</div>
-                <span className="small muted">{a?.selected.join(",") || "–"} / {q.answer.join(",")}</span>
+                <span className="small muted">
+                  {isItemised(q) && a?.selected.length ? `${score(q, a.selected).right}/${score(q, a.selected).total}` : `${selectionSummary(q, a?.selected ?? [])} / ${answerSummary(q, true)}`}
+                </span>
               </div>
               {open === q.id && (
                 <div style={{ padding: "8px 0 16px" }} data-gallery="">

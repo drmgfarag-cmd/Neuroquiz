@@ -11,7 +11,7 @@
  * Field names are matched case-insensitively against lists of common aliases
  * (question/stem/text, options/choices, answer/correct_answer, ...).
  */
-import type { Annotation, CaseStage, MediaRef, Option } from "../lib/types";
+import type { Annotation, CaseStage, MatchChoice, MediaRef, Option, QuestionFormat } from "../lib/types";
 
 /** Tags carried inside NeuroQuiz's own book export (restored on import). */
 export type ParsedAnnotation = Omit<Annotation, "id" | "kind">;
@@ -36,6 +36,10 @@ export interface ParsedQuestion {
   explanationMedia: MediaRef[];
   sourceTags: string[];
   annotation?: ParsedAnnotation;
+  format?: QuestionFormat;
+  verdicts?: Record<string, boolean>;
+  choices?: MatchChoice[];
+  matches?: Record<string, string>;
 }
 
 export interface ParsedFlashcard {
@@ -80,21 +84,28 @@ const F = {
   answer: ["correct_answer", "correctanswer", "answer", "correct", "correct_option", "correctoption", "key", "answer_key", "right_answer", "solution", "correct_choice", "correct_answers"],
   answerIndex: ["answer_index", "answerindex", "correct_index", "correctindex"],
   explanation: ["explanation", "explanations", "rationale", "discussion", "answer_explanation", "commentary", "reasoning", "feedback", "solution_text", "notes", "comment"],
-  stemMedia: ["stem_media", "images", "image", "figures", "figure", "media", "question_images", "question_image", "question_figures", "img", "imgs", "pictures", "attachments", "tables_images", "diagram", "diagrams", "table_image", "table_images"],
+  /** images that belong to the question itself (checked first) */
+  questionMedia: ["stem_media", "question_images", "question_image", "question_figures", "question_media"],
+  /** generic image fields – may mix question and answer images */
+  stemMedia: ["images", "image", "figures", "figure", "media", "img", "imgs", "pictures", "attachments", "tables_images", "diagram", "diagrams", "table_image", "table_images"],
   explanationMedia: ["explanation_images", "explanation_image", "answer_images", "answer_image", "explanation_figures", "rationale_images", "solution_images", "explanation_media", "answer_media"],
   tables: ["tables", "table"],
   explanationTables: ["explanation_tables", "explanation_table", "answer_tables"],
-  number: ["number", "question_number", "questionnumber", "qno", "q_no", "no", "num", "id", "qid", "index"],
+  number: ["printed_number", "number", "question_number", "questionnumber", "qno", "q_no", "no", "num", "id", "qid", "index"],
   tags: ["tags", "keywords", "topic", "topics", "category", "categories", "subject", "subtopic", "section"],
   chapterName: ["chapter", "chapter_title", "chaptertitle", "chapter_name", "section_title"],
-  title: ["title", "name", "chapter", "chapter_title", "heading", "section"],
+  title: ["title", "name", "chapter_name", "chapter", "chapter_title", "heading", "section"],
   bookTitle: ["book", "book_title", "booktitle", "book_name", "source", "textbook"],
-  chapters: ["chapters", "sections", "parts", "units"],
+  chapters: ["chapters", "sections", "units"],
   questions: ["questions", "mcqs", "mcq", "items", "qbank", "question_bank", "questionbank"],
   flashcards: ["flashcards", "flash_cards", "cards", "flashcard"],
   cases: ["cases", "case_scenarios", "casescenarios", "clinical_cases", "scenarios", "case_studies"],
   front: ["front", "term", "prompt", "question", "q", "cue"],
   back: ["back", "definition", "answer", "a", "response"],
+  keyMap: ["answer_key_map", "key_map", "matching_key", "matches"],
+  verdicts: ["option_verdicts", "verdicts", "statement_verdicts", "true_false"],
+  choiceList: ["choice_list", "choices_list", "answer_list", "shared_options", "emi_options", "option_list"],
+  parts: ["parts", "sub_questions", "subquestions"],
   optKey: ["key", "label", "letter", "option", "id", "choice"],
   optText: ["text", "content", "value", "option_text", "answer", "body", "choice_text", "label_text", "description"],
   optCorrect: ["correct", "is_correct", "iscorrect", "isanswer", "is_answer", "right"],
@@ -120,7 +131,10 @@ export function pick(o: Obj, aliases: readonly string[]): Json {
     const k = index.get(a) ?? index.get(a.replace(/_/g, ""));
     if (k !== undefined) {
       const v = o[k];
-      if (v !== undefined && v !== null && v !== "") return v;
+      if (v === undefined || v === null || v === "") continue;
+      if (Array.isArray(v) && v.length === 0) continue;
+      if (isObj(v) && Object.keys(v).length === 0) continue;
+      return v;
     }
   }
   return undefined;
@@ -128,6 +142,54 @@ export function pick(o: Obj, aliases: readonly string[]): Json {
 
 function has(o: Obj, aliases: readonly string[]): boolean {
   return pick(o, aliases) !== undefined;
+}
+
+/** True when any alias is present as a key, even if its value is empty. */
+function hasKey(o: Obj, aliases: readonly string[]): boolean {
+  const keys = new Set(Object.keys(o).map((k) => k.toLowerCase().replace(/[\s-]/g, "_")));
+  return aliases.some((a) => keys.has(a) || keys.has(a.replace(/_/g, "")));
+}
+
+const LIST_LINE = /^\s*(?:[-*•]\s|\d{1,3}[.)]\s|[a-z][.)]\s|[ivx]{1,5}[.)]\s|\(?[a-z]\)\s|\||#|>|part\s+[a-z0-9]\b|!\[)/i;
+
+/**
+ * Repairs text copied from PDFs/OCR: joins hard-wrapped lines into
+ * paragraphs and re-joins sentences split by a page break, while keeping
+ * lists, tables, headings and "a. TRUE —" style statements on their own lines.
+ */
+export function reflow(text: string): string {
+  if (!text || !text.includes("\n")) return text;
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const paras: string[][] = [];
+  let cur: string[] = [];
+  let blank = false;
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, "");
+    if (!line.trim()) {
+      blank = true;
+      continue;
+    }
+    const prev = cur[cur.length - 1];
+    // a blank line followed by a lower-case continuation is a page break, not a paragraph
+    const continuation = blank && prev !== undefined && /^[a-z(]/.test(line.trim()) && !LIST_LINE.test(line) && !/[.:!?]["”’)]?$/.test(prev);
+    if (blank && !continuation && cur.length) {
+      paras.push(cur);
+      cur = [];
+    }
+    blank = false;
+    cur.push(line);
+  }
+  if (cur.length) paras.push(cur);
+  return paras
+    .map((p) =>
+      p.reduce((acc, line, i) => {
+        if (i === 0) return line.trim();
+        if (LIST_LINE.test(line) || /^\s*\|/.test(p[i - 1])) return `${acc}\n${line.trim()}`;
+        // keep hyphenated words together ("grey-\nwhite")
+        return acc.endsWith("-") ? acc + line.trim() : `${acc} ${line.trim()}`;
+      }, "")
+    )
+    .join("\n\n");
 }
 
 /** Flatten strings/arrays/objects to readable text. */
@@ -247,7 +309,8 @@ export function linkInlineImages(text: string): string {
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LABEL_RE = /^\s*(?:\(?([A-Za-z]|\d{1,2})[).:\]]|option\s+([A-Za-z])\s*[:.)-])\s+/;
 
-function parseOptions(q: Obj): { options: Option[]; flagged: string[]; optionExplanations: string[] } {
+function parseOptions(q: Obj): { options: Option[]; flagged: string[]; optionExplanations: string[]; stemTail: string } {
+  let stemTail = "";
   const flagged: string[] = [];
   const optionExplanations: string[] = [];
   let raw = pick(q, F.options);
@@ -303,6 +366,11 @@ function parseOptions(q: Obj): { options: Option[]; flagged: string[]; optionExp
     });
   } else if (isObj(raw)) {
     Object.entries(raw).forEach(([k, v], i) => {
+      // OCR sometimes splits the stem into a bogus option ("4500": "11000/µL), CRP …")
+      if (!/^\s*(?:option[_\s]?)?(?:[A-Za-z]|\d{1,2})\s*$/i.test(k) && typeof v === "string" && Object.keys(raw as Obj).length > 2) {
+        stemTail += ` ${k} ${v}`;
+        return;
+      }
       const key = k.trim().length <= 3 ? k.trim().replace(/^option[_\s]?/i, "").toUpperCase() : LETTERS[i];
       if (isObj(v)) {
         const corr = pick(v, F.optCorrect);
@@ -321,8 +389,9 @@ function parseOptions(q: Obj): { options: Option[]; flagged: string[]; optionExp
   options.forEach((o, i) => {
     if (!o.key || seen.has(o.key)) o.key = LETTERS[i];
     seen.add(o.key);
+    o.text = reflow(o.text);
   });
-  return { options, flagged, optionExplanations };
+  return { options, flagged, optionExplanations, stemTail: stemTail.trim() };
 }
 
 function resolveAnswer(v: Json, options: Option[], base: 0 | 1, explicitZeroBased = false): string[] {
@@ -350,6 +419,8 @@ function resolveAnswer(v: Json, options: Option[], base: 0 | 1, explicitZeroBase
   }
   const s = String(v).trim();
   if (!s) return [];
+  const exactKey = keys.find((k) => k.toLowerCase() === s.toLowerCase());
+  if (exactKey) return [exactKey];
   // exact key ("B", "b", "(B)", "B)", "Option B", "Answer: B")
   const cleaned = s.replace(/^(?:the\s+)?(?:correct\s+)?(?:answer|option|ans|choice)\s*(?:is|:)?\s*/i, "").trim();
   const single = /^\(?([A-Za-z])\)?[.):]?$/.exec(cleaned);
@@ -379,6 +450,8 @@ function looksLikeQuestion(o: Obj): boolean {
     has(o, F.options) ||
     has(o, F.answer) ||
     has(o, F.answerIndex) ||
+    has(o, F.keyMap) ||
+    has(o, F.verdicts) ||
     Object.keys(o).some((k) => /^(?:option|opt|choice)[_\s-]?[a-h1-8]$/i.test(k))
   );
 }
@@ -404,13 +477,77 @@ function looksLikeCase(o: Obj): boolean {
 // Item parsers
 // --------------------------------------------------------------------------
 
+const ROMANS = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"];
+
+/**
+ * Finds an EMI answer list written inline ("… i. GBM ii. Meningioma iii. …"
+ * or "1. … 2. …"). Markers must appear in sequence, which avoids false hits.
+ */
+export function parseChoiceList(text: string, numeric = false): { choices: MatchChoice[]; start: number; tail: string } | null {
+  const re = numeric ? /(^|[\s(])(\d{1,2})[.)-]\s+/g : /(^|[\s(])((?:x{0,2})(?:ix|iv|v?i{0,3}))[.)]\s+/gi;
+  const hits: { key: string; at: number; end: number }[] = [];
+  for (const m of text.matchAll(re)) {
+    if (!m[2]) continue;
+    const key = m[2].toLowerCase();
+    const want = numeric ? String(hits.length + 1) : ROMANS[hits.length];
+    if (key === want) hits.push({ key, at: m.index! + m[1].length, end: m.index! + m[0].length });
+  }
+  if (hits.length < 3) return null;
+  const clean = (t: string) => t.replace(/\s+/g, " ").replace(/[\s,;]+$/, "").trim();
+  const choices = hits.map((h, i) => ({ key: h.key, text: clean(text.slice(h.end, i + 1 < hits.length ? hits[i + 1].at : undefined)) }));
+  // Lists are often followed directly by the instruction, with no separator:
+  // "… vii. Seizures Regarding aneurysmal SAH: prognosis?" → item "Seizures",
+  // tail "Regarding aneurysmal SAH: prognosis?"
+  let tail = "";
+  const last = choices[choices.length - 1];
+  const cut =
+    /\s(?=(?:Choose|Select|Match|Regarding|Please|For (?:the|each)|The following|Which|What|From (?:the|this)|With regard|Each (?:option|answer)|Label|Identify|Pick)\b)/.exec(last.text) ??
+    /(?<=[.?!])\s(?=[A-Z])/.exec(last.text);
+  if (cut && cut.index > 0) {
+    tail = last.text.slice(cut.index).trim();
+    last.text = last.text.slice(0, cut.index).trim();
+  }
+  return { choices, start: hits[0].at, tail };
+}
+
+const TF = /^(t|f|true|false|yes|no)$/i;
+
+/** Splits a question with sub-parts (Part A, Part B …) into one item per part. */
+function expandParts(o: Obj): Obj[] {
+  const parts = pick(o, F.parts);
+  if (!Array.isArray(parts) || !parts.some(isObj)) return [o];
+  const stem = toText(pick(o, F.stem));
+  // parent text may itself list "Part A … Part B …" – keep only the shared case
+  const context = stem.split(/(?:^|\n)\s*Part\s+[A-Z0-9]\b/)[0].trim();
+  const num = toText(pick(o, F.number));
+  const base: Obj = { ...o };
+  for (const k of Object.keys(base)) {
+    const n = k.toLowerCase();
+    if (["parts", "answers", "options", "choices", "correct_answer", "answer", "answer_key_map", "option_verdicts", "option_explanations"].includes(n)) delete base[k];
+  }
+  return (parts.filter(isObj) as Obj[]).map((p, i) => {
+    const label = toText(pick(p, ["part", "label", "letter"])) || LETTERS[i];
+    const text = toText(pick(p, ["text", "question", "stem", "prompt"]));
+    const merged: Obj = { ...base, ...p };
+    for (const k of ["text", "part", "label", "letter", "stem", "prompt"]) delete merged[k];
+    merged.question = [context, `**Part ${label}.** ${text}`].filter(Boolean).join("\n\n");
+    if (!toText(pick(p, F.explanation))) merged.explanation = toText(pick(o, F.explanation));
+    if (num) {
+      for (const k of Object.keys(merged)) if (F.number.includes(k.toLowerCase() as never)) delete merged[k];
+      merged.printed_number = `${num}${label.toLowerCase()}`;
+    }
+    return merged;
+  });
+}
+
 function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuestion | null {
   const stemRaw = pick(o, F.stem);
-  let stem = toText(stemRaw);
+  let stem = reflow(toText(stemRaw));
   if (!stem) return null;
-  const vignette = toText(pick(o, ["vignette", "case", "scenario", "clinical_presentation", "history", "passage", "context"]));
-  if (vignette && vignette !== stem) stem = `${vignette}\n\n${stem}`;
-  const { options, flagged, optionExplanations } = parseOptions(o);
+  const vignette = reflow(toText(pick(o, ["case_scenario", "vignette", "case", "scenario", "clinical_presentation", "history", "passage", "context"])));
+  if (vignette && vignette !== stem && !stem.startsWith(vignette)) stem = `${vignette}\n\n${stem}`;
+  const { options, flagged, optionExplanations, stemTail } = parseOptions(o);
+  if (stemTail) stem = `${stem} ${stemTail}`;
 
   // True/False without options
   const ansRaw = pick(o, F.answer);
@@ -427,9 +564,54 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     // answer may be an object carrying the explanation too
     answer = resolveAnswer(ansRaw, options, opts.numericAnswerBase);
   }
+  if (!answer.length) {
+    // "correct_answer_text": match the option text
+    const byText = pick(o, ["correct_answer_text", "answer_text", "correct_option_text"]);
+    if (byText !== undefined) answer = resolveAnswer(toText(byText), options, opts.numericAnswerBase);
+  }
 
-  let explanation = toText(pick(o, F.explanation));
-  if (!explanation && isObj(ansRaw)) explanation = toText(pick(ansRaw, F.explanation));
+  // ---- true/false statements and extended matching
+  let format: QuestionFormat | undefined;
+  let verdicts: Record<string, boolean> | undefined;
+  let choices: MatchChoice[] | undefined;
+  let matches: Record<string, string> | undefined;
+  const verdictRaw = pick(o, F.verdicts);
+  const keyMap = pick(o, F.keyMap);
+  const tfMap = isObj(verdictRaw) ? verdictRaw : isObj(keyMap) && Object.values(keyMap).every((v) => TF.test(toText(v))) ? keyMap : undefined;
+  const itemKeys = (m: Obj) => {
+    // items may be unlabelled (e.g. structures a–e marked on a diagram)
+    for (const k of Object.keys(m)) if (!options.some((x) => x.key === k.toUpperCase())) options.push({ key: k.toUpperCase(), text: "", media: [] });
+  };
+  if (tfMap) {
+    format = "truefalse";
+    itemKeys(tfMap);
+    verdicts = Object.fromEntries(Object.entries(tfMap).map(([k, v]) => [k.toUpperCase(), /^(t|true|yes)$/i.test(toText(v))]));
+    answer = Object.keys(verdicts).filter((k) => verdicts![k]);
+  } else if (isObj(keyMap)) {
+    format = "matching";
+    itemKeys(keyMap);
+    const values = Object.values(keyMap).map((v) => toText(v).toLowerCase());
+    const numeric = values.every((v) => /^\d+$/.test(v));
+    matches = Object.fromEntries(Object.entries(keyMap).map(([k, v]) => [k.toUpperCase(), toText(v).toLowerCase()]));
+    const listRaw = pick(o, F.choiceList);
+    if (Array.isArray(listRaw) || isObj(listRaw)) {
+      const entries: [string, Json][] = Array.isArray(listRaw) ? listRaw.map((x, i) => [numeric ? String(i + 1) : ROMANS[i], x]) : Object.entries(listRaw);
+      choices = entries.map(([k, v]) => ({ key: k.toLowerCase(), text: reflow(toText(v)) }));
+    } else {
+      const found = parseChoiceList(stem, numeric);
+      if (found) {
+        choices = found.choices;
+        // the list is shown as the answer menu; keep the text around it as the question
+        stem = [stem.slice(0, found.start).trim(), found.tail].filter(Boolean).join("\n\n") || "Match each item with the best answer from the list.";
+      }
+    }
+    // unknown list text: still playable with bare keys
+    if (!choices?.length) choices = Array.from(new Set(values)).sort((a, b) => (numeric ? Number(a) - Number(b) : ROMANS.indexOf(a) - ROMANS.indexOf(b))).map((k) => ({ key: k, text: "" }));
+    answer = [];
+  } else if (answer.length > 1) format = "multi";
+
+  let explanation = reflow(toText(pick(o, F.explanation)));
+  if (!explanation && isObj(ansRaw)) explanation = reflow(toText(pick(ansRaw, F.explanation)));
   if (optionExplanations.length) explanation = [explanation, optionExplanations.join("\n\n")].filter(Boolean).join("\n\n");
 
   const tables = tableToText(pick(o, F.tables));
@@ -442,6 +624,11 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const explanationObj = pick(o, F.explanation);
   if (isObj(explanationObj)) explanationMedia = explanationMedia.concat(toMedia(pick(explanationObj, ["images", "image", "figures", "figure"])));
 
+  // Question images: prefer explicit question-image fields; a generic "images"
+  // list can contain answer images too, which must not be shown before answering.
+  const answerFiles = new Set(explanationMedia.map((m) => m.file));
+  const stemMedia = hasKey(o, F.questionMedia) ? toMedia(pick(o, F.questionMedia)) : toMedia(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file));
+
   const num = pick(o, F.number);
   const tags = pick(o, F.tags);
   return {
@@ -449,9 +636,13 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
     stem: linkInlineImages(stem),
     options,
     answer,
+    ...(format ? { format } : {}),
+    ...(verdicts ? { verdicts } : {}),
+    ...(choices ? { choices } : {}),
+    ...(matches ? { matches } : {}),
     explanation: linkInlineImages(explanation),
     annotation: parseAnnotation(o),
-    stemMedia: toMedia(pick(o, F.stemMedia)),
+    stemMedia,
     explanationMedia,
     sourceTags: tagList(tags)
   };
@@ -574,7 +765,7 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
       if (!groups.has(name)) groups.set(name, emptyChapter(name));
       return groups.get(name)!;
     };
-    list.forEach((item, i) => {
+    list.flatMap((x) => (isObj(x) ? expandParts(x) : [x])).forEach((item, i) => {
       if (!isObj(item)) return;
       if (looksLikeCase(item) && !looksLikeQuestion(item)) {
         const c = parseCase(item, opts);
@@ -588,8 +779,9 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
       if (looksLikeQuestion(item) && !looksLikeFlashcard(item)) {
         const q = parseQuestion(item, i, opts);
         if (q) {
-          if (!q.answer.length) warnings.push(`${chapter.title} #${q.number}: no correct answer found`);
+          if (!q.answer.length && q.format !== "matching") warnings.push(`${chapter.title} #${q.number}: no correct answer found`);
           if (!q.options.length) warnings.push(`${chapter.title} #${q.number}: no options found`);
+          if (q.format === "matching" && q.choices?.every((c) => !c.text)) warnings.push(`${chapter.title} #${q.number}: matching list not found – choices shown as numbers only`);
           target(item).questions.push(q);
         }
         return;
@@ -608,7 +800,11 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   }
 
   function hasContainer(o: Obj): boolean {
-    return [F.chapters, F.questions, F.flashcards, F.cases].some((a) => Array.isArray(pick(o, a)));
+    // pick() skips empty lists, so "parts": [] on a question no longer looks like a container
+    return !looksLikeQuestion(o) && [F.chapters, F.questions, F.flashcards, F.cases].some((a) => {
+      const v = pick(o, a);
+      return Array.isArray(v) && v.some(isObj);
+    });
   }
 
   function walk(node: Json, titleHint: string) {

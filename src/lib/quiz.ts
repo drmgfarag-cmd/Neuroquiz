@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { isCorrect, isItemised } from "./grading";
 import { newSrs, review } from "./srs";
 import type { Difficulty, Question, QuestionState, QuizMode, QuizSession, SessionAnswer } from "./types";
 import { shuffle, uid } from "./util";
@@ -107,18 +108,15 @@ export async function createSession(pool: Question[], o: SessionOptions): Promis
     startedAt: now,
     timeLimitSec: o.mode === "timed" ? Math.round(chosen.length * o.secondsPerQuestion) : undefined,
     shuffleOptions: o.shuffleOptions,
-    optionOrder: o.shuffleOptions ? Object.fromEntries(chosen.map((q) => [q.id, shuffle(q.options.map((x) => x.key))])) : undefined,
+    // item-by-item questions keep their order (labels often refer to a diagram)
+    optionOrder: o.shuffleOptions ? Object.fromEntries(chosen.filter((q) => !isItemised(q)).map((q) => [q.id, shuffle(q.options.map((x) => x.key))])) : undefined,
     updatedAt: now
   };
   await db.sessions.put(s);
   return s;
 }
 
-export function isCorrect(q: Question, selected: string[]): boolean {
-  if (!q.answer.length) return false;
-  const a = new Set(q.answer);
-  return selected.length === a.size && selected.every((k) => a.has(k));
-}
+export { isCorrect } from "./grading";
 
 function freshState(questionId: string): QuestionState {
   return { questionId, timesSeen: 0, timesCorrect: 0, flagged: false, note: "", srs: newSrs(), updatedAt: Date.now() };

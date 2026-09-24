@@ -8,6 +8,7 @@ import { Annotations } from "../components/Annotations";
 import { Explanation, QuestionView } from "../components/QuestionView";
 import { addAiCards, addQuestionCard } from "../lib/cards";
 import { db } from "../lib/db";
+import { applyChoice } from "../lib/grading";
 import { setFlag } from "../lib/quiz";
 import { useOnline } from "../lib/platform";
 import { pct } from "../lib/util";
@@ -34,7 +35,7 @@ export default function QuestionPage() {
       </div>
       <div data-gallery="">
       <div className="card" style={{ marginTop: 8 }}>
-        <QuestionView q={q} selected={selected} revealed={revealed} onSelect={(k) => setSelected(q.answer.length > 1 ? (selected.includes(k) ? selected.filter((x) => x !== k) : [...selected, k]) : [k])} />
+        <QuestionView q={q} selected={selected} revealed={revealed} onSelect={(k, v) => setSelected(applyChoice(q, selected, k, v))} />
         <div className="row" style={{ marginTop: 10 }}>
           {!revealed && (
             <button className="primary" onClick={() => setRevealed(true)}>

@@ -1,12 +1,13 @@
 import { aiFlashcards } from "../ai/claude";
 import { questionText } from "../ai/tagger";
 import { db } from "./db";
+import { answerSummary, isItemised } from "./grading";
 import type { Flashcard, Question } from "./types";
 import { hash } from "./util";
 
 /** Plain conversion: stem on the front, correct answer + explanation on the back. */
 export function questionToCard(q: Question): Flashcard {
-  const correct = q.options.filter((o) => q.answer.includes(o.key));
+  const correct = isItemised(q) ? [] : q.options.filter((o) => q.answer.includes(o.key));
   const now = Date.now();
   return {
     id: `gen:${q.id}`,
@@ -14,7 +15,7 @@ export function questionToCard(q: Question): Flashcard {
     chapterId: q.chapterId,
     questionId: q.id,
     front: q.stem,
-    back: `**${correct.map((o) => `${o.key}. ${o.text}`).join("; ") || q.answer.join(", ")}**\n\n${q.explanation}`,
+    back: `**${answerSummary(q)}**\n\n${q.explanation}`,
     frontMedia: q.stemMedia,
     backMedia: [...correct.flatMap((o) => o.media), ...q.explanationMedia],
     sourceTags: q.sourceTags,
