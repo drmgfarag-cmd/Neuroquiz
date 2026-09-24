@@ -18527,6 +18527,7 @@
           "section_id": "I Questions",
           "question_id": "Q8",
           "question": "In the 2010 guidelines for the management of intracranial hemorrhage, there is a class 2b, level B recommendation in favor of minimally invasive clot evacuation with or without thrombolytic usage. What is the interpretation of this level of recommendation?",
+          "source_warning": "Historical 2010 guideline classification question. The clinical recommendation has been updated; consult the current AHA/ASA intracerebral hemorrhage guideline for practice.",
           "answers": {
             "A": "The benefits largely outweigh the risks of procedure, but there are very limited data to endorse it.",
             "B": "It is reasonable to perform the procedure, but there are very limited data to endorse it.",
@@ -24979,13 +24980,14 @@
           "question": "Axial contrast-enhanced T1- and T2-weighted MRI scans of the brain of a 33-year-old man are shown in these images. What is the patient’s likely diagnosis?",
           "answers": {
             "A": "Ependymoma",
+            "B": "Hemangioblastoma",
             "C": "Medulloblastoma",
             "D": "Juvenile pilocytic astrocytoma",
             "E": "Metastasis"
           },
           "correct_answer": "B",
           "explanation": "Hemangioblastoma Approximately two thirds of hemangioblastomas present as cystic masses with an avidly enhancing mural nodule (which usually abuts the pial sur­ face), and one third is completely solid. Their walls should not enhance, and they typically do not ­incite significant adjacent edema. They are very vascular, and flow voids often are identified on MRI. Sporadic hemangioblastomas usually are sol­ itary, but up to 20% may be multiple particularly when associated with von Hippel–Lindau syndrome. Hemangioblastomas histologically are benign, but recurrence rates range from 8 to 25% depending on the histological subtype (note that this patient has had surgery in the left cerebellum). (A) Ependy­ momas are heterogeneous tumors due to the presence of calcifications, cystic changes, and some­ times hemorrhages. They would not form a clean cyst with a discrete enhancing mural nodule. Ependymomas have a “plastic” configuration and typically extrude through the foramina of the pos­ terior fossa. (C) Medulloblastomas are the most common malignant brain tumors of childhood. They can arise at the midline or in the cerebellar hemi­ spheres and generally enhance heterogeneously. (D) Juvenile pilocytic astrocytomas occur more commonly in children and represent the most common cerebellar tumor. They also typically do not incite significant parenchymal edema, and their walls sometimes may enhance. (E) Metastases can be cystic, and a lesion of this size usually would result in a higher degree of edema. III Practice Exam",
-          "note": "Stray word fragment (\"the\") was appended to option A in the automated extraction; removed after visual inspection of source page 356.",
+          "note": "Stray word fragment (\"the\") was removed from A; missing option B (Hemangioblastoma) restored from source PDF page 356 (printed page 358). The printed answer section confirms B.",
           "images": [
             "Book05_PracticeExam_Section5of5_Q1_image1_CORRECTED.jpg"
           ],
@@ -25175,6 +25177,7 @@
           "section_id": "Section 5 of 5",
           "question_id": "Q11",
           "question": "According to recommendations from the 7th American College of Chest Physicians Conference on Antithrombotic and Thrombolytic Therapy: Evidence-Based Guidelines, what are the level 1 recommendations for the prevention of venous thromboembolism in neurosurgery patients?",
+          "source_warning": "Historical 7th ACCP guideline question. The answer describes that edition and should not be used as a current perioperative protocol.",
           "answers": {
             "A": "There is no level 1 evidence for the use of thromboprophylaxis in neurosurgical patients.",
             "B": "The use of intermittent pneumatic compression with or without graduated compression stockings is recommended in all patients undergoing intracranial neurosurgery.",
