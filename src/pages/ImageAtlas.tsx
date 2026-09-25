@@ -19,6 +19,7 @@ interface AtlasItem {
   tags: string[];
   kind?: string;
   description?: string;
+  groupId?: string;
 }
 
 const PAGE = 48;
@@ -67,6 +68,7 @@ function collect(questions: Question[], cases: CaseScenario[], atlas: AtlasEntry
     it.caption = a.title;
     it.kind = a.kind;
     it.description = a.description;
+    it.groupId = a.groupId;
     it.tags = a.sourceTags;
     if (!it.chapterIds.includes(a.chapterId)) it.chapterIds.push(a.chapterId);
     items.set(key, it);
@@ -82,6 +84,7 @@ export default function ImageAtlas() {
   const [chapterId, setChapterId] = useState("");
   const [role, setRole] = useState<"all" | Role>("all");
   const [query, setQuery] = useState("");
+  const [groupPhotos, setGroupPhotos] = useState(true);
   const [shown, setShown] = useState(PAGE);
 
   // start on the first book that has images
@@ -112,6 +115,14 @@ export default function ImageAtlas() {
     && (!chapterId || it.chapterIds.includes(chapterId))
     && (!query.trim() || [it.title, it.caption, it.description, it.kind, ...it.tags, ...it.chapterIds.map((id) => chapterTitle.get(id))]
       .some((value) => value?.toLowerCase().includes(query.trim().toLowerCase()))));
+  const displays = useMemo(() => {
+    const groups = new Map<string, AtlasItem[]>();
+    for (const it of items) {
+      const key = groupPhotos && it.groupId ? it.groupId : it.key;
+      groups.set(key, [...(groups.get(key) ?? []), it]);
+    }
+    return Array.from(groups.values());
+  }, [items, groupPhotos]);
   useEffect(() => setShown(PAGE), [bookId, chapterId, role, query]);
 
   const testIds = Array.from(new Set(items.filter((it) => it.roles.has("question")).flatMap((it) => it.questions.map((q) => q.id))));
@@ -166,15 +177,25 @@ export default function ImageAtlas() {
         <label className="field">Search titles, topics and tags
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. hydrocephalus, anatomy, vascular" />
         </label>
+        <label className="row small" style={{ gap: 8 }}>
+          <input type="checkbox" checked={groupPhotos} onChange={(e) => setGroupPhotos(e.target.checked)} />
+          Group photographs of the same instrument
+        </label>
         <p className="small muted" style={{ margin: 0 }}>
-          {items.length} image(s). Tap an image to open the viewer and swipe through them all.
+          {items.length} image(s){groupPhotos && displays.length !== items.length ? ` in ${displays.length} groups` : ""}. Tap an image to open the viewer and swipe through them all.
         </p>
       </div>
 
       <div className="atlas" data-gallery="">
-        {items.slice(0, shown).map((it) => (
+        {displays.slice(0, shown).map((group) => {
+          const it = group[0];
+          return (
           <figure className="card atlas-item" key={it.key}>
-            <Thumb bookId={bookId} file={it.file} caption={it.caption ?? `${it.questions.map((q) => `Q${q.number}`).join(", ")}`} />
+            <div className="atlas-photos" data-gallery="">
+              {group.map((photo, index) => (
+                <Thumb key={photo.key} bookId={bookId} file={photo.file} caption={`${photo.caption ?? it.title ?? "Instrument"}${group.length > 1 ? ` · photo ${index + 1} of ${group.length}` : ""}`} />
+              ))}
+            </div>
             <figcaption className="small">
               <div className="row" style={{ gap: 4 }}>
                 <span className={`chip ${it.roles.has("answer") && !it.roles.has("question") ? "warn" : ""}`}>
@@ -190,15 +211,17 @@ export default function ImageAtlas() {
               </div>
               <div className="muted atlas-chapter">{it.chapterIds.map((id) => chapterTitle.get(id)).filter(Boolean).join(" · ")}</div>
               {(it.title || it.caption) && <div>{it.title || it.caption}</div>}
+              {group.length > 1 && <div className="muted">{group.length} photographs</div>}
               {it.description && <div className="muted">{it.description}</div>}
               {!!it.tags.length && <div className="muted">{it.tags.join(" · ")}</div>}
             </figcaption>
           </figure>
-        ))}
+          );
+        })}
       </div>
-      {shown < items.length && (
+      {shown < displays.length && (
         <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
-          <button onClick={() => setShown(shown + PAGE)}>Show more ({items.length - shown} left)</button>
+          <button onClick={() => setShown(shown + PAGE)}>Show more ({displays.length - shown} left)</button>
         </div>
       )}
       {all && !items.length && <div className="card muted">No images in this selection.</div>}

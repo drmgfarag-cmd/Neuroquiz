@@ -40,7 +40,7 @@ export async function exportBookZip(bookId: string): Promise<{ blob: Blob; name:
     book_title: book.title,
     book_id: book.id,
     ...(atlas.length ? { atlas_items: atlas.map((a) => ({ file: a.file, title: a.title, topic: chapters.find((c) => c.id === a.chapterId)?.title ?? "Other",
-      description: a.description, kind: a.kind, source_page: a.sourcePage, tags: a.sourceTags })) } : {}),
+      description: a.description, kind: a.kind, source_page: a.sourcePage, tags: a.sourceTags, group_id: a.groupId })) } : {}),
     exported_by: "NeuroQuiz",
     exported_at: new Date().toISOString(),
     chapters: chapters.map((ch) => ({

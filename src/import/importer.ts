@@ -133,7 +133,8 @@ export async function planImport(
           return { file: x.file, title: x.title.trim(), topic: x.topic.trim(),
             kind, description: typeof x.description === "string" ? x.description : undefined,
             sourcePage: Number.isInteger(x.source_page) && Number(x.source_page) > 0 ? Number(x.source_page) : undefined,
-            sourceTags: Array.isArray(x.tags) ? x.tags.filter((t): t is string => typeof t === "string" && !!t.trim()) : [] };
+            sourceTags: Array.isArray(x.tags) ? x.tags.filter((t): t is string => typeof t === "string" && !!t.trim()) : [],
+            groupId: typeof x.group_id === "string" && x.group_id.trim() ? x.group_id.trim() : undefined };
         });
         if (!entries.length) throw new Error("atlas_items cannot be empty");
         atlas = entries;

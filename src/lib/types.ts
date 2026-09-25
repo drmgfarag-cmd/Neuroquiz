@@ -155,6 +155,8 @@ export interface AtlasEntry {
   kind: "figure" | "table" | "diagram" | "radiology" | "note";
   sourcePage?: number;
   sourceTags: string[];
+  /** Shared identifier for distinct photographs of the same atlas subject. */
+  groupId?: string;
 }
 
 // ---------------------------------------------------------------------------
