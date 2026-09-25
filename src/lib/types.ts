@@ -144,6 +144,21 @@ export interface MediaFile {
   blob: Blob;
 }
 
+/** A standalone visual reference, independent of quiz questions or cases. */
+export interface AtlasEntry {
+  id: string;
+  bookId: string;
+  chapterId: string;
+  file: string;
+  title: string;
+  description?: string;
+  kind: "figure" | "table" | "diagram" | "radiology" | "note";
+  sourcePage?: number;
+  sourceTags: string[];
+  /** Shared identifier for distinct photographs of the same atlas subject. */
+  groupId?: string;
+}
+
 // ---------------------------------------------------------------------------
 // User data (synced between devices, keyed so re-imports don't lose it)
 // ---------------------------------------------------------------------------

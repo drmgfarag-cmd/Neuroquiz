@@ -104,6 +104,7 @@ export default function Library() {
                   Read
                 </button>
                 {!!qaCount && <Link className="btn small" to="/cases">Read Q&A</Link>}
+                <Link className="btn small" to={`/atlas?book=${encodeURIComponent(b.id)}`}>Images</Link>
                 <button
                   className="small"
                   disabled={!!exporting}

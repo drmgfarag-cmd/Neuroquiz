@@ -1,32 +1,40 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { db } from "../lib/db";
 import { resolveMedia } from "../lib/media";
-import type { Question } from "../lib/types";
+import type { AtlasEntry, CaseScenario, Question } from "../lib/types";
 import { normaliseFileName } from "../lib/util";
 
-type Role = "question" | "answer";
+type Role = "question" | "answer" | "reference" | "case";
 interface AtlasItem {
   key: string;
   file: string;
   caption?: string;
   roles: Set<Role>;
   questions: { id: string; number: string; chapterId: string }[];
+  cases: { id: string; title: string }[];
+  chapterIds: string[];
+  title?: string;
+  tags: string[];
+  kind?: string;
+  description?: string;
+  groupId?: string;
 }
 
 const PAGE = 48;
 const inline = (text: string) => [...text.matchAll(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g), ...text.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map((m) => m[1]);
 
 /** Every image of a book with the questions that use it. */
-function collect(questions: Question[]): AtlasItem[] {
+function collect(questions: Question[], cases: CaseScenario[], atlas: AtlasEntry[]): AtlasItem[] {
   const items = new Map<string, AtlasItem>();
   const add = (file: string, role: Role, q: Question, caption?: string) => {
     const key = normaliseFileName(file);
-    const it = items.get(key) ?? { key, file, caption, roles: new Set<Role>(), questions: [] };
+    const it = items.get(key) ?? { key, file, caption, roles: new Set<Role>(), questions: [], cases: [], chapterIds: [], tags: [] };
     it.roles.add(role);
     if (caption && !it.caption) it.caption = caption;
     if (!it.questions.some((x) => x.id === q.id)) it.questions.push({ id: q.id, number: q.number, chapterId: q.chapterId });
+    if (!it.chapterIds.includes(q.chapterId)) it.chapterIds.push(q.chapterId);
     items.set(key, it);
   };
   for (const q of questions) {
@@ -36,15 +44,47 @@ function collect(questions: Question[]): AtlasItem[] {
     q.explanationMedia.forEach((m) => add(m.file, "answer", q, m.caption));
     inline(q.explanation).forEach((f) => add(f, "answer", q));
   }
+  const addCase = (file: string, c: CaseScenario, caption?: string) => {
+    const key = normaliseFileName(file);
+    const it = items.get(key) ?? { key, file, caption, roles: new Set<Role>(), questions: [], cases: [], chapterIds: [], tags: [] };
+    it.roles.add("case");
+    if (!it.caption) it.caption = caption;
+    if (!it.cases.some((x) => x.id === c.id)) it.cases.push({ id: c.id, title: c.title });
+    if (c.chapterId && !it.chapterIds.includes(c.chapterId)) it.chapterIds.push(c.chapterId);
+    items.set(key, it);
+  };
+  for (const c of cases) {
+    c.presentationMedia.forEach((m) => addCase(m.file, c, m.caption));
+    c.stages.forEach((s) => {
+      s.media.forEach((m) => addCase(m.file, c, m.caption));
+      (s.answerMedia ?? []).forEach((m) => addCase(m.file, c, m.caption));
+    });
+  }
+  for (const a of atlas) {
+    const key = normaliseFileName(a.file);
+    const it = items.get(key) ?? { key, file: a.file, roles: new Set<Role>(), questions: [], cases: [], chapterIds: [], tags: [] };
+    it.roles.add("reference");
+    it.title = a.title;
+    it.caption = a.title;
+    it.kind = a.kind;
+    it.description = a.description;
+    it.groupId = a.groupId;
+    it.tags = a.sourceTags;
+    if (!it.chapterIds.includes(a.chapterId)) it.chapterIds.push(a.chapterId);
+    items.set(key, it);
+  }
   return Array.from(items.values());
 }
 
 export default function ImageAtlas() {
   const nav = useNavigate();
+  const [params, setParams] = useSearchParams();
   const books = useLiveQuery(() => db.books.orderBy("title").toArray());
   const [bookId, setBookId] = useState("");
   const [chapterId, setChapterId] = useState("");
   const [role, setRole] = useState<"all" | Role>("all");
+  const [query, setQuery] = useState("");
+  const [groupPhotos, setGroupPhotos] = useState(true);
   const [shown, setShown] = useState(PAGE);
 
   // start on the first book that has images
@@ -54,15 +94,36 @@ export default function ImageAtlas() {
     return out;
   });
   useEffect(() => {
-    if (!bookId && books && imageCounts) setBookId(books.find((b) => imageCounts[b.id])?.id ?? books[0]?.id ?? "");
-  }, [books, imageCounts, bookId]);
+    const selected = params.get("book");
+    if (selected && books?.some((b) => b.id === selected) && bookId !== selected) setBookId(selected);
+    else if (!bookId && books && imageCounts) setBookId(books.find((b) => imageCounts[b.id])?.id ?? books[0]?.id ?? "");
+  }, [books, imageCounts, bookId, params]);
 
   const chapters = useLiveQuery(() => (bookId ? db.chapters.where("bookId").equals(bookId).sortBy("order") : []), [bookId]);
-  const all = useLiveQuery(async () => (bookId ? collect(await db.questions.where("bookId").equals(bookId).sortBy("order")) : []), [bookId]);
+  const all = useLiveQuery(async () => {
+    if (!bookId) return [];
+    const [questions, cases, atlas] = await Promise.all([
+      db.questions.where("bookId").equals(bookId).sortBy("order"),
+      db.cases.where("bookId").equals(bookId).toArray(),
+      db.atlas.where("bookId").equals(bookId).toArray()
+    ]);
+    return collect(questions, cases, atlas);
+  }, [bookId]);
   const chapterTitle = useMemo(() => new Map((chapters ?? []).map((c) => [c.id, c.title])), [chapters]);
 
-  const items = (all ?? []).filter((it) => (role === "all" || it.roles.has(role)) && (!chapterId || it.questions.some((q) => q.chapterId === chapterId)));
-  useEffect(() => setShown(PAGE), [bookId, chapterId, role]);
+  const items = (all ?? []).filter((it) => (role === "all" || it.roles.has(role))
+    && (!chapterId || it.chapterIds.includes(chapterId))
+    && (!query.trim() || [it.title, it.caption, it.description, it.kind, ...it.tags, ...it.chapterIds.map((id) => chapterTitle.get(id))]
+      .some((value) => value?.toLowerCase().includes(query.trim().toLowerCase()))));
+  const displays = useMemo(() => {
+    const groups = new Map<string, AtlasItem[]>();
+    for (const it of items) {
+      const key = groupPhotos && it.groupId ? it.groupId : it.key;
+      groups.set(key, [...(groups.get(key) ?? []), it]);
+    }
+    return Array.from(groups.values());
+  }, [items, groupPhotos]);
+  useEffect(() => setShown(PAGE), [bookId, chapterId, role, query]);
 
   const testIds = Array.from(new Set(items.filter((it) => it.roles.has("question")).flatMap((it) => it.questions.map((q) => q.id))));
 
@@ -78,6 +139,7 @@ export default function ImageAtlas() {
               value={bookId}
               onChange={(e) => {
                 setBookId(e.target.value);
+                setParams({ book: e.target.value });
                 setChapterId("");
               }}
             >
@@ -102,9 +164,9 @@ export default function ImageAtlas() {
         </div>
         <div className="row between">
           <div className="segmented">
-            {(["all", "question", "answer"] as const).map((r) => (
+            {(["all", "reference", "case", "question", "answer"] as const).map((r) => (
               <button key={r} className={role === r ? "active" : ""} onClick={() => setRole(r)}>
-                {r === "all" ? "All images" : r === "question" ? "Shown with question" : "Answer images"}
+                {r === "all" ? "All images" : r === "reference" ? "Reference atlas" : r === "case" ? "Case images" : r === "question" ? "Shown with question" : "Answer images"}
               </button>
             ))}
           </div>
@@ -112,34 +174,54 @@ export default function ImageAtlas() {
             Test me on these ({testIds.length} questions)
           </button>
         </div>
+        <label className="field">Search titles, topics and tags
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. hydrocephalus, anatomy, vascular" />
+        </label>
+        <label className="row small" style={{ gap: 8 }}>
+          <input type="checkbox" checked={groupPhotos} onChange={(e) => setGroupPhotos(e.target.checked)} />
+          Group photographs of the same instrument
+        </label>
         <p className="small muted" style={{ margin: 0 }}>
-          {items.length} image(s). Tap an image to open the viewer and swipe through them all. Answer images reveal answers.
+          {items.length} image(s){groupPhotos && displays.length !== items.length ? ` in ${displays.length} groups` : ""}. Tap an image to open the viewer and swipe through them all.
         </p>
       </div>
 
       <div className="atlas" data-gallery="">
-        {items.slice(0, shown).map((it) => (
+        {displays.slice(0, shown).map((group) => {
+          const it = group[0];
+          return (
           <figure className="card atlas-item" key={it.key}>
-            <Thumb bookId={bookId} file={it.file} caption={it.caption ?? `${it.questions.map((q) => `Q${q.number}`).join(", ")}`} />
+            <div className="atlas-photos" data-gallery="">
+              {group.map((photo, index) => (
+                <Thumb key={photo.key} bookId={bookId} file={photo.file} caption={`${photo.caption ?? it.title ?? "Instrument"}${group.length > 1 ? ` · photo ${index + 1} of ${group.length}` : ""}`} />
+              ))}
+            </div>
             <figcaption className="small">
               <div className="row" style={{ gap: 4 }}>
-                {it.roles.has("answer") && !it.roles.has("question") ? <span className="chip warn">answer</span> : <span className="chip">question</span>}
+                <span className={`chip ${it.roles.has("answer") && !it.roles.has("question") ? "warn" : ""}`}>
+                  {it.roles.has("reference") ? it.kind ?? "reference" : it.roles.has("case") ? "case" : it.roles.has("answer") && !it.roles.has("question") ? "answer" : "question"}
+                </span>
                 {it.questions.slice(0, 3).map((q) => (
                   <Link key={q.id} to={`/question/${encodeURIComponent(q.id)}`}>
                     Q{q.number}
                   </Link>
                 ))}
                 {it.questions.length > 3 && <span className="muted">+{it.questions.length - 3}</span>}
+                {it.cases.slice(0, 2).map((c) => <Link key={c.id} to={`/cases/${encodeURIComponent(c.id)}`}>{c.title}</Link>)}
               </div>
-              <div className="muted atlas-chapter">{chapterTitle.get(it.questions[0]?.chapterId) ?? ""}</div>
-              {it.caption && <div>{it.caption}</div>}
+              <div className="muted atlas-chapter">{it.chapterIds.map((id) => chapterTitle.get(id)).filter(Boolean).join(" · ")}</div>
+              {(it.title || it.caption) && <div>{it.title || it.caption}</div>}
+              {group.length > 1 && <div className="muted">{group.length} photographs</div>}
+              {it.description && <div className="muted">{it.description}</div>}
+              {!!it.tags.length && <div className="muted">{it.tags.join(" · ")}</div>}
             </figcaption>
           </figure>
-        ))}
+          );
+        })}
       </div>
-      {shown < items.length && (
+      {shown < displays.length && (
         <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
-          <button onClick={() => setShown(shown + PAGE)}>Show more ({items.length - shown} left)</button>
+          <button onClick={() => setShown(shown + PAGE)}>Show more ({displays.length - shown} left)</button>
         </div>
       )}
       {all && !items.length && <div className="card muted">No images in this selection.</div>}

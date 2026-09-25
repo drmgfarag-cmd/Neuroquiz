@@ -99,7 +99,7 @@ export default function ImportPage() {
       <h1>Import books</h1>
       <div className="card stack">
         <p className="muted small" style={{ margin: 0 }}>
-          Select JSON files and their image files (or a whole folder, a ZIP, or every numbered ZIP part together). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name. Short-answer books with <code>qa_pairs</code> appear in Cases & Q&A with answers hidden until reveal.
+          Select JSON files and their image files (or a whole folder, a ZIP, or every numbered ZIP part together). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name. Standalone <code>atlas_items</code> appear in the Image atlas. Short-answer books with <code>qa_pairs</code> appear in Cases & Q&A with answers hidden until reveal.
         </p>
         <div
           className={`dropzone ${over ? "over" : ""}`}
@@ -197,7 +197,7 @@ export default function ImportPage() {
                     <input type="text" value={titles[b.key] ?? ""} onChange={(e) => setTitles({ ...titles, [b.key]: e.target.value })} />
                   </label>
                   <div className="small">
-                    {b.sources.length} file(s) · {c.ch} chapters · <strong>{c.q}</strong> test questions · {c.qa} short answers · {c.f} flashcards · {c.clinical} clinical cases · {b.images.length} images
+                    {b.sources.length} file(s) · {c.ch} chapters · <strong>{c.q}</strong> test questions · {c.qa} short answers · {c.f} flashcards · {c.clinical} clinical cases · {b.sources.reduce((n, s) => n + (s.atlas?.length ?? 0), 0)} atlas entries · {b.images.length} images
                   </div>
                   <details>
                     <summary className="small clickable">Chapters & files</summary>
@@ -246,7 +246,7 @@ export default function ImportPage() {
             Import complete
           </h2>
           <p>
-            {result.books} book(s), {result.chapters} sections, {result.questions} test questions, {result.shortAnswers} short answers, {result.flashcards} flashcards, {result.clinicalCases} clinical cases, {result.images} images.
+            {result.books} book(s), {result.chapters} sections, {result.questions} test questions, {result.shortAnswers} short answers, {result.flashcards} flashcards, {result.clinicalCases} clinical cases, {result.atlas} atlas entries, {result.images} images.
           </p>
           {!!result.remapped && <p className="small">{result.remapped} question(s) changed in the source; your progress on them was kept.</p>}
           <p className="small muted">Questions were given quick offline topic tags. For accurate context-aware categorisation run AI tagging.</p>

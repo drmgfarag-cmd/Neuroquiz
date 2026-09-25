@@ -10,12 +10,13 @@ import type { Annotation, Correction, MediaRef, Question } from "../lib/types";
 export async function exportBookZip(bookId: string): Promise<{ blob: Blob; name: string }> {
   const book = await db.books.get(bookId);
   if (!book) throw new Error("Book not found");
-  const [chapters, questions, flashcards, cases, media] = await Promise.all([
+  const [chapters, questions, flashcards, cases, media, atlas] = await Promise.all([
     db.chapters.where("bookId").equals(bookId).sortBy("order"),
     db.questions.where("bookId").equals(bookId).sortBy("order"),
     allFlashcards().then((f) => f.filter((x) => x.bookId === bookId && x.origin === "imported")),
     allCases().then((c) => c.filter((x) => x.bookId === bookId && x.origin === "imported")),
-    db.media.where("bookId").equals(bookId).toArray()
+    db.media.where("bookId").equals(bookId).toArray(),
+    db.atlas.where("bookId").equals(bookId).toArray()
   ]);
   const anns = new Map(
     (await db.annotations.bulkGet([...questions, ...flashcards, ...cases].map((x) => x.id))).filter((a): a is Annotation => !!a).map((a) => [a.id, a])
@@ -36,6 +37,10 @@ export async function exportBookZip(bookId: string): Promise<{ blob: Blob; name:
 
   const json = {
     book: book.title,
+    book_title: book.title,
+    book_id: book.id,
+    ...(atlas.length ? { atlas_items: atlas.map((a) => ({ file: a.file, title: a.title, topic: chapters.find((c) => c.id === a.chapterId)?.title ?? "Other",
+      description: a.description, kind: a.kind, source_page: a.sourcePage, tags: a.sourceTags, group_id: a.groupId })) } : {}),
     exported_by: "NeuroQuiz",
     exported_at: new Date().toISOString(),
     chapters: chapters.map((ch) => ({

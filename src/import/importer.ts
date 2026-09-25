@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import { reapplyCorrections } from "../lib/corrections";
 import { db, getMeta } from "../lib/db";
 import { questionToCard } from "../lib/cards";
-import type { Annotation, Book, CardState, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question, QuestionState, QuizSession } from "../lib/types";
+import type { Annotation, AtlasEntry, Book, CardState, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question, QuestionState, QuizSession } from "../lib/types";
 import { hash, IMAGE_EXT, normaliseFileName, slugify } from "../lib/util";
 import { normalizeBookJson, type ParsedFile } from "./normalize";
 import { auditBook } from "../lib/quality";
@@ -18,6 +18,7 @@ export interface ParsedSource {
   path: string;
   folder: string;
   parsed: ParsedFile;
+  atlas?: (Omit<AtlasEntry, "id" | "bookId" | "chapterId"> & { topic: string })[];
 }
 
 export interface BookPlan {
@@ -121,8 +122,32 @@ export async function planImport(
       const text = await f.blob.text();
       const json = JSON.parse(text.replace(/^﻿/, ""));
       const p = normalizeBookJson(json, { fileName: f.path, numericAnswerBase });
+      let atlas: (Omit<AtlasEntry, "id" | "bookId" | "chapterId"> & { topic: string })[] | undefined;
+      if (json && typeof json === "object" && !Array.isArray(json) && Array.isArray(json.atlas_items)) {
+        const entries: NonNullable<ParsedSource["atlas"]> = json.atlas_items.map((item: unknown, index: number) => {
+          if (!item || typeof item !== "object") throw new Error(`atlas_items[${index}] must be an object`);
+          const x = item as Record<string, unknown>;
+          if (typeof x.file !== "string" || !IMAGE_EXT.test(x.file) || typeof x.title !== "string" || !x.title.trim()
+              || typeof x.topic !== "string" || !x.topic.trim()) throw new Error(`atlas_items[${index}] needs an image file, title and topic`);
+          const kind = ["figure", "table", "diagram", "radiology", "note"].includes(String(x.kind)) ? x.kind as AtlasEntry["kind"] : "figure";
+          return { file: x.file, title: x.title.trim(), topic: x.topic.trim(),
+            kind, description: typeof x.description === "string" ? x.description : undefined,
+            sourcePage: Number.isInteger(x.source_page) && Number(x.source_page) > 0 ? Number(x.source_page) : undefined,
+            sourceTags: Array.isArray(x.tags) ? x.tags.filter((t): t is string => typeof t === "string" && !!t.trim()) : [],
+            groupId: typeof x.group_id === "string" && x.group_id.trim() ? x.group_id.trim() : undefined };
+        });
+        if (!entries.length) throw new Error("atlas_items cannot be empty");
+        atlas = entries;
+        if (typeof json.book_title === "string") p.bookTitle = json.book_title;
+        if (typeof json.book_id === "string") p.bookId = json.book_id;
+        const known = new Set(p.chapters.map((c) => c.title));
+        for (const topic of new Set(entries.map((a) => a.topic))) if (!known.has(topic)) {
+          p.chapters.push({ title: topic, questions: [], flashcards: [], cases: [] });
+          known.add(topic);
+        }
+      }
       // a JSON without questions (a report, a settings file) doesn't become a book
-      if (p.chapters.length) parsed.push({ path: f.path, folder: folderOf(f.path), parsed: p });
+      if (p.chapters.length) parsed.push({ path: f.path, folder: folderOf(f.path), parsed: p, atlas });
       else errors.push(`${f.path}: no questions, flashcards or cases found – skipped`);
     } catch (e) {
       errors.push(`${f.path}: ${(e as Error).message}`);
@@ -203,6 +228,7 @@ export interface ImportResult {
   shortAnswers: number;
   clinicalCases: number;
   images: number;
+  atlas: number;
   missingImages: string[];
   warnings: string[];
   unscorable: string[];
@@ -228,7 +254,7 @@ function inlineRefs(text: string): string[] {
 }
 
 export async function executeImport(plan: ImportPlan, onProgress?: (msg: string) => void): Promise<ImportResult> {
-  const res: ImportResult = { books: 0, chapters: 0, questions: 0, flashcards: 0, cases: 0, shortAnswers: 0, clinicalCases: 0, images: 0, missingImages: [], warnings: [], unscorable: [], noExplanation: [], unreferencedImages: [], conflictingImageRoles: [] };
+  const res: ImportResult = { books: 0, chapters: 0, questions: 0, flashcards: 0, cases: 0, shortAnswers: 0, clinicalCases: 0, images: 0, atlas: 0, missingImages: [], warnings: [], unscorable: [], noExplanation: [], unreferencedImages: [], conflictingImageRoles: [] };
   const now = Date.now();
 
   for (const bp of plan.books) {
@@ -239,6 +265,7 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
     const questions: Question[] = [];
     const flashcards: Flashcard[] = [];
     const cases: CaseScenario[] = [];
+    const atlas: AtlasEntry[] = [];
     const referenced = new Set<string>();
     const carriedTags: Annotation[] = [];
     const seenIds = new Set<string>();
@@ -286,6 +313,13 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
       }
     }
 
+    for (const src of bp.sources) for (const a of src.atlas ?? []) {
+      const chapter = chapters.find((ch) => ch.title === a.topic);
+      if (!chapter) throw new Error(`Atlas topic “${a.topic}” has no chapter`);
+      atlas.push({ ...a, id: uniqueId(`${bookId}:atlas:${hash(a.file)}`), bookId, chapterId: chapter.id });
+      referenced.add(a.file);
+    }
+
     const media: MediaFile[] = bp.images.map((img) => {
       const name = normaliseFileName(img.path);
       return { id: `${bookId}/${name}`, bookId, name, blob: img.blob };
@@ -319,18 +353,20 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
 
     const previous = await previousQuestions(bookId);
 
-    await db.transaction("rw", [db.books, db.chapters, db.questions, db.flashcards, db.cases, db.media], async () => {
+    await db.transaction("rw", [db.books, db.chapters, db.questions, db.flashcards, db.cases, db.media, db.atlas], async () => {
       // Replace the book's content; user progress lives in other tables keyed
       // by the same stable ids, so it survives a re-import.
       await db.chapters.where("bookId").equals(bookId).delete();
       await db.questions.where("bookId").equals(bookId).delete();
       await db.flashcards.where("bookId").equals(bookId).delete();
       await db.cases.where("bookId").equals(bookId).delete();
+      await db.atlas.where("bookId").equals(bookId).delete();
       await db.books.put(book);
       await db.chapters.bulkPut(chapters);
       await db.questions.bulkPut(questions);
       await db.flashcards.bulkPut(flashcards);
       await db.cases.bulkPut(cases);
+      await db.atlas.bulkPut(atlas);
       if (media.length) await db.media.bulkPut(media);
     });
 
@@ -359,6 +395,7 @@ export async function executeImport(plan: ImportPlan, onProgress?: (msg: string)
     res.flashcards += flashcards.length;
     res.cases += cases.length;
     res.images += media.length;
+    res.atlas += atlas.length;
     const allMedia = (await db.media.where("bookId").equals(bookId).primaryKeys()).map((k) => String(k).slice(bookId.length + 1));
     const quality = auditBook(questions, allMedia, referenced);
     res.unscorable.push(...quality.unscorable.map((q) => `${bp.title} / ${chapters.find((c) => c.id === q.chapterId)?.title ?? ""} / Q${q.number}: ${q.sourceId ?? q.id}`));
@@ -527,11 +564,12 @@ export async function carryProgress(previous: PrevQuestion[], questions: Questio
 }
 
 export async function deleteBook(bookId: string): Promise<void> {
-  await db.transaction("rw", [db.books, db.chapters, db.questions, db.flashcards, db.cases, db.media], async () => {
+  await db.transaction("rw", [db.books, db.chapters, db.questions, db.flashcards, db.cases, db.media, db.atlas], async () => {
     await db.chapters.where("bookId").equals(bookId).delete();
     await db.questions.where("bookId").equals(bookId).delete();
     await db.flashcards.where("bookId").equals(bookId).delete();
     await db.cases.where("bookId").equals(bookId).delete();
+    await db.atlas.where("bookId").equals(bookId).delete();
     await db.media.where("bookId").equals(bookId).delete();
     await db.books.delete(bookId);
   });

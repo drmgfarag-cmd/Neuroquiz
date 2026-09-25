@@ -347,6 +347,8 @@ table.data th { font-size: 0.85em; color: var(--muted); font-weight: 600; }
 .atlas-item { margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 .atlas-item + .atlas-item { margin-top: 0; }
 .atlas-thumb { width: 100%; height: 150px; object-fit: contain; background: #000; border-radius: 6px; cursor: zoom-in; min-width: 0 !important; }
+.atlas-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 5px; }
+.atlas-photos:has(.atlas-thumb:nth-child(2)) .atlas-thumb { height: 110px; }
 .atlas-chapter { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) { .atlas { grid-template-columns: repeat(2, minmax(0, 1fr)); } .atlas-thumb { height: 120px; } }
 
