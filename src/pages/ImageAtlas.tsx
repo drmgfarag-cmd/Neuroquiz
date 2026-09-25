@@ -85,6 +85,8 @@ export default function ImageAtlas() {
   const [role, setRole] = useState<"all" | Role>("all");
   const [query, setQuery] = useState("");
   const [groupPhotos, setGroupPhotos] = useState(true);
+  const [flipMode, setFlipMode] = useState(false);
+  const [flipped, setFlipped] = useState<Set<string>>(() => new Set());
   const [shown, setShown] = useState(PAGE);
 
   // start on the first book that has images
@@ -181,22 +183,32 @@ export default function ImageAtlas() {
           <input type="checkbox" checked={groupPhotos} onChange={(e) => setGroupPhotos(e.target.checked)} />
           Group photographs of the same instrument
         </label>
+        <label className="row small" style={{ gap: 8 }}>
+          <input type="checkbox" checked={flipMode} onChange={(e) => { setFlipMode(e.target.checked); setFlipped(new Set()); }} />
+          Study as flip cards (image first, identification on reveal)
+        </label>
         <p className="small muted" style={{ margin: 0 }}>
-          {items.length} image(s){groupPhotos && displays.length !== items.length ? ` in ${displays.length} groups` : ""}. Tap an image to open the viewer and swipe through them all.
+          {items.length} image(s){groupPhotos && displays.length !== items.length ? ` in ${displays.length} groups` : ""}. {flipMode ? "Identify the image, then reveal its details." : "Tap an image to open the viewer and swipe through them all."}
         </p>
       </div>
 
       <div className="atlas" data-gallery="">
         {displays.slice(0, shown).map((group) => {
           const it = group[0];
+          const back = flipMode && flipped.has(it.key);
           return (
           <figure className="card atlas-item" key={it.key}>
-            <div className="atlas-photos" data-gallery="">
+            {!back ? <div className="atlas-photos" data-gallery="">
               {group.map((photo, index) => (
-                <Thumb key={photo.key} bookId={bookId} file={photo.file} caption={`${photo.caption ?? it.title ?? "Instrument"}${group.length > 1 ? ` · photo ${index + 1} of ${group.length}` : ""}`} />
+                <Thumb key={photo.key} bookId={bookId} file={photo.file} caption={flipMode ? `Study image ${index + 1}` : `${photo.caption ?? it.title ?? "Instrument"}${group.length > 1 ? ` · photo ${index + 1} of ${group.length}` : ""}`} />
               ))}
-            </div>
-            <figcaption className="small">
+            </div> : <div className="atlas-flip-back" aria-label="Image identification"><strong>{it.title ?? it.caption ?? "Reference image"}</strong><span>{it.description}</span></div>}
+            {flipMode && <button type="button" className="small" aria-pressed={back} onClick={() => setFlipped((prev) => {
+              const next = new Set(prev);
+              if (next.has(it.key)) next.delete(it.key); else next.add(it.key);
+              return next;
+            })}>{back ? "Show image" : "Reveal identification"}</button>}
+            {(!flipMode || back) && <figcaption className="small">
               <div className="row" style={{ gap: 4 }}>
                 <span className={`chip ${it.roles.has("answer") && !it.roles.has("question") ? "warn" : ""}`}>
                   {it.roles.has("reference") ? it.kind ?? "reference" : it.roles.has("case") ? "case" : it.roles.has("answer") && !it.roles.has("question") ? "answer" : "question"}
@@ -214,7 +226,7 @@ export default function ImageAtlas() {
               {group.length > 1 && <div className="muted">{group.length} photographs</div>}
               {it.description && <div className="muted">{it.description}</div>}
               {!!it.tags.length && <div className="muted">{it.tags.join(" · ")}</div>}
-            </figcaption>
+            </figcaption>}
           </figure>
           );
         })}
