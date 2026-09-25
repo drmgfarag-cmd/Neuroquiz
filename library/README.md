@@ -85,10 +85,6 @@ Publisher records used for matching: [Thieme book 05](https://shop.thieme.de/en/
   questions and 474 linked images. Keep its ID distinct from `nper`.
 - `pnsbr2023` is *Pediatric Neurosurgery Board Review*: 86 MCQs, five short
   answers and 25 linked answer figures/tables.
-- `CNSBP2017` is a revised extraction of the book already listed as `05`.
-  It replaces that entry's source under the same ID, avoiding a duplicate
-  1,339-question book. Its 19 questions without printed discussion remain
-  marked for review; their printed answer keys are present.
 
 The web preview link holds at most about 60 MB of books in total. Past that,
 use the Android/Windows apps for the full library.
