@@ -107,9 +107,7 @@ describe.skipIf(!list.length)("built-in library", () => {
         const hemangioblastoma = qs.find((q) => q.stem.includes("MRI scans of the brain of a 33-year-old man"));
         expect(hemangioblastoma?.options.find((o) => o.key === "B")?.text).toBe("Hemangioblastoma");
         expect(hemangioblastoma?.answer).toEqual(["B"]);
-        // The replacement extraction explicitly flags 19 printed questions
-        // without a separate explanatory discussion; their keyed answers remain.
-        expect(res.unscorable).toHaveLength(19);
+        expect(res.unscorable).toEqual([]);
         expect(auditBook(qs, media.map((m) => m.name)).sourceWarnings.length).toBeGreaterThanOrEqual(2);
       }
       if (book.id === "neurosurgery-rounds-2e") {
