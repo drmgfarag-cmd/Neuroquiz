@@ -88,6 +88,8 @@ In an empty build, open **Import**, select a book's extracted ZIP (or all number
 
 For an image-only reference, import a ZIP with images and a JSON file containing `book_id`, `book_title` and `atlas_items`. Each item needs `file`, `title` and `topic`; it can also include `kind` (`figure`, `table`, `diagram`, `radiology`, `note`), `tags`, `description` and `source_page`. The atlas groups entries by topic and shows them in Image atlas. Exporting the book keeps the atlas entries and their images together. No quiz questions are created for reference slides.
 
+In Image atlas, enable **Study as flip cards** to see each image before its identification, topic, tags and source description. A case-oriented infographic ZIP can instead use `chapters[].cases[]` with `kind: "qa"` and one `stages[]` question and answer per printed section; the Cases & Q&A reader hides each answer and its images until reveal. A final review stage can reveal the complete infographic after the separate sections.
+
 On Android, choose a **ZIP** (or multi-select JSON and image files) when importing. Folder picking only works on desktop.
 
 ## Using both devices at the same time (sync)
