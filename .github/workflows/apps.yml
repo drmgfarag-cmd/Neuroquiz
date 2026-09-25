@@ -4,6 +4,13 @@ name: NeuroQuiz apps
 
 on:
   workflow_dispatch:
+    inputs:
+      bundle:
+        description: Books included in the downloadable apps
+        type: choice
+        required: true
+        default: full
+        options: [full, empty]
   pull_request:
   push:
     tags: ["v*"]
@@ -18,8 +25,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env: { LIBRARY_BUNDLE: "${{ inputs.bundle == 'empty' && 'none' || 'full' }}" }
       - uses: actions/upload-artifact@v4
-        with: { name: neuroquiz-web, path: dist }
+        with: { name: "neuroquiz-web-${{ inputs.bundle == 'empty' && 'empty' || 'full' }}", path: dist }
 
   android:
     needs: test
@@ -32,11 +40,12 @@ jobs:
         with: { distribution: temurin, java-version: 21 }
       - run: npm ci
       - run: npm run build
+        env: { LIBRARY_BUNDLE: "${{ inputs.bundle == 'empty' && 'none' || 'full' }}" }
       - run: npx cap add android && npx cap sync android
       - run: ./gradlew assembleDebug
         working-directory: android
       - uses: actions/upload-artifact@v4
-        with: { name: neuroquiz-android-apk, path: android/app/build/outputs/apk/debug/*.apk }
+        with: { name: "neuroquiz-android-apk-${{ inputs.bundle == 'empty' && 'empty' || 'full' }}", path: android/app/build/outputs/apk/debug/*.apk }
 
   windows:
     needs: test
@@ -47,10 +56,11 @@ jobs:
         with: { node-version: 22, cache: npm, cache-dependency-path: package-lock.json }
       - run: npm ci
       - run: npm run build
+        env: { LIBRARY_BUNDLE: "${{ inputs.bundle == 'empty' && 'none' || 'full' }}" }
       - run: npm install
         working-directory: desktop
       - run: npm run dist:win
         working-directory: desktop
         env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
       - uses: actions/upload-artifact@v4
-        with: { name: neuroquiz-windows, path: "desktop/dist/*.exe" }
+        with: { name: "neuroquiz-windows-${{ inputs.bundle == 'empty' && 'empty' || 'full' }}", path: "desktop/dist/*.exe" }

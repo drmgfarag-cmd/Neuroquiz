@@ -80,7 +80,11 @@ The app is one web build (`dist/`) packaged three ways:
    npm run dist:win         # NSIS installer + portable .exe in desktop/dist/ (build on Windows)
    ```
 
-The **NeuroQuiz apps** GitHub Actions workflow (`.github/workflows/apps.yml`, run it manually from the Actions tab or push a `v*` tag) builds the Android APK and the Windows installer for you and attaches them as artifacts.
+The **NeuroQuiz apps** GitHub Actions workflow (`.github/workflows/apps.yml`, run it manually from the Actions tab or push a `v*` tag) builds the web app, Android APK and Windows installer as artifacts. Manual runs offer **full** or **empty** under **Books included in the downloadable apps**. Full is the default; empty packages the same app with no preinstalled books. It does not delete the source archives from GitHub.
+
+For local empty builds, set `LIBRARY_BUNDLE=none` for the build command. For example, `LIBRARY_BUNDLE=none npm run build` on macOS/Linux, or `$env:LIBRARY_BUNDLE='none'; npm run build` in Windows PowerShell. Build Android with the same variable set during `npm run android:sync`; build Windows from that `dist/` with `cd desktop && npm run dist:win`. Host the empty `dist/` for the regular web app. `npm run build:web` makes a restricted web preview instead.
+
+In an empty build, open **Import**, select a book's extracted ZIP (or all numbered `.zip.001`, `.zip.002`, … parts in one selection, or its JSON and images), review the preview counts and image warnings, then import. Neurosurgery Rounds is a Q&A/case book: its 1,736 short-answer prompts and 30 clinical cases belong in **Cases & Q&A**, not scored Tests. Import the same archive separately on each device; device sync transfers progress, not book images. Keep the source ZIPs and extraction scripts in GitHub while correcting content, and make a full build after the book set is ready. A later full build can install included books without requiring a new app architecture.
 
 On Android, choose a **ZIP** (or multi-select JSON and image files) when importing. Folder picking only works on desktop.
 

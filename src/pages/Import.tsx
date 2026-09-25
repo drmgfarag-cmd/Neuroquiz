@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { runLocalTagging } from "../ai/tagger";
 import { collectFiles, executeImport, planImport, type GroupingMode, type ImportPlan, type ImportResult, type SourceFile } from "../import/importer";
 import { clearMediaCache } from "../lib/media";
-import { isNative } from "../lib/platform";
 import { updateSettings, useSettings } from "../lib/settings";
 
 export default function ImportPage() {
@@ -100,7 +99,7 @@ export default function ImportPage() {
       <h1>Import books</h1>
       <div className="card stack">
         <p className="muted small" style={{ margin: 0 }}>
-          Select JSON files and their image files (or a whole folder, or a ZIP). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name. Short-answer books with <code>qa_pairs</code> appear in Cases & Q&A with answers hidden until reveal.
+          Select JSON files and their image files (or a whole folder, a ZIP, or every numbered ZIP part together). A book can be one JSON file or one JSON per chapter; images are matched to the JSON by file name. Short-answer books with <code>qa_pairs</code> appear in Cases & Q&A with answers hidden until reveal.
         </p>
         <div
           className={`dropzone ${over ? "over" : ""}`}
@@ -118,7 +117,7 @@ export default function ImportPage() {
           <div className="row" style={{ justifyContent: "center" }}>
             <label className="btn primary">
               Choose files / ZIP
-              <input type="file" multiple accept={isNative() ? undefined : ".json,.zip,image/*,application/json,application/zip"} hidden onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))} />
+              <input type="file" multiple hidden onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))} />
             </label>
             <label className="btn">
               Choose folder
@@ -136,7 +135,7 @@ export default function ImportPage() {
             <button onClick={loadSample}>Load sample book</button>
           </div>
           <div className="muted small" style={{ marginTop: 8 }}>
-            …or drag & drop here. On Android, pick a ZIP or multi-select JSON + images.
+            …or drag & drop here. On Android, pick a ZIP, all its .001/.002/… parts together, or multi-select JSON + images.
           </div>
         </div>
 
