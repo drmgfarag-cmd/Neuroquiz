@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
+import JSZip from "jszip";
 import { exportBookZip } from "../src/import/exporter";
 import { collectFiles, executeImport, linkOrphanAnswerImages, planImport, type SourceFile } from "../src/import/importer";
 import { normalizeBookJson } from "../src/import/normalize";
@@ -16,6 +17,24 @@ const allSample = () => [...["01-vascular.json", "02-oncology-trauma.json", "03-
 
 const parsed = () => normalizeBookJson(JSON.parse(readFileSync(new URL("04-question-types.json", base), "utf8")), { fileName: "04-question-types.json", numericAnswerBase: 1 });
 const asQ = (p: ReturnType<typeof parsed>["chapters"][number]["questions"][number]): Question => ({ ...p, id: p.sourceId!, bookId: "b", chapterId: "c", order: 0 });
+
+describe("split book import", () => {
+  it("reassembles numbered ZIP files before parsing cases and their figures", async () => {
+    const zip = new JSZip();
+    zip.file("book.json", JSON.stringify({ book_title: "Case book", chapters: [{ title: "Vascular", qa_pairs: [{ question: "Describe the scan", answer: "Aneurysm", question_images: [{ file: "scan.png", caption: "CT angiogram" }] }] }] }));
+    zip.file("scan.png", new Uint8Array([137, 80, 78, 71]));
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+    const middle = Math.floor(bytes.length / 2);
+    const parts = [new File([bytes.slice(middle)], "case.zip.002"), new File([bytes.slice(0, middle)], "case.zip.001")];
+    const files = await collectFiles(parts);
+    const plan = await planImport(files, "single", 1);
+    expect(plan.errors).toEqual([]);
+    expect(plan.books[0].sources[0].parsed.chapters[0].questions).toHaveLength(0);
+    expect(plan.books[0].sources[0].parsed.chapters[0].cases[0].stages[0].media[0]).toEqual({ file: "scan.png", caption: "CT angiogram" });
+    expect(plan.images).toHaveLength(1);
+    await expect(collectFiles([parts[1], new File([], "case.zip.003")])).rejects.toThrow("case.zip.002");
+  });
+});
 
 describe("new question formats: parsing", () => {
   it("reads ordering, typed/cloze, hotspot and script-concordance items", () => {

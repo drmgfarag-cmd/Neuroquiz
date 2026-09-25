@@ -67,7 +67,27 @@ function folderOf(path: string): string {
 /** Expand zips and read picker files into SourceFiles. */
 export async function collectFiles(files: File[]): Promise<SourceFile[]> {
   const out: SourceFile[] = [];
-  for (const f of files) {
+  const parts = new Map<string, Map<number, File>>();
+  for (const file of files) {
+    const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+    const split = /^(.*\.zip)\.(\d{3})$/i.exec(path);
+    if (!split) continue;
+    const group = parts.get(split[1]) ?? new Map<number, File>();
+    const number = Number(split[2]);
+    if (group.has(number)) throw new Error(`Duplicate ZIP part: ${path}`);
+    group.set(number, file);
+    parts.set(split[1], group);
+  }
+  const archives: File[] = [];
+  for (const [path, group] of parts) {
+    if (!group.has(1)) throw new Error(`Missing ${path}.001: select all parts of the book together`);
+    const highest = Math.max(...group.keys());
+    for (let n = 1; n <= highest; n++) {
+      if (!group.has(n)) throw new Error(`Missing ${path}.${String(n).padStart(3, "0")}: select all parts together`);
+    }
+    archives.push(new File(Array.from({ length: highest }, (_, i) => group.get(i + 1)!), path.split("/").pop()!, { type: "application/zip" }));
+  }
+  for (const f of [...files.filter((file) => !/\.zip\.\d{3}$/i.test(file.name)), ...archives]) {
     const path = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
     if (/\.zip$/i.test(f.name)) {
       const zip = await JSZip.loadAsync(f);

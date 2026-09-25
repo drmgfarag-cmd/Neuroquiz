@@ -174,8 +174,12 @@ export async function installNewStudyBooks(onProgress: (msg: string) => void): P
   const failed: string[] = [];
   for (const b of await bundledBooks()) {
     if (!ids.has(b.id)) continue;
-    if (await getMeta<string | null>(`bundle:${b.id}`, null)) continue;
-    if (await db.books.get(b.id)) continue;
+    // Earlier installs may have stored this Q&A title as scored questions.
+    // Restore the current case-book format even when its bundle version matches.
+    const roundsInTests = b.id === "neurosurgery-rounds-2e" &&
+      (await db.questions.where("bookId").equals(b.id).count()) > 0;
+    if (!roundsInTests && await getMeta<string | null>(`bundle:${b.id}`, null)) continue;
+    if (!roundsInTests && await db.books.get(b.id)) continue;
     try {
       await installBundled(b, onProgress);
     } catch (error) {

@@ -539,6 +539,19 @@ body:has(.fc-overlay) .bottom-nav { visibility: hidden; }
 .reading-controls { margin: 16px 0 32px; }
 .reading-controls .field { font-size: .8em; }
 .reading-controls select { max-width: 240px; }
+.case-study-card { margin: 16px 0; max-width: 940px; }
+.case-study-card .progress { margin: 14px 0; }
+.case-face-scroll { max-height: min(68vh, 700px); overflow: auto; overscroll-behavior: contain; padding: 4px 10px 12px 2px; }
+.case-face-scroll img { max-width: 100%; }
+.case-face-scroll .media-row { align-items: flex-start; }
+.case-study-card textarea { width: 100%; margin-top: 16px; }
+.case-study-card .reading-answer { margin: 18px 0 0; }
+.case-presentation { margin-top: 12px; max-width: 940px; }
+.case-presentation summary { cursor: pointer; font-weight: 700; }
+.case-presentation .case-face-scroll { margin-top: 12px; max-height: min(38vh, 320px); }
+.case-stage-nav { max-width: 940px; margin: 16px 0; gap: 12px; }
+.case-stage-nav select { display: block; max-width: min(60vw, 360px); }
+.case-flip-controls { margin-top: 14px; gap: 12px; }
 :where(a, button, input, select, textarea, summary):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 @media (max-width: 760px) {
@@ -556,4 +569,7 @@ body:has(.fc-overlay) .bottom-nav { visibility: hidden; }
   .reading-controls { gap: 10px; }
   .reading-controls .field { order: 3; width: 100%; }
   .reading-controls select { max-width: 100%; }
+  .case-stage-nav { flex-wrap: wrap; }
+  .case-stage-nav .field { order: 3; width: 100%; }
+  .case-stage-nav select { max-width: 100%; }
 }

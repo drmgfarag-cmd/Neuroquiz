@@ -16,6 +16,8 @@
  * images of an app build (at most 2000 px).
  *
  * Runs automatically before `npm run build` / `npm run dev`.
+ * LIBRARY_BUNDLE=none builds the same app without bundled books. The source
+ * archives remain in the repository for validation and later full builds.
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -48,6 +50,12 @@ function readSource(src) {
 }
 
 rmSync(outDir, { recursive: true, force: true });
+if (process.env.LIBRARY_BUNDLE === "none") {
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, "index.json"), JSON.stringify({ books: [] }));
+  console.log("build-library: empty bundle selected; books can be imported in the app");
+  process.exit(0);
+}
 const listFile = join(libDir, "books.json");
 if (!existsSync(listFile)) {
   console.log("build-library: no library/books.json – app ships without built-in books");

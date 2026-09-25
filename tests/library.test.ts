@@ -113,6 +113,9 @@ describe.skipIf(!list.length)("built-in library", () => {
         expect(auditBook(qs, media.map((m) => m.name)).sourceWarnings.length).toBeGreaterThanOrEqual(2);
       }
       if (book.id === "neurosurgery-rounds-2e") {
+        expect(res.questions).toBe(0);
+        expect(res.shortAnswers).toBe(1736);
+        expect(res.clinicalCases).toBe(30);
         expect(cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0)).toBe(1736);
         expect(cases.filter((c) => c.kind !== "qa")).toHaveLength(30);
         expect(res.unreferencedImages).toEqual([]);
