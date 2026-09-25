@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type {
   AiReview,
+  AtlasEntry,
   Annotation,
   Book,
   CaseScenario,
@@ -59,6 +60,7 @@ export class NeuroQuizDB extends Dexie {
   flashcards!: Table<Flashcard, string>;
   cases!: Table<CaseScenario, string>;
   media!: Table<MediaFile, string>;
+  atlas!: Table<AtlasEntry, string>;
 
   annotations!: Table<Annotation, string>;
   questionStates!: Table<QuestionState, string>;
@@ -100,6 +102,7 @@ export class NeuroQuizDB extends Dexie {
       aiReviews: "questionId, verdict, updatedAt"
     });
     this.version(3).stores({ profiles: "id", profileSnapshots: "key" });
+    this.version(4).stores({ atlas: "id, bookId, chapterId, file, kind, *sourceTags" });
   }
 }
 
