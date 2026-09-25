@@ -98,6 +98,29 @@
       "referencedAssetsOnly": true,
       "webMaxPx": 1000,
       "webQuality": 58
+    },
+    {
+      "id": "ntmcq2022",
+      "title": "Neurotrauma in Multiple-Choice Questions",
+      "source": "sources/NTMCQ2022_bundle.zip",
+      "primaryJson": "NTMCQ2022_extraction.json",
+      "referencedAssetsOnly": true
+    },
+    {
+      "id": "raj2009",
+      "title": "Neurosurgery Review (2009)",
+      "source": "sources/RAJ2009_extraction.json"
+    },
+    {
+      "id": "mcqs-neuroanatomy-2",
+      "title": "MCQs Neuroanatomy 2",
+      "source": "sources/MCQs_Neuroanatomy_2_extracted.json"
+    },
+    {
+      "id": "vasc2017",
+      "title": "Vascular Neurosurgery: In Multiple-Choice Questions",
+      "source": "sources/VASC2017_bundle.zip",
+      "primaryJson": "VASC2017_extraction.json"
     }
   ]
 }

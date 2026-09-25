@@ -170,7 +170,7 @@ export async function retireIncompleteQbne(): Promise<void> {
 
 /** Install newly added books for people who already have a library. Do not restore later deletions. */
 export async function installNewStudyBooks(onProgress: (msg: string) => void): Promise<void> {
-  const ids = new Set(["neurosurgery-rounds-2e", "nbr3", "nper"]);
+  const ids = new Set(["neurosurgery-rounds-2e", "nbr3", "nper", "ntmcq2022", "raj2009", "mcqs-neuroanatomy-2", "vasc2017"]);
   const failed: string[] = [];
   for (const b of await bundledBooks()) {
     if (!ids.has(b.id)) continue;

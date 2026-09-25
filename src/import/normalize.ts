@@ -33,6 +33,8 @@ export interface NormalizeOptions {
    * "question_images_policy".
    */
   questionImagesPolicy?: "referenced_only";
+  /** Resolve extraction asset IDs to the actual bundled filenames. */
+  assetNames?: Map<string, string>;
 }
 
 /** The question text points at an image or a study the reader is meant to look at. */
@@ -617,6 +619,7 @@ function expandParts(o: Obj): Obj[] {
 }
 
 function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuestion | null {
+  const media = (value: Json) => toMedia(value).map((ref) => ({ ...ref, file: opts.assetNames?.get(ref.file) ?? ref.file }));
   const stemRaw = pick(o, F.stem);
   let stem = reflow(toText(stemRaw));
   if (!stem) return null;
@@ -666,7 +669,10 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   let matches: Record<string, string> | undefined;
   const verdictRaw = pick(o, F.verdicts);
   const keyMap = pick(o, F.keyMap);
-  const tfMap = isObj(verdictRaw) ? verdictRaw : isObj(keyMap) && Object.values(keyMap).every((v) => TF.test(toText(v))) ? keyMap : undefined;
+  // A source can explicitly say every assertion is false. An empty selected
+  // answer array is then a valid key, so retain it as per-option verdicts.
+  const allFalse = o.answer_expression_kind === "ALL_OPTIONS_FALSE" && options.length > 0;
+  const tfMap = isObj(verdictRaw) ? verdictRaw : isObj(keyMap) && Object.values(keyMap).every((v) => TF.test(toText(v))) ? keyMap : allFalse ? Object.fromEntries(options.map(({ key }) => [key, false])) : undefined;
   const itemKeys = (m: Obj) => {
     // items may be unlabelled (e.g. structures a–e marked on a diagram)
     for (const k of Object.keys(m)) if (!options.some((x) => x.key === k.toUpperCase())) options.push({ key: k.toUpperCase(), text: "", media: [] });
@@ -775,20 +781,20 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const exTables = tableToText(pick(o, F.explanationTables));
   if (exTables && !squash(explanation).includes(squash(exTables))) explanation = `${explanation}\n\n${exTables}`;
 
-  let explanationMedia = toMedia(pick(o, F.explanationMedia));
-  if (isObj(ansRaw)) explanationMedia = explanationMedia.concat(toMedia(pick(ansRaw, ["images", "image", "figures"])));
+  let explanationMedia = media(pick(o, F.explanationMedia));
+  if (isObj(ansRaw)) explanationMedia = explanationMedia.concat(media(pick(ansRaw, ["images", "image", "figures"])));
   const explanationObj = pick(o, F.explanation);
-  if (isObj(explanationObj)) explanationMedia = explanationMedia.concat(toMedia(pick(explanationObj, ["images", "image", "figures", "figure"])));
+  if (isObj(explanationObj)) explanationMedia = explanationMedia.concat(media(pick(explanationObj, ["images", "image", "figures", "figure"])));
 
   // Question images: prefer explicit question-image fields; a generic "images"
   // list can contain answer images too, which must not be shown before answering.
   const answerFiles = new Set(explanationMedia.map((m) => m.file.toLowerCase()));
   let stemMedia: MediaRef[];
-  if (hasKey(o, F.questionMedia)) stemMedia = toMedia(pick(o, F.questionMedia));
+  if (hasKey(o, F.questionMedia)) stemMedia = media(pick(o, F.questionMedia));
   else {
     // A generic list has no trusted question/answer role. Require question
     // evidence; otherwise show it only after the answer is revealed.
-    const generic = toMedia(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file.toLowerCase()));
+    const generic = media(pick(o, F.stemMedia)).filter((m) => !answerFiles.has(m.file.toLowerCase()));
     stemMedia = generic.filter((m) => imageRole(m.file) === "question" || (imageRole(m.file) === "unknown" && refersToImage(stem)));
     explanationMedia = explanationMedia.concat(generic.filter((m) => !stemMedia.includes(m)));
   }
@@ -1128,6 +1134,12 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
   };
 
   const defaultTitle = fileTitle(opts.fileName);
+  if (isObj(json) && Array.isArray(json.assets)) {
+    const assetNames = new Map<string, string>();
+    for (const asset of json.assets) if (isObj(asset) && typeof asset.asset_id === "string" && typeof asset.filename === "string")
+      assetNames.set(asset.asset_id, asset.filename);
+    if (assetNames.size) opts = { ...opts, assetNames };
+  }
   if (isObj(json) && json.question_images_policy === "referenced_only") opts = { ...opts, questionImagesPolicy: "referenced_only" };
 
   function addItems(list: Json[], chapter: ParsedChapter) {
@@ -1166,7 +1178,7 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
         const q = parseQuestion(item, i, opts);
         if (q) {
           const f = q.format ?? "single";
-          if (f === "text" ? !q.accepted?.length : f === "hotspot" ? !q.regions?.length : !q.answer.length && f !== "matching")
+          if (f === "text" ? !q.accepted?.length : f === "hotspot" ? !q.regions?.length : f === "truefalse" ? !q.verdicts || Object.keys(q.verdicts).length === 0 : !q.answer.length && f !== "matching")
             warnings.push(`${chapter.title} #${q.number}: no correct answer found`);
           if (!q.options.length && f !== "text" && f !== "hotspot") warnings.push(`${chapter.title} #${q.number}: no options found`);
           if (q.format === "matching" && q.choices?.every((c) => !c.text)) warnings.push(`${chapter.title} #${q.number}: matching list not found – choices shown as numbers only`);
