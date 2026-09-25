@@ -18,8 +18,10 @@
     {
       "id": "05",
       "title": "The Comprehensive Neurosurgery Board Preparation Book: Illustrated Questions and Answers",
-      "source": "sources/CNSBP2017.zip.001",
-      "primaryJson": "CNSBP2017_import.json",
+      "source": [
+        "sources/05.json",
+        "sources/05_images.zip.001"
+      ],
       "referencedAssetsOnly": true,
       "webMaxPx": 900,
       "webQuality": 45
