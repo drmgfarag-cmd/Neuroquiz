@@ -36,10 +36,18 @@ describe.skipIf(!list.length)("built-in library", () => {
         expect(main).toBeDefined();
         const json = JSON.parse(await main!.blob.text());
         const linked = new Set<string>();
-        if (book.referencedAssetsOnly)
-          for (const chapter of Object.values(json.chapters) as { questions: { question_images?: string[]; answer_images?: string[] }[] }[])
-            for (const q of chapter.questions)
-              for (const name of [...(q.question_images ?? []), ...(q.answer_images ?? [])]) linked.add(name.toLowerCase().replace(/\.[^.]+$/, ""));
+        if (book.referencedAssetsOnly) {
+          type Ref = string | { file?: string; path?: string; filename?: string };
+          type Item = { images?: Ref[]; question_images?: Ref[]; answer_images?: Ref[] };
+          const records: Item[] = Array.isArray(json) ? json : Object.values(json.chapters ?? {}).flatMap((chapter: any) => [
+            ...(chapter.questions ?? []), ...(chapter.qa_pairs ?? []), ...(chapter.cases ?? []),
+          ]);
+          for (const q of records)
+            for (const value of [...(q.images ?? []), ...(q.question_images ?? []), ...(q.answer_images ?? [])]) {
+              const name = typeof value === "string" ? value : value.file ?? value.path ?? value.filename;
+              if (name) linked.add(name.split("/").pop()!.toLowerCase().replace(/\.[^.]+$/, ""));
+            }
+        }
         files = files.filter((f) => f === main || (!/\.json$/i.test(f.path) && (!book.referencedAssetsOnly || linked.has(f.path.split("/").pop()!.toLowerCase().replace(/\.[^.]+$/, "")))));
       }
       if (book.referencedAssetsOnly && !book.primaryJson) {
@@ -99,7 +107,9 @@ describe.skipIf(!list.length)("built-in library", () => {
         const hemangioblastoma = qs.find((q) => q.stem.includes("MRI scans of the brain of a 33-year-old man"));
         expect(hemangioblastoma?.options.find((o) => o.key === "B")?.text).toBe("Hemangioblastoma");
         expect(hemangioblastoma?.answer).toEqual(["B"]);
-        expect(res.unscorable).toEqual([]);
+        // The replacement extraction explicitly flags 19 printed questions
+        // without a separate explanatory discussion; their keyed answers remain.
+        expect(res.unscorable).toHaveLength(19);
         expect(auditBook(qs, media.map((m) => m.name)).sourceWarnings.length).toBeGreaterThanOrEqual(2);
       }
       if (book.id === "neurosurgery-rounds-2e") {
@@ -117,7 +127,8 @@ describe.skipIf(!list.length)("built-in library", () => {
         expect(res.unreferencedImages).toEqual([]);
         expect(res.shortAnswers).toBe(0);
         if (book.id === "nbr3") {
-          expect(qs).toHaveLength(1314);
+          expect(qs).toHaveLength(1326);
+          expect(qs.filter((q) => q.sourceId?.startsWith("NBR3_from2_"))).toHaveLength(12);
           expect(qs.every((q) => unscorableReason(q) === "Source transcription pending review")).toBe(true);
           const labeled = qs.find((q) => q.sourceId === "NBR3_s01_q001")!;
           expect(labeled.stemMedia[0]?.file).toContain("figQ");
@@ -131,6 +142,17 @@ describe.skipIf(!list.length)("built-in library", () => {
           expect(first.stemMedia).toEqual([]);
           expect(first.explanationMedia[0]?.file).toContain("figRef");
         }
+      }
+      if (book.id === "npbr") {
+        expect(qs).toHaveLength(1577);
+        expect(media).toHaveLength(474);
+        expect(unused).toEqual([]);
+      }
+      if (book.id === "pnsbr2023") {
+        expect(qs).toHaveLength(86);
+        expect(cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0)).toBe(5);
+        expect(media).toHaveLength(25);
+        expect(unused).toEqual([]);
       }
     }, 120_000);
   }

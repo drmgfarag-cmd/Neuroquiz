@@ -76,5 +76,19 @@ Publisher records used for matching: [Thieme book 05](https://shop.thieme.de/en/
 [Springer book 07](https://link.springer.com/book/10.1007/978-3-031-69332-8),
 [Thieme book 08](https://shop.thieme.com/en/Thieme-Test-Prep-for-the-USMLE-Medical-Neuroscience-Q-A/9781626235373).
 
+## September 2026 source updates
+
+- `nbr3` uses `NBR3_with_second_edition_additions.zip.001`. It keeps the
+  original 1,314 third-edition questions and adds 12 distinct questions from
+  the second-edition comparison. The older `NBR3.zip` is no longer included.
+- `npbr` is a separate *Neurosurgery Primary Board Review* book: 1,577
+  questions and 474 linked images. Keep its ID distinct from `nper`.
+- `pnsbr2023` is *Pediatric Neurosurgery Board Review*: 86 MCQs, five short
+  answers and 25 linked answer figures/tables.
+- `CNSBP2017` is a revised extraction of the book already listed as `05`.
+  It replaces that entry's source under the same ID, avoiding a duplicate
+  1,339-question book. Its 19 questions without printed discussion remain
+  marked for review; their printed answer keys are present.
+
 The web preview link holds at most about 60 MB of books in total. Past that,
 use the Android/Windows apps for the full library.
