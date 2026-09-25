@@ -121,6 +121,54 @@
       "title": "Vascular Neurosurgery: In Multiple-Choice Questions",
       "source": "sources/VASC2017_bundle.zip",
       "primaryJson": "VASC2017_extraction.json"
+    },
+    {
+      "id": "surgical-instruments-atlas",
+      "title": "Surgical Instruments Atlas",
+      "source": "sources/Surgical_Instruments_Atlas.zip.part001",
+      "primaryJson": "Surgical_Instruments_Atlas.json"
+    },
+    {
+      "id": "neuro-uw-tables-figures-wdaljunaid",
+      "title": "NeuroUW Tables and Figures (Mohammed Aljunaid)",
+      "source": "sources/NeuroUW_Tables_Figures_Atlas_v2.zip.001",
+      "primaryJson": "NeuroUW_Atlas.json"
+    },
+    {
+      "id": "case-reviews-neurosurgery-2017",
+      "title": "100 Case Reviews in Neurosurgery (2017)",
+      "source": "sources/100_Case_Reviews_in_Neurosurgery_full_figures.zip.001",
+      "primaryJson": "100_Case_Reviews_in_Neurosurgery.json"
+    },
+    {
+      "id": "frcs-neurosurgery-viva-case-book",
+      "title": "FRCS (Neurosurgery) Viva Case Book",
+      "source": "sources/FRCS_Viva_Cases_Fixed.zip.001",
+      "primaryJson": "frcs_neurosurgery_viva_cases.json"
+    },
+    {
+      "id": "goodmans-neurosurgery-oral-board-review-2017",
+      "title": "Goodman's Neurosurgery Oral Board Review: A Primer (2017)",
+      "source": "sources/Goodmans_Neurosurgery_Oral_Board_Review_2017_cases.zip.001",
+      "primaryJson": "Goodmans_Neurosurgery_Oral_Board_Review_2017.json"
+    },
+    {
+      "id": "infographic-neurosurgery-2025",
+      "title": "The Infographic Guide to Neurosurgery (2025) — cases",
+      "source": "sources/Infographic_Neurosurgery_2025_Cases.zip",
+      "primaryJson": "infographic-neurosurgery-2025_cases.json"
+    },
+    {
+      "id": "neurosurgery-case-review-nader-sabbagh-2010",
+      "title": "Neurosurgery Case Review: Questions and Answers (Nader & Sabbagh, 2010)",
+      "source": "sources/Neurosurgery_Case_Review_Nader_Sabbagh_2010_cases.zip.001",
+      "primaryJson": "Neurosurgery_Case_Review_Nader_Sabbagh_2010.json"
+    },
+    {
+      "id": "teaching-files-brain-spine-fatterpekar-2012",
+      "title": "The Teaching Files: Brain and Spine Imaging (Fatterpekar, Naidich & Som, 2012)",
+      "source": "sources/Teaching_Files_Brain_Spine_2012_cases.zip.001",
+      "primaryJson": "Teaching_Files_Brain_Spine_2012.json"
     }
   ]
 }

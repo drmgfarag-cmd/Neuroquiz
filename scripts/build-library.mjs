@@ -34,15 +34,16 @@ const KEEP = /\.(json|png|jpe?g|gif|webp|svg|avif)$/i;
 const SKIP = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest|answer_key)[^/]*\.json$|contact_sheet/i;
 
 /**
- * Reads a source file. "book.zip.001" means a ZIP split into numbered parts
- * (to get past upload size limits): .001, .002, … are joined in order.
+ * Reads a source file. "book.zip.001" and "book.zip.part001" mean a ZIP
+ * split into numbered parts (to get past upload size limits).
  */
 function readSource(src) {
   const path = join(libDir, src);
-  if (!/\.001$/.test(src)) return readFileSync(path);
+  const match = src.match(/^(.*\.zip)(\.part|\.)(001)$/i);
+  if (!match) return readFileSync(path);
   const parts = [];
   for (let n = 1; ; n++) {
-    const part = path.replace(/\.001$/, "." + String(n).padStart(3, "0"));
+    const part = join(libDir, match[1] + match[2] + String(n).padStart(3, "0"));
     if (!existsSync(part)) break;
     parts.push(readFileSync(part));
   }
@@ -145,7 +146,7 @@ for (const book of books) {
   for (const src of sources) {
     const data = readSource(src);
     hash.update(data);
-    if (/\.zip(\.001)?$/i.test(src)) {
+    if (/\.zip(?:\.(?:part)?001)?$/i.test(src)) {
       const zip = await JSZip.loadAsync(data);
       let linkedAssets = externalLinkedAssets;
       if (book.primaryJson && book.referencedAssetsOnly) {

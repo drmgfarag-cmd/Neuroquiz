@@ -16,12 +16,13 @@ const list: { id: string; title: string; source: string | string[]; questionImag
   ? JSON.parse(readFileSync(new URL("books.json", LIB), "utf8")).books
   : [];
 
-/** Same rule as scripts/build-library.mjs: "x.zip.001" = parts .001, .002 … joined. */
+/** Same rule as scripts/build-library.mjs: both split ZIP naming conventions. */
 function readSource(src: string): Buffer {
-  if (!src.endsWith(".001")) return readFileSync(new URL(src, LIB));
+  const match = src.match(/^(.*\.zip)(\.part|\.)(001)$/i);
+  if (!match) return readFileSync(new URL(src, LIB));
   const parts: Buffer[] = [];
-  for (let n = 1; existsSync(new URL(src.replace(/\.001$/, "." + String(n).padStart(3, "0")), LIB)); n++)
-    parts.push(readFileSync(new URL(src.replace(/\.001$/, "." + String(n).padStart(3, "0")), LIB)));
+  for (let n = 1; existsSync(new URL(match[1] + match[2] + String(n).padStart(3, "0"), LIB)); n++)
+    parts.push(readFileSync(new URL(match[1] + match[2] + String(n).padStart(3, "0"), LIB)));
   return Buffer.concat(parts);
 }
 
@@ -30,7 +31,7 @@ describe.skipIf(!list.length)("built-in library", () => {
     it(`${book.id}: ${book.title}`, async () => {
       await Promise.all(db.tables.map((t) => t.clear()));
       const sources = Array.isArray(book.source) ? book.source : [book.source];
-      let files = await collectFiles(sources.map((s) => new File([readSource(s)], s.split("/").pop()!.replace(/\.001$/, ""))));
+      let files = await collectFiles(sources.map((s) => new File([readSource(s)], s.split("/").pop()!.replace(/\.zip\.(?:part)?001$/i, ".zip"))));
       if (book.primaryJson) {
         const main = files.find((f) => f.path.split("/").pop() === book.primaryJson);
         expect(main).toBeDefined();
@@ -83,7 +84,8 @@ describe.skipIf(!list.length)("built-in library", () => {
       const base = (f: string) => f.split("/").pop()!.toLowerCase().replace(/\.[a-z0-9]+$/, "");
       const used = new Set([
         ...qs.flatMap((q) => [...q.stemMedia, ...q.explanationMedia, ...q.options.flatMap((o) => o.media)]),
-        ...cases.flatMap((c) => [...c.presentationMedia, ...c.stages.flatMap((s) => [...s.media, ...(s.answerMedia ?? [])])])
+        ...cases.flatMap((c) => [...c.presentationMedia, ...c.stages.flatMap((s) => [...s.media, ...(s.answerMedia ?? [])])]),
+        ...(await db.atlas.toArray()).map((a) => ({ file: a.file }))
       ].map((m) => base(m.file)));
       const unused = media.filter((m) => !used.has(base(m.name))).map((m) => m.name);
       console.log(
@@ -98,7 +100,7 @@ describe.skipIf(!list.length)("built-in library", () => {
           `   unscorable: ${res.unscorable.length} · unreferenced images: ${res.unreferencedImages.length} · role conflicts: ${res.conflictingImageRoles.length}`
         ].join("\n")
       );
-      expect(res.questions + cases.filter((c) => c.kind === "qa").reduce((n, c) => n + c.stages.length, 0)).toBeGreaterThan(0);
+      expect(res.questions + res.cases + res.atlas).toBeGreaterThan(0);
       expect(res.missingImages).toEqual([]);
       expect(res.conflictingImageRoles).toEqual([]);
       if (book.id === "05") {

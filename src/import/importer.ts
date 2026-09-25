@@ -138,6 +138,9 @@ export async function planImport(
         });
         if (!entries.length) throw new Error("atlas_items cannot be empty");
         atlas = entries;
+        // The general question parser reports an empty-book warning for an
+        // atlas-only source, although its atlas entries are valid content.
+        p.warnings = p.warnings.filter((warning) => !warning.endsWith("no questions, flashcards or cases recognised"));
         if (typeof json.book_title === "string") p.bookTitle = json.book_title;
         if (typeof json.book_id === "string") p.bookId = json.book_id;
         const known = new Set(p.chapters.map((c) => c.title));

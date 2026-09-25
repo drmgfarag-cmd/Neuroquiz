@@ -32,7 +32,8 @@ from the question text rather than the file.
 GitHub's web upload accepts files up to 25 MB. For a bigger ZIP either split
 the book into chapter ZIPs, or split the ZIP itself into numbered parts with
 7-Zip ("Split to volumes": `book.zip.001`, `book.zip.002` …) and list only the
-first part: `"source": "sources/book.zip.001"`. The parts are joined
+first part: `"source": "sources/book.zip.001"`. The equivalent
+`book.zip.part001`, `book.zip.part002` naming is also supported. The parts are joined
 automatically.
 
 A book's images can also come as a separate ZIP next to the JSON:
@@ -97,3 +98,17 @@ source-flagged Q776 remains excluded from scoring until reviewed.
 
 The web preview link holds at most about 60 MB of books in total. Past that,
 use the Android/Windows apps for the full library.
+
+## Case collections and atlases
+
+The six uploaded case collections are included as separate books: *100 Case
+Reviews in Neurosurgery*, *FRCS (Neurosurgery) Viva Case Book*, *Goodman's
+Neurosurgery Oral Board Review*, *The Infographic Guide to Neurosurgery*,
+*Neurosurgery Case Review* (Nader & Sabbagh), and *The Teaching Files: Brain
+and Spine Imaging*. Their source files contain 788 cases in total. Each entry
+specifies `primaryJson` so audits and review queues do not appear as books.
+
+*Surgical Instruments Atlas* (487 entries) and *NeuroUW Tables and Figures*
+(346 entries) appear separately in the image atlas, with their supplied titles,
+topics, kinds, source pages and tags. The native app packages their original
+image bytes; the web preview uses its existing size-limited image pipeline.
