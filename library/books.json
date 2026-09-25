@@ -18,10 +18,8 @@
     {
       "id": "05",
       "title": "The Comprehensive Neurosurgery Board Preparation Book: Illustrated Questions and Answers",
-      "source": [
-        "sources/05.json",
-        "sources/05_images.zip.001"
-      ],
+      "source": "sources/CNSBP2017.zip.001",
+      "primaryJson": "CNSBP2017_import.json",
       "referencedAssetsOnly": true,
       "webMaxPx": 900,
       "webQuality": 45
@@ -66,7 +64,7 @@
     {
       "id": "nbr3",
       "title": "Neurosurgery Board Review: Questions and Answers for Self-Assessment, Third Edition",
-      "source": "sources/NBR3.zip.001",
+      "source": "sources/NBR3_with_second_edition_additions.zip.001",
       "primaryJson": "NBR3_extraction.json",
       "referencedAssetsOnly": true,
       "webMaxPx": 1000,
@@ -77,6 +75,24 @@
       "title": "Neurosurgery Primary Examination Review",
       "source": "sources/NBER.zip.001",
       "primaryJson": "NPER_extraction.json",
+      "referencedAssetsOnly": true,
+      "webMaxPx": 1000,
+      "webQuality": 58
+    },
+    {
+      "id": "npbr",
+      "title": "Neurosurgery Primary Board Review",
+      "source": "sources/NPBR_v3.zip.001",
+      "primaryJson": "questions.json",
+      "referencedAssetsOnly": true,
+      "webMaxPx": 1000,
+      "webQuality": 58
+    },
+    {
+      "id": "pnsbr2023",
+      "title": "Pediatric Neurosurgery Board Review: A Comprehensive Guide",
+      "source": "sources/Pediatric_Board_Review_import.zip",
+      "primaryJson": "PNSBR2023_import.json",
       "referencedAssetsOnly": true,
       "webMaxPx": 1000,
       "webQuality": 58

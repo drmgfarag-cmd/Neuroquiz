@@ -63,6 +63,21 @@ const QUALITY = PACK ? 62 : 82;
 const PACK_BYTES = 11e6; // stay well under per-file limits
 const stats = { before: 0, after: 0 };
 
+/** Collect the image filenames used by flat question lists and chapter books. */
+function referencedImages(json) {
+  const linked = new Set();
+  const records = Array.isArray(json) ? json : Object.values(json.chapters ?? {}).flatMap((chapter) => [
+    ...(chapter.questions ?? []), ...(chapter.qa_pairs ?? []), ...(chapter.cases ?? []),
+  ]);
+  for (const item of records) {
+    for (const value of [...(item.images ?? []), ...(item.question_images ?? []), ...(item.answer_images ?? [])]) {
+      const name = typeof value === "string" ? value : value?.file ?? value?.path ?? value?.filename;
+      if (typeof name === "string") linked.add(posix.basename(name).replace(/\.[^.]+$/, "").toLowerCase());
+    }
+  }
+  return linked;
+}
+
 /** Resize/re-encode a raster image; keeps the original when that is smaller. */
 async function optimise(rel, data, book) {
   const maxPx = (PACK && book.webMaxPx) || MAX_PX;
@@ -99,10 +114,7 @@ for (const book of books) {
     externalLinkedAssets = new Set();
     for (const src of sources.filter((path) => /\.json$/i.test(path))) {
       const json = JSON.parse(readSource(src));
-      for (const chapter of Object.values(json.chapters ?? {}))
-        for (const item of chapter.questions ?? [])
-          for (const name of [...(item.images ?? []), ...(item.question_images ?? []), ...(item.answer_images ?? [])])
-            externalLinkedAssets.add(posix.basename(String(name)).replace(/\.[^.]+$/, "").toLowerCase());
+      for (const name of referencedImages(json)) externalLinkedAssets.add(name);
     }
   }
   const files = [];
@@ -132,11 +144,7 @@ for (const book of books) {
         const main = Object.values(zip.files).find((e) => posix.basename(e.name) === book.primaryJson);
         if (!main) throw new Error(`Missing ${book.primaryJson} in ${src}`);
         const json = JSON.parse(await main.async("string"));
-        linkedAssets = new Set();
-        for (const chapter of Object.values(json.chapters ?? {}))
-          for (const item of chapter.questions ?? [])
-            for (const name of [...(item.images ?? []), ...(item.question_images ?? []), ...(item.answer_images ?? [])])
-              linkedAssets.add(posix.basename(String(name)).replace(/\.[^.]+$/, "").toLowerCase());
+        linkedAssets = referencedImages(json);
       }
       for (const entry of Object.values(zip.files)) {
         if (entry.dir || /(^|\/)(__MACOSX|\.)/.test(entry.name) || !KEEP.test(entry.name) || SKIP.test(entry.name)) continue;
