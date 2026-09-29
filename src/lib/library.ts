@@ -20,7 +20,7 @@ export interface BundledBook {
   schema: string;
   adapter: string;
   quizEligible: boolean;
-  status: "draft" | "review" | "ready" | "retired";
+  status?: "draft" | "review" | "ready" | "retired";
   sourceVersion?: string;
   version: string;
   files: string[];
@@ -38,6 +38,11 @@ function dataUriToBlob(uri: string): Blob {
 }
 
 export type BundledState = "not-installed" | "installed" | "update";
+
+/** Only validated catalog entries participate in automatic first-run setup. */
+export function isInstallableBook(book: BundledBook): boolean {
+  return book.status === undefined || book.status === "ready";
+}
 
 // Earlier bundled display names. An exact match means the reader has not
 // renamed that book; other titles are treated as their own choice.
@@ -70,7 +75,7 @@ let manifest: Promise<BundledBook[]> | null = null;
 export function bundledBooks(): Promise<BundledBook[]> {
   manifest ??= fetch("./library/index.json")
     .then((r) => (r.ok ? r.json() : { books: [] }))
-    .then((j: { books?: BundledBook[] }) => j.books ?? [])
+    .then((j: { books?: BundledBook[] }) => (j.books ?? []).filter(isInstallableBook))
     .catch(() => []);
   return manifest;
 }
