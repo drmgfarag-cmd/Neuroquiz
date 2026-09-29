@@ -92,6 +92,7 @@ function record(book, kind, item, sourcePath, recordPath, ordinal) {
     topics: tags,
     sourcePath,
     recordPath,
+    indexQuality: "heuristic",
     ...(kind === "atlas-entry" && (item.file || item.path || item.filename || item.image) ? { mediaPath: asText(item.file) || asText(item.path) || asText(item.filename) || asText(item.image) } : {}),
     quizEligible: kind === "question" && Boolean(book.quizEligible)
   };
@@ -183,7 +184,8 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
         searchText: normalise(basename(file)),
         tags: [],
         topics: [],
-        sourcePath: file
+        sourcePath: file,
+        indexQuality: "heuristic"
       });
     }
   }

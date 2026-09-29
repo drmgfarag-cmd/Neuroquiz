@@ -233,6 +233,8 @@ export interface ContentIndexRecord {
   recordPath?: string;
   /** Relative local asset path for atlas/media records. */
   mediaPath?: string;
+  /** Current raw-source scan is provisional until adapter-normalized indexing is enabled. */
+  indexQuality?: "canonical" | "heuristic";
   quizEligible?: boolean;
 }
 

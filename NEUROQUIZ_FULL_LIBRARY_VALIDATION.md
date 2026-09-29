@@ -3,7 +3,7 @@
 **Repository:** `drmgfarag-cmd/Neuroquiz`  
 **Branch:** `offline-content-architecture`  
 **Validation date:** 2026-09-29  
-**Validated revision:** `43f2b1a` plus the Workbox cache-limit fix in the working tree
+**Validated revision:** `43f2b1a` plus subsequent working-tree validation and index/PWA fixes
 
 ## Executive result
 
@@ -64,6 +64,20 @@ public/indexes/links-index.json
 ```
 
 Every file listed in the generated catalog exists on disk.
+
+## JSON index readiness assessment
+
+The raw JSON files are **readable and packageable**, but they are not all ready to serve as an authoritative semantic index.
+
+The current global index generator scans raw JSON using common field aliases. It is useful for discovery, but its tags and links are provisional:
+
+- tags are carried only when recognizable tag/topic fields are present in the source;
+- missing tags are not inferred reliably from chapter context or question meaning;
+- the 800 generated links are deterministic shared-tag links, not verified editorial relationships;
+- source-specific answer structures, EMI relationships, multipart questions, and case-stage relationships are not fully represented by the raw scan;
+- generated records are marked `indexQuality: "heuristic"`.
+
+The proper long-term pipeline is to normalize each book through its declared adapter first, then generate canonical indexes from normalized records. AI tagging and reference linking should remain a separate enrichment step and be marked unverified until reviewed.
 
 ## Data-quality findings
 
@@ -139,7 +153,7 @@ The current manifest contains zero `reference-corpus` entries. The generated ind
 
 The full generated question index is approximately 16.8 MiB. The previous Workbox limit caused the production PWA build to fail because the index exceeded the configured precache threshold.
 
-The limit was increased from 6 MiB to 64 MiB in `vite.config.ts`. The production build now completes and precaches approximately 20.6 MiB of application/index assets.
+The arbitrary per-file limit has now been removed in `vite.config.ts` by setting Workbox's maximum to `Number.MAX_SAFE_INTEGER`. The production build completes and precaches approximately 20.6 MiB of application/index assets.
 
 ## Final recommendations
 

@@ -29,9 +29,9 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest,json}"],
         // built-in books are copied into the database on first launch, not cached twice
         globIgnores: ["library/**"],
-        // The global question index is metadata-only but can exceed 6 MiB for
-        // the full local library; keep it precached for offline global search.
-        maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+        // Do not impose an arbitrary per-file cap on offline indexes. They are
+        // metadata-only and must remain available for fully offline search.
+        maximumFileSizeToCacheInBytes: Number.MAX_SAFE_INTEGER,
         navigateFallback: "index.html"
       }
     })
