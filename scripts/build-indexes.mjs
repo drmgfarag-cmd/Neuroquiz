@@ -91,6 +91,7 @@ function record(book, kind, item, sourcePath, ordinal) {
     tags,
     topics: tags,
     sourcePath,
+    ...(kind === "atlas-entry" && (item.file || item.path || item.filename || item.image) ? { mediaPath: asText(item.file) || asText(item.path) || asText(item.filename) || asText(item.image) } : {}),
     quizEligible: kind === "question" && Boolean(book.quizEligible)
   };
 }

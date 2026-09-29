@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { db } from "../lib/db";
 import { resolveMedia } from "../lib/media";
-import type { AtlasEntry, CaseScenario, Question } from "../lib/types";
+import { loadGlobalIndex } from "../lib/global-index";
+import type { AtlasEntry, CaseScenario, ContentIndexRecord, Question } from "../lib/types";
 import { normaliseFileName } from "../lib/util";
 
 type Role = "question" | "answer" | "reference" | "case";
@@ -88,6 +89,11 @@ export default function ImageAtlas() {
   const [flipMode, setFlipMode] = useState(false);
   const [flipped, setFlipped] = useState<Set<string>>(() => new Set());
   const [shown, setShown] = useState(PAGE);
+  const [globalAtlas, setGlobalAtlas] = useState<ContentIndexRecord[]>([]);
+
+  useEffect(() => {
+    loadGlobalIndex("atlas").then(setGlobalAtlas).catch(() => setGlobalAtlas([]));
+  }, []);
 
   // start on the first book that has images
   const imageCounts = useLiveQuery(async () => {
@@ -109,8 +115,27 @@ export default function ImageAtlas() {
       db.cases.where("bookId").equals(bookId).toArray(),
       db.atlas.where("bookId").equals(bookId).toArray()
     ]);
-    return collect(questions, cases, atlas);
-  }, [bookId]);
+    const local = collect(questions, cases, atlas);
+    const known = new Set(local.map((item) => item.key));
+    for (const entry of globalAtlas.filter((item) => item.bookId === bookId && item.mediaPath)) {
+      const key = normaliseFileName(entry.mediaPath!);
+      if (known.has(key)) continue;
+      local.push({
+        key,
+        file: entry.mediaPath!,
+        roles: new Set<Role>(["reference"]),
+        questions: [],
+        cases: [],
+        chapterIds: [],
+        title: entry.title,
+        caption: entry.title,
+        tags: entry.tags,
+        kind: "reference",
+        description: entry.searchText
+      });
+    }
+    return local;
+  }, [bookId, globalAtlas]);
   const chapterTitle = useMemo(() => new Map((chapters ?? []).map((c) => [c.id, c.title])), [chapters]);
 
   const items = (all ?? []).filter((it) => (role === "all" || it.roles.has(role))

@@ -227,6 +227,8 @@ export interface ContentIndexRecord {
   tags: string[];
   topics: string[];
   sourcePath?: string;
+  /** Relative local asset path for atlas/media records. */
+  mediaPath?: string;
   quizEligible?: boolean;
 }
 
