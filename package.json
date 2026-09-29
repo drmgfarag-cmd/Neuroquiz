@@ -18,6 +18,7 @@
     "predev": "node scripts/build-library.mjs && node scripts/build-indexes.mjs",
     "prebuild": "node scripts/build-library.mjs && node scripts/build-indexes.mjs",
     "build:web": "LIBRARY_PACK=1 node scripts/build-library.mjs && node scripts/build-indexes.mjs && VITE_WEB_PREVIEW=1 vite build --outDir dist-web",
+    "validate-library": "node scripts/validate-library.mjs",
     "check-books": "vitest run tests/library.test.ts --disable-console-intercept"
   },
   "dependencies": {
