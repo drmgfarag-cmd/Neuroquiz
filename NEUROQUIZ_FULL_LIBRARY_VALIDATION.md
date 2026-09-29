@@ -11,13 +11,15 @@ The actual source archives were hydrated and validated.
 
 | Gate | Result |
 |---|---:|
-| Manifest entries | 26 |
-| Declared source files | 27 |
+| Manifest entries | 44 |
+| Ready manifest entries | 26 |
+| Review-stage manifest entries | 18 |
+| Declared source files | 45 |
 | Source archive/JSON integrity | PASS |
 | Missing declared sources | 0 |
 | Broken split archives | 0 |
 | Full library packaging | PASS |
-| Generated catalog books | 26 |
+| Generated catalog books by default | 26 ready books |
 | Generated canonical questions | 13,572 |
 | Generated canonical cases | 874 |
 | Generated atlas entries | 833 |
@@ -26,7 +28,9 @@ The actual source archives were hydrated and validated.
 | Generated deterministic links | 5,741 |
 | TypeScript check | PASS |
 | Production PWA build | PASS |
-| Automated tests | 117 passed / 117 total |
+| Automated tests | 117 passed / 117 total, plus search-ranking regression |
+| JSON files audited | 111 |
+| Text-quality findings in raw source | 36,452 |
 
 ## Archive and source validation
 
@@ -43,7 +47,7 @@ The declared source set occupies approximately **3.1 GB** in the repository. The
 
 ## Full packaging result
 
-The unoptimized packaging pipeline completed for all 26 configured books:
+The default packaging pipeline continues to package only the 26 `ready` books. The 18 newly classified books are in `review` status and are available through the same manifest, validation, normalization, and optional staged-build pipeline without being shipped to the runtime bundle prematurely.
 
 ```text
 npm run build-library
@@ -75,15 +79,16 @@ Every file listed in the generated catalog exists on disk.
 
 The raw JSON files are **readable and packageable**, but they are not all ready to serve as an authoritative semantic index without normalization.
 
-The current global index generator scans raw JSON using common field aliases. It is useful for discovery, but its tags and links are provisional:
+The current global index generator consumes adapter-normalized records. It is authoritative for normalized structure, while locally derived semantic tags remain reviewable:
 
-- tags are carried only when recognizable tag/topic fields are present in the source;
-- missing tags are not inferred reliably from chapter context or question meaning;
-- shared-tag links exclude broad terms such as `imaging`, `image`, `figure`, and `medical`;
-- 3,272 question-to-media links are based on explicit image/media references on the question record, not shared broad tags;
+- source tags and normalized annotation tags are preserved;
+- chapter and section values are stored as `contextTags`, not semantic question tags;
+- missing semantic tags receive deterministic local concept candidates and are marked `tagQuality: "derived-local"`;
+- shared broad terms such as `imaging`, `image`, `figure`, and `medical` are not used as media relationships;
+- 3,068 question-to-media links are based on explicit image/media references on the question record, not shared broad tags;
 - question tags are inherited only onto the directly referenced media records;
 - source-specific answer structures, EMI relationships, multipart questions, and case-stage relationships are not fully represented by the raw scan;
-- generated records are marked `indexQuality: "heuristic"`.
+- generated question and case records are marked `indexQuality: "canonical"`.
 
 The implemented pipeline now normalizes each book through the existing adapter-compatible `normalizeBookJson` path first, then generates canonical indexes from normalized records. AI tagging and reference linking remain a separate enrichment step and are marked unverified until reviewed.
 
@@ -138,7 +143,7 @@ These are isolated and are already protected from scored pools by `unscorableRea
 
 ### 3. Undeclared future source groups
 
-There are **22 undeclared source groups**, comprising **107 files**. They were not imported or added to the 26-book manifest. They include additional likely future books such as:
+There are **20 remaining undeclared/incomplete source files or groups**. Eighteen complete groups were added to the manifest in `review` status; four incomplete or invalid groups remain outside the manifest until their missing parts are supplied. They include:
 
 - `CBBI`
 - `CBINR`
@@ -158,14 +163,33 @@ There are **22 undeclared source groups**, comprising **107 files**. They were n
 - `practical neurosurgery cases`
 - several additional board-review and case-review archives
 
-These should remain staged until each source receives:
+The newly added books remain staged until each source receives:
 
-1. a stable manifest ID;
-2. a content kind;
-3. a schema and adapter;
-4. a quiz-eligibility decision;
-5. extraction-quality review;
-6. media/reference-link validation.
+1. extraction-quality review;
+2. media/reference-link validation;
+3. a final quiz-eligibility decision;
+4. promotion from `review` to `ready`.
+
+Use `npm run build-library:staged` to package them for review without repeating the architecture or indexing work.
+
+### 5. Full text-quality audit
+
+`npm run audit-json` scanned **111 JSON files** and **557,416 strings** across declared sources. It found:
+
+| Finding | Count | Handling |
+|---|---:|---|
+| Repeated spacing | 18,608 | Removed in normalized output |
+| Mixed dash spacing | 11,608 | Preserved/normalized during text reflow |
+| Line-break hyphens | 5,288 | Rejoined during text reflow |
+| Space before punctuation | 864 | Removed in normalized output |
+| Mojibake | 30 | Known UTF-8 repair mappings applied |
+| Control characters | 54 | Comparison symbols restored where identified; other controls removed |
+
+The original archives remain unchanged for provenance. Safe repairs occur in the shared normalizer, so imported questions, search indexes, and reference text use corrected normalized text. The audit report is written to `library/json-text-audit.json` for source-level review.
+
+### 6. Uncapped confidence-ranked search
+
+Global search no longer truncates results to 100 or 500 records. Every matching result is returned with `searchConfidence`, sorted descending. Exact semantic tags rank above topic matches, title matches, and body-text matches. The Search page now uses this confidence score when combining local database and global-index results.
 
 ### 4. Reference corpus is not yet declared
 
@@ -180,7 +204,8 @@ The arbitrary per-file limit has now been removed in `vite.config.ts` by setting
 ## Final recommendations
 
 1. **Do not promote `nbr3` to fully scored status** until its answer/options extraction is repaired.
-2. Keep the 22 undeclared source groups outside `books.json` until individually classified.
-3. Add the extracted reference textbook as a dedicated `reference-corpus` manifest entry when its extraction is complete.
-4. Keep full question bodies and media outside global indexes; continue loading them on demand.
-5. Run this release gate after every source import or adapter change.
+2. Keep the remaining incomplete source groups outside `books.json` until missing parts are supplied.
+3. Promote the 18 review-stage books only after their book-level extraction checks pass.
+4. Add the extracted reference textbook as a dedicated `reference-corpus` manifest entry when its extraction is complete.
+5. Keep full question bodies and media outside global indexes; continue loading them on demand.
+6. Run this release gate after every source import or adapter change.

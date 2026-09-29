@@ -207,9 +207,22 @@ const LIST_LINE = /^\s*(?:[-*•]\s|\d{1,3}[.)]\s|[a-z][.)]\s|[ivx]{1,5}[.)]\s|\
  * lists, tables, headings and "a. TRUE —" style statements on their own lines.
  */
 export function reflow(text: string): string {
+  const tidy = (value: string) => value
+    .replace(/Ã©/g, "é").replace(/Ã¶/g, "ö").replace(/Ã¤/g, "ä").replace(/Ã±/g, "ñ")
+    .replace(/Ã§/g, "ç").replace(/Ã¨/g, "è").replace(/Ã¡/g, "á").replace(/Ã³/g, "ó")
+    .replace(/â€™/g, "’").replace(/â€œ/g, "“").replace(/â€/g, "”").replace(/â€“/g, "–").replace(/â€”/g, "—")
+    .replace(/Â±/g, "±").replace(/Â°/g, "°").replace(/Âµ/g, "µ")
+    .replace(/\u0003/g, "≥")
+    .replace(/\u0004/g, "≤")
+    .replace(/\u0005/g, "×")
+    .replace(/[\u0000-\u0002\u0006-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+    .replace(/[ \t]+([,.;:?])/g, "$1")
+    .replace(/[ \t]+!(?!\[)/g, "!")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
   // soft hyphens left by PDF line breaks ("blad\u00ad der" → "bladder")
   if (text) text = text.replace(/\u00ad\s*/g, "");
-  if (!text || !text.includes("\n")) return text;
+  if (!text || !text.includes("\n")) return tidy(text);
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const paras: string[][] = [];
   let cur: string[] = [];
@@ -231,7 +244,7 @@ export function reflow(text: string): string {
     cur.push(line);
   }
   if (cur.length) paras.push(cur);
-  return paras
+  return tidy(paras
     .map((p) =>
       p.reduce((acc, line, i) => {
         if (i === 0) return line.trim();
@@ -240,7 +253,7 @@ export function reflow(text: string): string {
         return acc.endsWith("-") ? acc + line.trim() : `${acc} ${line.trim()}`;
       }, "")
     )
-    .join("\n\n");
+    .join("\n\n"));
 }
 
 /** Flatten strings/arrays/objects to readable text. */

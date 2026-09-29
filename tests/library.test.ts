@@ -12,8 +12,8 @@ import { formatOf } from "../src/lib/grading";
 import { auditBook, unscorableReason } from "../src/lib/quality";
 
 const LIB = new URL("../library/", import.meta.url);
-const list: { id: string; title: string; source: string | string[]; questionImages?: string; primaryJson?: string; referencedAssetsOnly?: boolean }[] = existsSync(new URL("books.json", LIB))
-  ? JSON.parse(readFileSync(new URL("books.json", LIB), "utf8")).books
+const list: { id: string; title: string; source: string | string[]; status?: string; questionImages?: string; primaryJson?: string; referencedAssetsOnly?: boolean }[] = existsSync(new URL("books.json", LIB))
+  ? (JSON.parse(readFileSync(new URL("books.json", LIB), "utf8")).books as { status?: string }[]).filter((book) => book.status === "ready")
   : [];
 
 /** Same rule as scripts/build-library.mjs: both split ZIP naming conventions. */

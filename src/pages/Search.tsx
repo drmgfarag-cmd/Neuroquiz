@@ -29,7 +29,7 @@ function globalRows(records: ContentIndexRecord[]): Row[] {
     text: plain(record.title || record.searchText, 220),
     topic: record.topics[0] ?? record.tags[0] ?? "",
     subtopic: record.topics[1] ?? "",
-    score: 0.5
+    score: record.searchConfidence ?? 0.5
   }));
 }
 
@@ -71,8 +71,8 @@ export default function SearchPage() {
       let hits: SearchHit[] = await search(text, { kinds });
       if (!hits.length) hits = await search(text, { kinds, combineWith: "OR" });
       const [localRows, global] = await Promise.all([
-        hydrate(hits.slice(0, 500)),
-        searchGlobalContent(text, { limit: 500 }).catch(() => [])
+        hydrate(hits),
+        searchGlobalContent(text).catch(() => [])
       ]);
       const localIds = new Set(localRows.map((row) => row.id));
       setRows([...localRows, ...globalRows(global.filter((row) => !localIds.has(row.id)))].sort((a, b) => b.score - a.score));

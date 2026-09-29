@@ -232,6 +232,8 @@ export interface ContentIndexRecord {
   contextTags?: string[];
   /** How semantic tags were obtained for this record. */
   tagQuality?: "source" | "derived-local" | "enriched-ai" | "unverified";
+  /** Query-specific confidence assigned by global search. */
+  searchConfidence?: number;
   sourcePath?: string;
   /** JSON object path inside sourcePath, used for on-demand body loading. */
   recordPath?: string;

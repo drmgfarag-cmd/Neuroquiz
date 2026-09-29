@@ -110,6 +110,10 @@ async function optimise(rel, data, book) {
 }
 
 for (const book of books) {
+  if (book.status !== "ready" && process.env.LIBRARY_INCLUDE_STAGED !== "1") {
+    console.log(`build-library: ${book.id} – staged (${book.status ?? "draft"}), skipped from runtime bundle`);
+    continue;
+  }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(book.id)) throw new Error(`book id "${book.id}" must be lower-case letters, digits or dashes`);
   const sources = Array.isArray(book.source) ? book.source : [book.source];
   const hash = createHash("sha256");

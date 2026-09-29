@@ -28,7 +28,7 @@ export async function loadGlobalIndexes(names: GlobalIndexName[] = ["questions",
   return rows.flat();
 }
 
-export async function searchGlobalContent(query: string, options: { kinds?: IndexedContentKind[]; limit?: number } = {}): Promise<ContentIndexRecord[]> {
+export async function searchGlobalContent(query: string, options: { kinds?: IndexedContentKind[] } = {}): Promise<ContentIndexRecord[]> {
   const needle = normalise(query);
   if (!needle) return [];
   const rows = await loadGlobalIndexes();
@@ -37,14 +37,23 @@ export async function searchGlobalContent(query: string, options: { kinds?: Inde
   return rows
     .filter((row) => !allowed || allowed.has(row.kind))
     .map((row) => {
-      const haystack = normalise(`${row.title} ${row.searchText} ${row.tags.join(" ")} ${row.topics.join(" ")}`);
-      const matched = terms.filter((term) => haystack.includes(term)).length;
-      return { row, score: matched / terms.length };
+      const title = normalise(row.title);
+      const searchText = normalise(row.searchText);
+      const tags = row.tags.map(normalise);
+      const topics = row.topics.map(normalise);
+      const phrase = terms.join(" ");
+      const score = terms.reduce((total, term) => {
+        if (tags.some((tag) => tag === term)) return total + 1;
+        if (topics.some((topic) => topic === term)) return total + 0.9;
+        if (title.includes(term)) return total + 0.8;
+        if (searchText.includes(term)) return total + 0.45;
+        return total;
+      }, (tags.includes(phrase) ? 2 : 0) + (topics.includes(phrase) ? 1.5 : 0) + (title.includes(phrase) ? 0.35 : 0)) / terms.length;
+      return { row, score: Number(score.toFixed(6)) };
     })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || a.row.title.localeCompare(b.row.title))
-    .slice(0, options.limit ?? 100)
-    .map((item) => item.row);
+    .map((item) => ({ ...item.row, searchConfidence: item.score }));
 }
 
 /** Load only one indexed record body from its local JSON source. */

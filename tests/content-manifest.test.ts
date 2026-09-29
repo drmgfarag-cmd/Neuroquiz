@@ -15,12 +15,14 @@ const books = (JSON.parse(readFileSync(new URL("../library/books.json", import.m
 
 describe("library content manifest", () => {
   it("classifies every configured entry before it can be imported", () => {
-    expect(books).toHaveLength(26);
+    expect(books).toHaveLength(44);
     expect(books.every((book) => book.kind && book.schema && book.adapter && typeof book.quizEligible === "boolean")).toBe(true);
-    expect(books.filter((book) => book.kind === "question-bank")).toHaveLength(16);
+    expect(books.filter((book) => book.kind === "question-bank")).toHaveLength(18);
     expect(books.filter((book) => book.kind === "hybrid-question-bank")).toHaveLength(1);
-    expect(books.filter((book) => book.kind === "case-book")).toHaveLength(7);
+    expect(books.filter((book) => book.kind === "case-book")).toHaveLength(22);
     expect(books.filter((book) => book.kind === "visual-atlas")).toHaveLength(2);
+    expect(books.filter((book) => book.kind === "reference-corpus")).toHaveLength(1);
+    expect(books.filter((book) => book.status === "ready")).toHaveLength(26);
   });
 
   it("keeps case books and atlases out of scored question pools", () => {

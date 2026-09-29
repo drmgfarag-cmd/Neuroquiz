@@ -19,6 +19,8 @@
     "prebuild": "node scripts/build-library.mjs && node scripts/build-canonical-records.mjs && node scripts/build-indexes.mjs",
     "build:web": "LIBRARY_PACK=1 node scripts/build-library.mjs && node scripts/build-canonical-records.mjs && node scripts/build-indexes.mjs && VITE_WEB_PREVIEW=1 vite build --outDir dist-web",
     "validate-library": "node scripts/validate-library.mjs",
+    "audit-json": "node scripts/audit-json-text.mjs",
+    "build-library:staged": "LIBRARY_INCLUDE_STAGED=1 node scripts/build-library.mjs && node scripts/build-canonical-records.mjs && node scripts/build-indexes.mjs",
     "check-books": "vitest run tests/library.test.ts --disable-console-intercept"
   },
   "dependencies": {
