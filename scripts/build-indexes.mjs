@@ -3,13 +3,14 @@
  * Generate compact, searchable indexes from the already-built local library.
  * Bodies and media remain in public/library/<book>; indexes contain metadata only.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const libraryDir = join(root, "public", "library");
 const indexesDir = join(root, "public", "indexes");
+const canonicalPath = join(libraryDir, "canonical", "index.json");
 const JSON_EXT = /\.json$/i;
 const MEDIA_EXT = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 const TEXT_KEYS = ["title", "name", "question", "stem", "prompt", "text", "body", "description", "presentation", "discussion", "answer", "explanation", "rationale", "notes", "keywords", "tags", "topic", "topics", "category", "section", "chapter"];
@@ -96,10 +97,10 @@ function looksReference(item) {
   return Boolean(text && (asText(item.title) || asText(item.heading) || asText(item.section) || asText(item.chapter)));
 }
 
-function record(book, kind, item, sourcePath, recordPath, ordinal) {
+function record(book, kind, item, sourcePath, recordPath, ordinal, canonicalRecords = {}) {
   const sourceId = asText(item.id) || asText(item.question_id) || asText(item.questionId) || asText(item.number) || asText(item.question_number) || `${ordinal}`;
   const options = item.options ?? item.choices ?? item.answers ?? item.alternatives;
-  const optionTexts = Array.isArray(options) ? options.map((option) => isObject(option) ? asText(option.text) || asText(option.content) || asText(option.value) : asText(option)) : isObject(options) ? Object.values(options).map((option) => isObject(option) ? asText(option.text) || asText(option.content) || asText(option.value) : asText(option)) : [];
+  const optionTexts = Array.isArray(options) ? options.map((option) => isObject(option) ? `${asText(option.key) || asText(option.label) || asText(option.id)}=${asText(option.text) || asText(option.content) || asText(option.value)}` : asText(option)) : isObject(options) ? Object.values(options).map((option) => isObject(option) ? `${asText(option.key) || asText(option.label) || asText(option.id)}=${asText(option.text) || asText(option.content) || asText(option.value)}` : asText(option)) : [];
   const stem = asText(item.stem) || asText(item.question) || asText(item.question_text) || asText(item.prompt) || asText(item.vignette);
   const id = kind === "question" && stem
     ? `${book.id}:q:${stableHash(`${stem}|${optionTexts.join("|")}`)}`
@@ -111,25 +112,27 @@ function record(book, kind, item, sourcePath, recordPath, ordinal) {
   const title = values(item, ["title", "name", "question", "stem", "prompt", "heading", "section"])[0] || `${book.title} ${kind}`;
   const searchText = normalise([...values(item, TEXT_KEYS), ...values(item, ["options", "choices"])].join(" "));
   const tags = [...new Set(values(item, TAG_KEYS).flatMap((value) => value.split(/[,;|]/).map((tag) => tag.trim()).filter(Boolean)))];
-  const paths = mediaPaths(item);
+  const canonical = canonicalRecords[id];
+  const canonicalTags = canonical?.tags ?? tags;
+  const paths = canonical?.mediaPaths ?? mediaPaths(item);
   return {
     id,
     kind,
     bookId: book.id,
     title,
     searchText,
-    tags,
-    topics: tags,
+    tags: canonicalTags,
+    topics: canonicalTags,
     sourcePath,
     recordPath,
-    indexQuality: "heuristic",
+    indexQuality: canonical ? "canonical" : "heuristic",
     ...(paths.length ? { mediaPaths: paths } : {}),
     ...(kind === "atlas-entry" && (item.file || item.path || item.filename || item.image) ? { mediaPath: asText(item.file) || asText(item.path) || asText(item.filename) || asText(item.image) } : {}),
     quizEligible: kind === "question" && Boolean(book.quizEligible)
   };
 }
 
-function collectJsonRecords(book, data, sourcePath, indexes) {
+function collectJsonRecords(book, data, sourcePath, indexes, canonicalBook = {}) {
   let ordinal = 0;
   const seen = new WeakSet();
   const visit = (value, path, context = { insideCase: false }) => {
@@ -138,8 +141,8 @@ function collectJsonRecords(book, data, sourcePath, indexes) {
     seen.add(value);
     ordinal += 1;
     const isCase = looksCase(value);
-    if (looksQuestion(value)) indexes.questions.push(record(book, "question", value, sourcePath, path, ordinal));
-    else if (isCase) indexes.cases.push(record(book, "case", value, sourcePath, path, ordinal));
+    if (!canonicalBook.ready && looksQuestion(value)) indexes.questions.push(record(book, "question", value, sourcePath, path, ordinal, canonicalBook.questions));
+    else if (!canonicalBook.ready && isCase) indexes.cases.push(record(book, "case", value, sourcePath, path, ordinal, canonicalBook.cases));
     else if (looksAtlas(value)) indexes.atlas.push(record(book, "atlas-entry", value, sourcePath, path, ordinal));
     else if (!context.insideCase && looksReference(value)) indexes.references.push(record(book, "reference-section", value, sourcePath, path, ordinal));
     for (const [key, child] of Object.entries(value)) visit(child, `${path}.${key}`, { insideCase: context.insideCase || isCase });
@@ -220,18 +223,26 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
   mkdirSync(outputRoot, { recursive: true });
   const catalogPath = join(libraryRoot, "index.json");
   const catalog = existsSync(catalogPath) ? JSON.parse(readFileSync(catalogPath, "utf8")) : { format: 2, books: [] };
+  const canonical = existsSync(join(libraryRoot, "canonical", "index.json"))
+    ? JSON.parse(readFileSync(join(libraryRoot, "canonical", "index.json"), "utf8"))
+    : { books: {} };
   const indexes = { questions: [], cases: [], atlas: [], references: [], media: [], links: [] };
 
   for (const book of catalog.books ?? []) {
     const jsonFiles = (book.files ?? []).filter((file) => JSON_EXT.test(file));
+    const canonicalBook = canonical.books?.[book.id] ?? {};
     for (const file of jsonFiles) {
       const absolute = join(libraryRoot, file);
       if (!existsSync(absolute)) continue;
       try {
-        collectJsonRecords(book, JSON.parse(readFileSync(absolute, "utf8")), file, indexes);
+        collectJsonRecords(book, JSON.parse(readFileSync(absolute, "utf8")), file, indexes, canonicalBook);
       } catch (error) {
         console.warn(`build-indexes: could not parse ${file}: ${error.message}`);
       }
+    }
+    if (canonicalBook.ready) {
+      indexes.questions.push(...Object.values(canonicalBook.questions ?? {}));
+      indexes.cases.push(...Object.values(canonicalBook.cases ?? {}));
     }
     for (const file of (book.files ?? []).filter((candidate) => MEDIA_EXT.test(candidate))) {
       indexes.media.push({
@@ -270,6 +281,9 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
     writeFileSync(join(outputRoot, `${key}-index.json`), JSON.stringify(rows));
   }
   writeFileSync(join(outputRoot, "index.json"), JSON.stringify({ format: output.format, generatedAt: output.generatedAt, counts: output.counts }));
+  // Canonical records are a build-time bridge; the compact global indexes are
+  // the only copies shipped to the offline app.
+  if (resolve(libraryRoot) === resolve(libraryDir)) rmSync(join(libraryRoot, "canonical"), { recursive: true, force: true });
   return output;
 }
 

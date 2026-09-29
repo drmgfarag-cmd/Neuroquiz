@@ -18,12 +18,12 @@ The actual source archives were hydrated and validated.
 | Broken split archives | 0 |
 | Full library packaging | PASS |
 | Generated catalog books | 26 |
-| Generated questions | 18,083 |
-| Generated cases | 818 |
+| Generated canonical questions | 13,572 |
+| Generated canonical cases | 874 |
 | Generated atlas entries | 833 |
 | Generated reference sections | 13 |
 | Generated media files | 5,512 |
-| Generated deterministic links | 3,702 |
+| Generated deterministic links | 7,915 |
 | TypeScript check | PASS |
 | Production PWA build | PASS |
 | Automated tests | 117 passed / 117 total |
@@ -50,6 +50,10 @@ npm run build-library
 node scripts/build-indexes.mjs
 ```
 
+Before global indexing, `scripts/build-canonical-records.mjs` bundles and runs the existing `src/import/normalize.ts` implementation. This is the same normalization path used by the runtime importer. The global index then consumes the normalized questions and cases rather than classifying raw nested JSON independently.
+
+Canonical normalization covered all **26/26 books** and produced **13,572 questions** and **874 cases**. Visual-atlas entries continue to come from their atlas schema, because the question/case normalizer correctly does not reinterpret atlas rows as questions.
+
 Generated outputs:
 
 ```text
@@ -67,7 +71,7 @@ Every file listed in the generated catalog exists on disk.
 
 ## JSON index readiness assessment
 
-The raw JSON files are **readable and packageable**, but they are not all ready to serve as an authoritative semantic index.
+The raw JSON files are **readable and packageable**, but they are not all ready to serve as an authoritative semantic index without normalization.
 
 The current global index generator scans raw JSON using common field aliases. It is useful for discovery, but its tags and links are provisional:
 
@@ -79,7 +83,7 @@ The current global index generator scans raw JSON using common field aliases. It
 - source-specific answer structures, EMI relationships, multipart questions, and case-stage relationships are not fully represented by the raw scan;
 - generated records are marked `indexQuality: "heuristic"`.
 
-The proper long-term pipeline is to normalize each book through its declared adapter first, then generate canonical indexes from normalized records. AI tagging and reference linking should remain a separate enrichment step and be marked unverified until reviewed.
+The implemented pipeline now normalizes each book through the existing adapter-compatible `normalizeBookJson` path first, then generates canonical indexes from normalized records. AI tagging and reference linking remain a separate enrichment step and are marked unverified until reviewed.
 
 ### Precise image relationship result
 
@@ -92,6 +96,8 @@ question → case         basis: shared-specific-tag
 ```
 
 An `imaging` tag alone cannot link a question to every image in a book. The image must first be explicitly referenced by that question or case. Only then are the question/case tags inherited by that media record.
+
+The current full canonical build produced **3,068 question-to-media links**, **2,673 case-to-media links**, and **2,174 question-to-case links**. All question and case records in the global indexes are marked `indexQuality: "canonical"`.
 
 ## Data-quality findings
 
