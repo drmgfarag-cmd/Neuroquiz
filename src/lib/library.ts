@@ -11,10 +11,17 @@ import { clearMediaCache } from "./media";
 import { getSettings } from "./settings";
 import { IMAGE_EXT, normaliseFileName } from "./util";
 import { auditBook } from "./quality";
+import type { ContentKind } from "./content-manifest";
 
 export interface BundledBook {
   id: string;
   title: string;
+  kind: ContentKind;
+  schema: string;
+  adapter: string;
+  quizEligible: boolean;
+  status: "draft" | "review" | "ready" | "retired";
+  sourceVersion?: string;
   version: string;
   files: string[];
   /** web preview: images packed into JSON files of data URIs */

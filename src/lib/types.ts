@@ -1,3 +1,5 @@
+import type { ContentKind } from "./content-manifest";
+
 // ---------------------------------------------------------------------------
 // Content (imported from books – re-importable, identical on every device)
 // ---------------------------------------------------------------------------
@@ -5,6 +7,12 @@
 export interface Book {
   id: string;
   title: string;
+  /** The source's semantic content type; not every book is a quiz bank. */
+  kind?: ContentKind;
+  /** Canonical source schema used by the build-time adapter. */
+  schema?: string;
+  /** Source content version, independent of generated asset hashes. */
+  sourceVersion?: string;
   /** Original file names this book was built from. */
   sources: string[];
   importedAt: number;
@@ -77,6 +85,10 @@ export interface Question {
   panel?: Record<string, number>;
   /** Questions sharing a case, an EMI answer list or a parent question; kept together when shuffled. */
   groupId?: string;
+  /** More precise semantics for linked/multipart question groups. */
+  groupType?: QuestionGroupType;
+  /** Position inside an ordered linked-question group. */
+  groupOrder?: number;
   /** true when the learner's correction is applied (see Correction) */
   edited?: boolean;
   /** the source's own question id (e.g. "Q17", "07_089") */
@@ -144,6 +156,29 @@ export interface MediaFile {
   blob: Blob;
 }
 
+export type QuestionGroupType =
+  | "clinical-progression"
+  | "emi-set"
+  | "shared-vignette"
+  | "multipart-question"
+  | "linked-image-set"
+  | "case-to-question"
+  | "parent-child-question";
+
+export interface QuestionGroup {
+  id: string;
+  bookId: string;
+  type: QuestionGroupType;
+  title?: string;
+  questionIds: string[];
+  /** Keep all parts in a quiz when true; otherwise individual parts may be selected. */
+  keepTogether: boolean;
+  /** Preserve source sequence when true. */
+  ordered: boolean;
+  /** Score the group as one unit when true. */
+  scoreAsUnit?: boolean;
+}
+
 /** A standalone visual reference, independent of quiz questions or cases. */
 export interface AtlasEntry {
   id: string;
@@ -157,6 +192,54 @@ export interface AtlasEntry {
   sourceTags: string[];
   /** Shared identifier for distinct photographs of the same atlas subject. */
   groupId?: string;
+}
+
+export interface ReferenceCorpus {
+  id: string;
+  title: string;
+  bookId?: string;
+  sourceVersion?: string;
+  sectionCount: number;
+  origin: "imported" | "user";
+}
+
+export interface ReferenceSection {
+  id: string;
+  corpusId: string;
+  parentId?: string;
+  title: string;
+  order: number;
+  chapter?: string;
+  text: string;
+  sourcePageStart?: number;
+  sourcePageEnd?: number;
+  sourceTags: string[];
+}
+
+export type IndexedContentKind = "question" | "question-group" | "case" | "case-stage" | "atlas-entry" | "reference-section" | "media";
+
+export interface ContentIndexRecord {
+  id: string;
+  kind: IndexedContentKind;
+  bookId?: string;
+  title: string;
+  searchText: string;
+  tags: string[];
+  topics: string[];
+  sourcePath?: string;
+  quizEligible?: boolean;
+}
+
+export type ContentLinkKind = "question-case" | "question-atlas" | "question-reference" | "case-atlas" | "case-reference" | "atlas-reference";
+
+export interface ContentLink {
+  id: string;
+  fromId: string;
+  toId: string;
+  kind: ContentLinkKind;
+  confidence: number;
+  source: "editorial" | "deterministic" | "ai" | "manual";
+  verified: boolean;
 }
 
 // ---------------------------------------------------------------------------

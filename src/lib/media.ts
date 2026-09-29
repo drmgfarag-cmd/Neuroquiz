@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { normaliseFileName, stripExt } from "./util";
+import { bundledAssetUrl } from "./content-catalog";
 
 const cache = new Map<string, Promise<string | null>>();
 
@@ -26,7 +27,7 @@ async function lookup(bookId: string | undefined, file: string): Promise<string 
     const coll = bookId ? db.media.where("bookId").equals(bookId) : db.media.toCollection();
     m = await coll.filter((x) => stripExt(x.name) === base).first();
   }
-  return m ? URL.createObjectURL(m.blob) : null;
+  return m ? URL.createObjectURL(m.blob) : bundledAssetUrl(bookId, file);
 }
 
 export function resolveMedia(bookId: string | undefined, file: string): Promise<string | null> {

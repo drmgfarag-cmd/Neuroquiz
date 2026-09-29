@@ -53,7 +53,7 @@ function readSource(src) {
 rmSync(outDir, { recursive: true, force: true });
 if (process.env.LIBRARY_BUNDLE === "none") {
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "index.json"), JSON.stringify({ books: [] }));
+  writeFileSync(join(outDir, "index.json"), JSON.stringify({ format: 2, books: [] }));
   console.log("build-library: empty bundle selected; books can be imported in the app");
   process.exit(0);
 }
@@ -63,7 +63,7 @@ if (!existsSync(listFile)) {
   process.exit(0);
 }
 const { books } = JSON.parse(readFileSync(listFile, "utf8"));
-const index = { books: [] };
+const index = { format: 2, generatedAt: new Date().toISOString(), books: [] };
 const PACK = !!process.env.LIBRARY_PACK;
 // app builds keep the original images; only the size-limited web preview shrinks them
 const OPTIMIZE = PACK || !!process.env.LIBRARY_OPTIMIZE_IMAGES;
@@ -187,7 +187,19 @@ for (const book of books) {
     }
     flush();
   }
-  index.books.push({ id: book.id, title: book.title, version: hash.digest("hex").slice(0, 16), files: files.sort(), ...(packs.length ? { packs } : {}) });
+  index.books.push({
+    id: book.id,
+    title: book.title,
+    kind: book.kind ?? "question-bank",
+    schema: book.schema ?? "mcq-v1",
+    adapter: book.adapter ?? "adaptMcqBook",
+    quizEligible: book.quizEligible ?? (book.kind !== "visual-atlas" && book.kind !== "reference-corpus" && book.kind !== "case-book"),
+    status: book.status ?? "ready",
+    ...(book.sourceVersion ? { sourceVersion: book.sourceVersion } : {}),
+    version: hash.digest("hex").slice(0, 16),
+    files: files.sort(),
+    ...(packs.length ? { packs } : {})
+  });
   console.log(`build-library: ${book.id} – ${files.length} files`);
 }
 writeFileSync(join(outDir, "index.json"), JSON.stringify(index, null, 1));
