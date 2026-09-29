@@ -14,6 +14,7 @@ const JSON_EXT = /\.json$/i;
 const MEDIA_EXT = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 const TEXT_KEYS = ["title", "name", "question", "stem", "prompt", "text", "body", "description", "presentation", "discussion", "answer", "explanation", "rationale", "notes", "keywords", "tags", "topic", "topics", "category", "section", "chapter"];
 const TAG_KEYS = ["tags", "keywords", "topic", "topics", "category", "categories", "subject", "subtopic", "section"];
+const BROAD_TAGS = new Set(["image", "images", "imaging", "figure", "figures", "medical", "neurosurgery", "neurology", "question", "case"]);
 
 const asText = (value) => typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
 const values = (object, keys) => keys.flatMap((key) => {
@@ -40,6 +41,34 @@ function stableHash(str, seed = 0) {
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function mediaPaths(item) {
+  const found = [];
+  const add = (value) => {
+    if (typeof value === "string" && value.trim()) found.push(value.trim());
+    else if (isObject(value)) add(value.file ?? value.path ?? value.filename ?? value.image ?? value.src);
+  };
+  for (const key of ["images", "question_images", "answer_images", "media", "stemMedia", "explanationMedia", "presentationMedia", "questionMedia", "answerMedia", "files", "image", "image_file"]) {
+    const value = item[key];
+    if (Array.isArray(value)) value.forEach(add);
+    else add(value);
+  }
+  for (const stage of [item.stages, item.steps, item.parts].filter(Array.isArray).flat()) {
+    for (const key of ["media", "answerMedia", "questionMedia", "images", "answer_images"]) {
+      const value = stage[key];
+      if (Array.isArray(value)) value.forEach(add);
+      else add(value);
+    }
+  }
+  for (const text of [asText(item.stem), asText(item.question), asText(item.explanation), asText(item.answer)]) {
+    for (const match of text.matchAll(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)|<img[^>]+src=["']([^"']+)["']/gi)) add(match[1] ?? match[2]);
+  }
+  return [...new Set(found)];
+}
+
+function assetKey(value) {
+  return String(value).replace(/\\/g, "/").split("/").pop().toLowerCase().replace(/\.[a-z0-9]+$/, "");
 }
 
 function looksQuestion(item) {
@@ -82,6 +111,7 @@ function record(book, kind, item, sourcePath, recordPath, ordinal) {
   const title = values(item, ["title", "name", "question", "stem", "prompt", "heading", "section"])[0] || `${book.title} ${kind}`;
   const searchText = normalise([...values(item, TEXT_KEYS), ...values(item, ["options", "choices"])].join(" "));
   const tags = [...new Set(values(item, TAG_KEYS).flatMap((value) => value.split(/[,;|]/).map((tag) => tag.trim()).filter(Boolean)))];
+  const paths = mediaPaths(item);
   return {
     id,
     kind,
@@ -93,6 +123,7 @@ function record(book, kind, item, sourcePath, recordPath, ordinal) {
     sourcePath,
     recordPath,
     indexQuality: "heuristic",
+    ...(paths.length ? { mediaPaths: paths } : {}),
     ...(kind === "atlas-entry" && (item.file || item.path || item.filename || item.image) ? { mediaPath: asText(item.file) || asText(item.path) || asText(item.filename) || asText(item.image) } : {}),
     quizEligible: kind === "question" && Boolean(book.quizEligible)
   };
@@ -124,8 +155,10 @@ function dedupe(rows) {
 function linkKind(from, to) {
   if (from.kind === "question" && to.kind === "case") return "question-case";
   if (from.kind === "question" && to.kind === "atlas-entry") return "question-atlas";
+  if (from.kind === "question" && to.kind === "media") return "question-media";
   if (from.kind === "question" && to.kind === "reference-section") return "question-reference";
   if (from.kind === "case" && to.kind === "atlas-entry") return "case-atlas";
+  if (from.kind === "case" && to.kind === "media") return "case-media";
   if (from.kind === "case" && to.kind === "reference-section") return "case-reference";
   if (from.kind === "atlas-entry" && to.kind === "reference-section") return "atlas-reference";
   return null;
@@ -134,10 +167,10 @@ function linkKind(from, to) {
 function sharedLinks(fromRows, toRows) {
   const links = [];
   for (const from of fromRows) {
-    const fromTags = new Set([...from.tags, ...from.topics].map(normalise).filter(Boolean));
+    const fromTags = new Set([...from.tags, ...from.topics].map(normalise).filter((tag) => tag && !BROAD_TAGS.has(tag)));
     if (!fromTags.size) continue;
     const candidates = toRows.map((to) => {
-      const toTags = new Set([...to.tags, ...to.topics].map(normalise).filter(Boolean));
+      const toTags = new Set([...to.tags, ...to.topics].map(normalise).filter((tag) => tag && !BROAD_TAGS.has(tag)));
       const overlap = [...fromTags].filter((tag) => toTags.has(tag)).length;
       return { to, overlap, confidence: overlap / Math.max(fromTags.size, toTags.size, 1) };
     }).filter((candidate) => candidate.overlap > 0).sort((a, b) => b.overlap - a.overlap || b.confidence - a.confidence).slice(0, 5);
@@ -151,6 +184,31 @@ function sharedLinks(fromRows, toRows) {
         kind,
         confidence: Number(candidate.confidence.toFixed(3)),
         source: "deterministic",
+        basis: "shared-specific-tag",
+        verified: false
+      });
+    }
+  }
+  return links;
+}
+
+function explicitMediaLinks(fromRows, atlasRows) {
+  const links = [];
+  for (const from of fromRows) {
+    const paths = new Set((from.mediaPaths ?? []).map(assetKey));
+    if (!paths.size) continue;
+    for (const atlas of atlasRows) {
+      if (atlas.bookId !== from.bookId || !atlas.mediaPath || !paths.has(assetKey(atlas.mediaPath))) continue;
+      atlas.tags = [...new Set([...atlas.tags, ...from.tags])];
+      atlas.topics = [...new Set([...atlas.topics, ...from.topics])];
+      links.push({
+        id: `${from.id}->${atlas.id}`,
+        fromId: from.id,
+        toId: atlas.id,
+        kind: linkKind(from, atlas),
+        confidence: 1,
+        source: "deterministic",
+        basis: "explicit-media",
         verified: false
       });
     }
@@ -185,6 +243,7 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
         tags: [],
         topics: [],
         sourcePath: file,
+        mediaPath: relative(join(libraryRoot, book.id), join(libraryRoot, file)),
         indexQuality: "heuristic"
       });
     }
@@ -192,9 +251,9 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
 
   indexes.links.push(
     ...sharedLinks(indexes.questions, indexes.cases),
-    ...sharedLinks(indexes.questions, indexes.atlas),
+    ...explicitMediaLinks(indexes.questions, [...indexes.atlas, ...indexes.media]),
     ...sharedLinks(indexes.questions, indexes.references),
-    ...sharedLinks(indexes.cases, indexes.atlas),
+    ...explicitMediaLinks(indexes.cases, [...indexes.atlas, ...indexes.media]),
     ...sharedLinks(indexes.cases, indexes.references),
     ...sharedLinks(indexes.atlas, indexes.references)
   );

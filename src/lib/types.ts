@@ -233,12 +233,14 @@ export interface ContentIndexRecord {
   recordPath?: string;
   /** Relative local asset path for atlas/media records. */
   mediaPath?: string;
+  /** Explicit media references found on the normalized source record. */
+  mediaPaths?: string[];
   /** Current raw-source scan is provisional until adapter-normalized indexing is enabled. */
   indexQuality?: "canonical" | "heuristic";
   quizEligible?: boolean;
 }
 
-export type ContentLinkKind = "question-case" | "question-atlas" | "question-reference" | "case-atlas" | "case-reference" | "atlas-reference";
+export type ContentLinkKind = "question-case" | "question-atlas" | "question-media" | "question-reference" | "case-atlas" | "case-media" | "case-reference" | "atlas-reference";
 
 export interface ContentLink {
   id: string;
@@ -247,6 +249,7 @@ export interface ContentLink {
   kind: ContentLinkKind;
   confidence: number;
   source: "editorial" | "deterministic" | "ai" | "manual";
+  basis?: "explicit-media" | "shared-specific-tag" | "source-reference";
   verified: boolean;
 }
 

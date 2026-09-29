@@ -23,7 +23,7 @@ The actual source archives were hydrated and validated.
 | Generated atlas entries | 833 |
 | Generated reference sections | 13 |
 | Generated media files | 5,512 |
-| Generated deterministic links | 800 |
+| Generated deterministic links | 3,702 |
 | TypeScript check | PASS |
 | Production PWA build | PASS |
 | Automated tests | 117 passed / 117 total |
@@ -73,11 +73,25 @@ The current global index generator scans raw JSON using common field aliases. It
 
 - tags are carried only when recognizable tag/topic fields are present in the source;
 - missing tags are not inferred reliably from chapter context or question meaning;
-- the 800 generated links are deterministic shared-tag links, not verified editorial relationships;
+- shared-tag links exclude broad terms such as `imaging`, `image`, `figure`, and `medical`;
+- 3,272 question-to-media links are based on explicit image/media references on the question record, not shared broad tags;
+- question tags are inherited only onto the directly referenced media records;
 - source-specific answer structures, EMI relationships, multipart questions, and case-stage relationships are not fully represented by the raw scan;
 - generated records are marked `indexQuality: "heuristic"`.
 
 The proper long-term pipeline is to normalize each book through its declared adapter first, then generate canonical indexes from normalized records. AI tagging and reference linking should remain a separate enrichment step and be marked unverified until reviewed.
+
+### Precise image relationship result
+
+The linker now distinguishes:
+
+```text
+question → media       basis: explicit-media
+case → media            basis: explicit-media
+question → case         basis: shared-specific-tag
+```
+
+An `imaging` tag alone cannot link a question to every image in a book. The image must first be explicitly referenced by that question or case. Only then are the question/case tags inherited by that media record.
 
 ## Data-quality findings
 

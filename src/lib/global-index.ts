@@ -23,7 +23,7 @@ export function loadGlobalIndex(name: GlobalIndexName): Promise<ContentIndexReco
   return pending;
 }
 
-export async function loadGlobalIndexes(names: GlobalIndexName[] = ["questions", "cases", "atlas", "references"]): Promise<ContentIndexRecord[]> {
+export async function loadGlobalIndexes(names: GlobalIndexName[] = ["questions", "cases", "atlas", "references", "media"]): Promise<ContentIndexRecord[]> {
   const rows = await Promise.all(names.map((name) => loadGlobalIndex(name)));
   return rows.flat();
 }
