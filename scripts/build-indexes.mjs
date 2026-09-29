@@ -120,6 +120,43 @@ function dedupe(rows) {
   return rows.filter((row) => !seen.has(row.id) && seen.add(row.id));
 }
 
+function linkKind(from, to) {
+  if (from.kind === "question" && to.kind === "case") return "question-case";
+  if (from.kind === "question" && to.kind === "atlas-entry") return "question-atlas";
+  if (from.kind === "question" && to.kind === "reference-section") return "question-reference";
+  if (from.kind === "case" && to.kind === "atlas-entry") return "case-atlas";
+  if (from.kind === "case" && to.kind === "reference-section") return "case-reference";
+  if (from.kind === "atlas-entry" && to.kind === "reference-section") return "atlas-reference";
+  return null;
+}
+
+function sharedLinks(fromRows, toRows) {
+  const links = [];
+  for (const from of fromRows) {
+    const fromTags = new Set([...from.tags, ...from.topics].map(normalise).filter(Boolean));
+    if (!fromTags.size) continue;
+    const candidates = toRows.map((to) => {
+      const toTags = new Set([...to.tags, ...to.topics].map(normalise).filter(Boolean));
+      const overlap = [...fromTags].filter((tag) => toTags.has(tag)).length;
+      return { to, overlap, confidence: overlap / Math.max(fromTags.size, toTags.size, 1) };
+    }).filter((candidate) => candidate.overlap > 0).sort((a, b) => b.overlap - a.overlap || b.confidence - a.confidence).slice(0, 5);
+    for (const candidate of candidates) {
+      const kind = linkKind(from, candidate.to);
+      if (!kind) continue;
+      links.push({
+        id: `${from.id}->${candidate.to.id}`,
+        fromId: from.id,
+        toId: candidate.to.id,
+        kind,
+        confidence: Number(candidate.confidence.toFixed(3)),
+        source: "deterministic",
+        verified: false
+      });
+    }
+  }
+  return links;
+}
+
 export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir } = {}) {
   mkdirSync(outputRoot, { recursive: true });
   const catalogPath = join(libraryRoot, "index.json");
@@ -150,6 +187,15 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
       });
     }
   }
+
+  indexes.links.push(
+    ...sharedLinks(indexes.questions, indexes.cases),
+    ...sharedLinks(indexes.questions, indexes.atlas),
+    ...sharedLinks(indexes.questions, indexes.references),
+    ...sharedLinks(indexes.cases, indexes.atlas),
+    ...sharedLinks(indexes.cases, indexes.references),
+    ...sharedLinks(indexes.atlas, indexes.references)
+  );
 
   const deduped = Object.fromEntries(Object.entries(indexes).map(([key, rows]) => [key, dedupe(rows)]));
   const output = {

@@ -24,7 +24,12 @@ export async function catalogBook(bookId: string): Promise<BundledContentManifes
 /** Resolve a logical media reference to its shipped local URL without opening it. */
 export async function bundledAssetUrl(bookId: string | undefined, file: string): Promise<string | null> {
   if (!bookId || /^(data:|https?:|blob:)/i.test(file)) return file;
-  const book = await catalogBook(bookId);
+  let book: BundledContentManifest | undefined;
+  try {
+    book = await catalogBook(bookId);
+  } catch {
+    return null;
+  }
   if (!book) return null;
   const requested = normalisePath(file).toLowerCase();
   const base = requested.split("/").pop()!.replace(/\.[^.]+$/, "");

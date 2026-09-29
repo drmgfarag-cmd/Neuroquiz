@@ -11,6 +11,8 @@ export interface Book {
   kind?: ContentKind;
   /** Canonical source schema used by the build-time adapter. */
   schema?: string;
+  /** Explicitly excludes cases, atlases, and reference corpora from scored quizzes. */
+  quizEligible?: boolean;
   /** Source content version, independent of generated asset hashes. */
   sourceVersion?: string;
   /** Original file names this book was built from. */

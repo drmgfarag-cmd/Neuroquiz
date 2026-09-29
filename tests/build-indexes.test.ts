@@ -18,8 +18,8 @@ describe("build-indexes", () => {
       title: "Chapter 1",
       questions: [{ id: "q1", question: "What is shown?", options: [{ key: "A", text: "Scan" }], answer: "A", tags: ["imaging"] }],
       cases: [{ id: "case1", title: "A case", presentation: "Presentation", stages: [{ title: "Stage 1", content: "Findings" }] }],
-      atlas: [{ id: "fig1", title: "A figure", file: "scan.png", description: "An image" }],
-      references: [{ id: "ref1", title: "Further reading", text: "Reference text" }]
+      atlas: [{ id: "fig1", title: "A figure", file: "scan.png", description: "An image", tags: ["imaging"] }],
+      references: [{ id: "ref1", title: "Further reading", text: "Reference text", tags: ["imaging"] }]
     }] }));
     writeFileSync(join(bookDir, "scan.png"), "not-an-image");
 
@@ -33,6 +33,8 @@ describe("build-indexes", () => {
     expect(result.questions[0].id).toMatch(/^book-1:q:/);
     expect(result.cases[0].id).toMatch(/^book-1:c:/);
     expect(result.atlas[0].id).toMatch(/^book-1:atlas:/);
+    expect(result.links.some((link) => link.kind === "question-atlas")).toBe(true);
+    expect(result.links.some((link) => link.kind === "question-reference")).toBe(true);
     expect(result.questions[0]).not.toHaveProperty("options");
     expect(result.media[0].sourcePath).toBe("book-1/scan.png");
     expect(JSON.parse(readFileSync(join(output, "index.json"), "utf8")).counts.questions).toBe(1);

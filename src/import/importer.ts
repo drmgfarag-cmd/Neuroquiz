@@ -3,6 +3,7 @@ import { reapplyCorrections } from "../lib/corrections";
 import { db, getMeta } from "../lib/db";
 import { questionToCard } from "../lib/cards";
 import type { Annotation, AtlasEntry, Book, CardState, CaseScenario, Chapter, Flashcard, MediaFile, MediaRef, Question, QuestionState, QuizSession } from "../lib/types";
+import type { ContentKind } from "../lib/content-manifest";
 import { hash, IMAGE_EXT, normaliseFileName, slugify } from "../lib/util";
 import { normalizeBookJson, type ParsedFile } from "./normalize";
 import { auditBook } from "../lib/quality";
@@ -29,6 +30,10 @@ export interface BookPlan {
    * library); otherwise derived from the title at import time.
    */
   id?: string;
+  kind?: ContentKind;
+  schema?: string;
+  sourceVersion?: string;
+  quizEligible?: boolean;
   sources: ParsedSource[];
   images: SourceFile[];
 }

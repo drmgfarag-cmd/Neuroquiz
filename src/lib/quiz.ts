@@ -47,6 +47,13 @@ export async function buildPool(f: PoolFilter, includeUnscorable = false): Promi
   else if (f.bookIds.length) qs = await db.questions.where("bookId").anyOf(f.bookIds).toArray();
   else qs = await db.questions.toArray();
 
+  const bookIds = Array.from(new Set(qs.map((q) => q.bookId)));
+  if (bookIds.length) {
+    const books = await db.books.bulkGet(bookIds);
+    const blocked = new Set(books.filter((book) => book && (book.quizEligible === false || book.kind === "case-book" || book.kind === "visual-atlas" || book.kind === "reference-corpus")).map((book) => book!.id));
+    qs = qs.filter((q) => !blocked.has(q.bookId));
+  }
+
   if (!includeUnscorable) qs = qs.filter((q) => !unscorableReason(q));
 
   if (f.withImagesOnly) qs = qs.filter(hasQuestionImage);

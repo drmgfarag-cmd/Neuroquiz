@@ -104,6 +104,10 @@ export async function installBundled(b: BundledBook, onProgress?: (msg: string) 
   plan.books.forEach((p) => {
     p.id = b.id;
     p.title = updatedTitle(b.id, existing?.title, b.title);
+    p.kind = b.kind;
+    p.schema = b.schema;
+    p.sourceVersion = b.sourceVersion;
+    p.quizEligible = b.quizEligible;
   });
   onProgress?.(`Importing “${b.title}”…`);
   const res = await executeImport(plan);

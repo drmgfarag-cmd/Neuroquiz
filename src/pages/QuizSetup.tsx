@@ -81,7 +81,7 @@ export default function QuizSetup() {
       const m = topics.get(a.topic)!;
       m.set(a.subtopic || "(general)", (m.get(a.subtopic || "(general)") ?? 0) + 1);
     }
-    return { books, chapters, perChapter, topics };
+    return { books: books.filter((book) => book.quizEligible !== false && book.kind !== "case-book" && book.kind !== "visual-atlas" && book.kind !== "reference-corpus"), chapters, perChapter, topics };
   });
 
   useEffect(() => {
