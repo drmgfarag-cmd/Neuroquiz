@@ -42,15 +42,34 @@ const mediaFiles = (items) => [...new Set((items ?? []).map((item) => item?.file
 const questionId = (bookId, q) => `${bookId}:q:${stableHash(`${q.stem}|${q.options.map((o) => `${o.key}=${o.text}`).join("|")}`)}`;
 const caseId = (bookId, c) => `${bookId}:c:${stableHash(`${c.title}|${c.presentation}`)}`;
 const clean = (value) => value.toLowerCase().replace(/\s+/g, " ").trim();
-const canonicalTags = (tags, chapter, annotation, section) => [...new Set([
+const STOPWORDS = new Set("a an the and or of to in on for from with without is are was were be been being this that these those which what following regarding their they them into by as at it its not than may can should does do did how why when where after before during between through use used using patient patients case cases question questions answer answers statement statements true false shows shown supplies supplied usually result results damage roots pass known common lead leads lesions".split(" "));
+const DOMAIN_TERMS = new Set("aneurysm aneurysms artery arteries brain brainstem brachial cancer cervical cerebrospinal cord cranial epilepsy glioma hemorrhage hydrocephalus intracranial ischemia meningioma metastasis myelopathy nerve nerves neuroanatomy neurologic neurology neuroma parkinson plexus seizure seizures spine spinal stroke subarachnoid tumor tumors trauma traumatic vascular ventricle ventricles".split(" "));
+const GENERIC_TERMS = new Set("artery arteries brain cancer cord nerve nerves neuroanatomy neurologic neurology spine spinal trauma traumatic tumor tumors vascular".split(" "));
+const canonicalTags = (tags, textValue, annotation) => [...new Set([
   ...(tags ?? []),
   ...(annotation?.topic ? [annotation.topic] : []),
   ...(annotation?.subtopic ? [annotation.subtopic] : []),
   ...(annotation?.tags ?? []),
   ...(annotation?.keywords ?? []),
-  ...(chapter ? [`chapter:${chapter}`] : []),
-  ...(section ? [`section:${section}`] : [])
+  ...deriveSemanticTags(textValue)
 ].map(text).filter(Boolean).map(clean))];
+const contextTags = (chapter, section) => [...new Set([
+  ...(chapter ? [`chapter:${clean(chapter)}`] : []),
+  ...(section ? [`section:${clean(section)}`] : [])
+])];
+function deriveSemanticTags(value) {
+  const words = clean(value).match(/[a-z][a-z-]{2,}/g) ?? [];
+  const tags = [];
+  for (let size = 2; size >= 2; size--) {
+    for (let i = 0; i <= words.length - size; i++) {
+      const phrase = words.slice(i, i + size);
+      if (phrase.some((word) => STOPWORDS.has(word)) || !phrase.some((word) => DOMAIN_TERMS.has(word)) || !phrase.some((word) => DOMAIN_TERMS.has(word) && !GENERIC_TERMS.has(word))) continue;
+      tags.push(phrase.join(" "));
+    }
+  }
+  for (const word of words) if (DOMAIN_TERMS.has(word) && !GENERIC_TERMS.has(word)) tags.push(word);
+  return [...new Set(tags)].slice(0, 12);
+}
 const search = (...parts) => clean(parts.flat().filter(Boolean).join(" "));
 
 mkdirSync(outputRoot, { recursive: true });
@@ -82,8 +101,10 @@ for (const book of catalog.books ?? []) {
           bookId: book.id,
           title: q.stem.slice(0, 180) || `${book.title} question`,
           searchText: search(q.stem, q.options.map((option) => option.text), q.explanation, q.sourceTags),
-          tags: canonicalTags(q.sourceTags, chapter.title, q.annotation, q.section),
-          topics: canonicalTags(q.sourceTags, chapter.title, q.annotation, q.section),
+          tags: canonicalTags(q.sourceTags, `${q.stem} ${q.explanation}`, q.annotation),
+          topics: canonicalTags(q.sourceTags, `${q.stem} ${q.explanation}`, q.annotation),
+          contextTags: contextTags(chapter.title, q.section),
+          tagQuality: q.sourceTags.length || q.annotation ? "source" : "derived-local",
           mediaPaths: paths,
           sourceTags: [...q.sourceTags],
           chapter: chapter.title,
@@ -108,8 +129,10 @@ for (const book of catalog.books ?? []) {
           bookId: book.id,
           title: c.title,
           searchText: search(c.title, c.presentation, c.stages.map((stage) => [stage.title, stage.content, stage.question, stage.answer]), c.discussion, c.sourceTags),
-          tags: canonicalTags(c.sourceTags, chapter.title, c.annotation),
-          topics: canonicalTags(c.sourceTags, chapter.title, c.annotation),
+          tags: canonicalTags(c.sourceTags, `${c.title} ${c.presentation} ${c.discussion}`, c.annotation),
+          topics: canonicalTags(c.sourceTags, `${c.title} ${c.presentation} ${c.discussion}`, c.annotation),
+          contextTags: contextTags(chapter.title),
+          tagQuality: c.sourceTags.length || c.annotation ? "source" : "derived-local",
           mediaPaths: paths,
           sourceTags: [...c.sourceTags],
           chapter: chapter.title,

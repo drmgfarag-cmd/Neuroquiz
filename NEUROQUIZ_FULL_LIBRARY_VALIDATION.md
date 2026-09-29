@@ -23,7 +23,7 @@ The actual source archives were hydrated and validated.
 | Generated atlas entries | 833 |
 | Generated reference sections | 13 |
 | Generated media files | 5,512 |
-| Generated deterministic links | 7,915 |
+| Generated deterministic links | 5,741 |
 | TypeScript check | PASS |
 | Production PWA build | PASS |
 | Automated tests | 117 passed / 117 total |
@@ -53,6 +53,8 @@ node scripts/build-indexes.mjs
 Before global indexing, `scripts/build-canonical-records.mjs` bundles and runs the existing `src/import/normalize.ts` implementation. This is the same normalization path used by the runtime importer. The global index then consumes the normalized questions and cases rather than classifying raw nested JSON independently.
 
 Canonical normalization covered all **26/26 books** and produced **13,572 questions** and **874 cases**. Visual-atlas entries continue to come from their atlas schema, because the question/case normalizer correctly does not reinterpret atlas rows as questions.
+
+Semantic tags and navigation context are separate fields. A source chapter is stored as `contextTags` (for example `chapter:neuroanatomy`), not as the question's semantic `tags`. Local concept extraction adds specific concepts from normalized question text, such as `brachial plexus`. These derived tags are marked `tagQuality: "derived-local"` until reviewed or enriched.
 
 Generated outputs:
 
@@ -97,7 +99,7 @@ question → case         basis: shared-specific-tag
 
 An `imaging` tag alone cannot link a question to every image in a book. The image must first be explicitly referenced by that question or case. Only then are the question/case tags inherited by that media record.
 
-The current full canonical build produced **3,068 question-to-media links**, **2,673 case-to-media links**, and **2,174 question-to-case links**. All question and case records in the global indexes are marked `indexQuality: "canonical"`.
+The current full canonical build produced **3,068 question-to-media links** and **2,673 case-to-media links**. Inferred question-to-case links are intentionally disabled: a shared topic is not proof that a case belongs to a question. Future question-to-case links should come from explicit source group IDs, case IDs, or reviewed reference enrichment. All question and case records in the global indexes are marked `indexQuality: "canonical"`.
 
 ## Data-quality findings
 

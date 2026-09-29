@@ -167,7 +167,7 @@ function linkKind(from, to) {
   return null;
 }
 
-function sharedLinks(fromRows, toRows) {
+function sharedLinks(fromRows, toRows, options = {}) {
   const links = [];
   for (const from of fromRows) {
     const fromTags = new Set([...from.tags, ...from.topics].map(normalise).filter((tag) => tag && !BROAD_TAGS.has(tag)));
@@ -176,7 +176,7 @@ function sharedLinks(fromRows, toRows) {
       const toTags = new Set([...to.tags, ...to.topics].map(normalise).filter((tag) => tag && !BROAD_TAGS.has(tag)));
       const overlap = [...fromTags].filter((tag) => toTags.has(tag)).length;
       return { to, overlap, confidence: overlap / Math.max(fromTags.size, toTags.size, 1) };
-    }).filter((candidate) => candidate.overlap > 0).sort((a, b) => b.overlap - a.overlap || b.confidence - a.confidence).slice(0, 5);
+    }).filter((candidate) => candidate.overlap >= (options.minOverlap ?? 1) && (!options.sameBook || candidate.to.bookId === from.bookId)).sort((a, b) => b.overlap - a.overlap || b.confidence - a.confidence).slice(0, 5);
     for (const candidate of candidates) {
       const kind = linkKind(from, candidate.to);
       if (!kind) continue;
@@ -261,7 +261,7 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
   }
 
   indexes.links.push(
-    ...sharedLinks(indexes.questions, indexes.cases),
+    ...sharedLinks(indexes.questions, indexes.cases, { minOverlap: 2, sameBook: true }),
     ...explicitMediaLinks(indexes.questions, [...indexes.atlas, ...indexes.media]),
     ...sharedLinks(indexes.questions, indexes.references),
     ...explicitMediaLinks(indexes.cases, [...indexes.atlas, ...indexes.media]),

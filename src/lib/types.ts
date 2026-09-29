@@ -228,6 +228,10 @@ export interface ContentIndexRecord {
   searchText: string;
   tags: string[];
   topics: string[];
+  /** Non-semantic navigation context such as the source chapter or section. */
+  contextTags?: string[];
+  /** How semantic tags were obtained for this record. */
+  tagQuality?: "source" | "derived-local" | "enriched-ai" | "unverified";
   sourcePath?: string;
   /** JSON object path inside sourcePath, used for on-demand body loading. */
   recordPath?: string;
