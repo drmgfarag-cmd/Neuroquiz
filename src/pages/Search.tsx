@@ -201,7 +201,7 @@ export default function SearchPage() {
           {rows.map((r) => (
             <Link
               key={r.id}
-              to={r.kind === "question" ? `/question/${encodeURIComponent(r.id)}` : r.kind === "case" ? `/cases/${encodeURIComponent(r.id)}` : r.kind === "flashcard" ? `/flashcards?card=${encodeURIComponent(r.id)}` : r.kind === "atlas-entry" || r.kind === "media" ? "/atlas" : "/reference"}
+              to={r.kind === "question" ? `/question/${encodeURIComponent(r.id)}` : r.kind === "case" ? `/cases/${encodeURIComponent(r.id)}` : r.kind === "flashcard" ? `/flashcards?card=${encodeURIComponent(r.id)}` : r.kind === "atlas-entry" || r.kind === "media" ? "/atlas" : `/reference?item=${encodeURIComponent(r.id)}`}
               className="list-item clickable"
               style={{ textDecoration: "none", color: "inherit" }}
             >

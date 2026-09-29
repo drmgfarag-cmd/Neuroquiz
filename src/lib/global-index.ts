@@ -47,6 +47,21 @@ export async function searchGlobalContent(query: string, options: { kinds?: Inde
     .map((item) => item.row);
 }
 
+/** Load only one indexed record body from its local JSON source. */
+export async function loadIndexedRecordBody(record: ContentIndexRecord): Promise<unknown> {
+  if (!record.sourcePath) throw new Error("Indexed record has no source path");
+  const response = await fetch(`./library/${record.sourcePath}`);
+  if (!response.ok) throw new Error(`Content source unavailable (${response.status})`);
+  let value: unknown = await response.json();
+  const path = record.recordPath ?? "$";
+  const tokens = [...path.matchAll(/\.([^.[\]]+)|\[(\d+)\]/g)].map((match) => match[1] ?? Number(match[2]));
+  for (const token of tokens) {
+    if (value === null || value === undefined) return undefined;
+    value = (value as Record<string | number, unknown>)[token];
+  }
+  return value;
+}
+
 export function clearGlobalIndexCache(): void {
   cache.clear();
 }

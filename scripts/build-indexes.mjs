@@ -67,7 +67,7 @@ function looksReference(item) {
   return Boolean(text && (asText(item.title) || asText(item.heading) || asText(item.section) || asText(item.chapter)));
 }
 
-function record(book, kind, item, sourcePath, ordinal) {
+function record(book, kind, item, sourcePath, recordPath, ordinal) {
   const sourceId = asText(item.id) || asText(item.question_id) || asText(item.questionId) || asText(item.number) || asText(item.question_number) || `${ordinal}`;
   const options = item.options ?? item.choices ?? item.answers ?? item.alternatives;
   const optionTexts = Array.isArray(options) ? options.map((option) => isObject(option) ? asText(option.text) || asText(option.content) || asText(option.value) : asText(option)) : isObject(options) ? Object.values(options).map((option) => isObject(option) ? asText(option.text) || asText(option.content) || asText(option.value) : asText(option)) : [];
@@ -91,6 +91,7 @@ function record(book, kind, item, sourcePath, ordinal) {
     tags,
     topics: tags,
     sourcePath,
+    recordPath,
     ...(kind === "atlas-entry" && (item.file || item.path || item.filename || item.image) ? { mediaPath: asText(item.file) || asText(item.path) || asText(item.filename) || asText(item.image) } : {}),
     quizEligible: kind === "question" && Boolean(book.quizEligible)
   };
@@ -105,10 +106,10 @@ function collectJsonRecords(book, data, sourcePath, indexes) {
     seen.add(value);
     ordinal += 1;
     const isCase = looksCase(value);
-    if (looksQuestion(value)) indexes.questions.push(record(book, "question", value, sourcePath, ordinal));
-    else if (isCase) indexes.cases.push(record(book, "case", value, sourcePath, ordinal));
-    else if (looksAtlas(value)) indexes.atlas.push(record(book, "atlas-entry", value, sourcePath, ordinal));
-    else if (!context.insideCase && looksReference(value)) indexes.references.push(record(book, "reference-section", value, sourcePath, ordinal));
+    if (looksQuestion(value)) indexes.questions.push(record(book, "question", value, sourcePath, path, ordinal));
+    else if (isCase) indexes.cases.push(record(book, "case", value, sourcePath, path, ordinal));
+    else if (looksAtlas(value)) indexes.atlas.push(record(book, "atlas-entry", value, sourcePath, path, ordinal));
+    else if (!context.insideCase && looksReference(value)) indexes.references.push(record(book, "reference-section", value, sourcePath, path, ordinal));
     for (const [key, child] of Object.entries(value)) visit(child, `${path}.${key}`, { insideCase: context.insideCase || isCase });
   };
   visit(data, "$" );
