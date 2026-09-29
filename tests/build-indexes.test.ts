@@ -30,6 +30,9 @@ describe("build-indexes", () => {
     expect(result.references).toHaveLength(1);
     expect(result.media).toHaveLength(1);
     expect(result.questions[0].quizEligible).toBe(true);
+    expect(result.questions[0].id).toMatch(/^book-1:q:/);
+    expect(result.cases[0].id).toMatch(/^book-1:c:/);
+    expect(result.atlas[0].id).toMatch(/^book-1:atlas:/);
     expect(result.questions[0]).not.toHaveProperty("options");
     expect(result.media[0].sourcePath).toBe("book-1/scan.png");
     expect(JSON.parse(readFileSync(join(output, "index.json"), "utf8")).counts.questions).toBe(1);

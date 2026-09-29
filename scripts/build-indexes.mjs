@@ -24,6 +24,20 @@ const values = (object, keys) => keys.flatMap((key) => {
 const normalise = (value) => value.toLowerCase().replace(/\s+/g, " ").trim();
 const stablePart = (value) => String(value).replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120) || "item";
 
+// Keep generated question/case/atlas IDs aligned with src/import/importer.ts.
+function stableHash(str, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed;
+  let h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -55,7 +69,16 @@ function looksReference(item) {
 
 function record(book, kind, item, sourcePath, ordinal) {
   const sourceId = asText(item.id) || asText(item.question_id) || asText(item.questionId) || asText(item.number) || asText(item.question_number) || `${ordinal}`;
-  const id = `${book.id}:${kind}:${stablePart(sourceId)}`;
+  const options = item.options ?? item.choices ?? item.answers ?? item.alternatives;
+  const optionTexts = Array.isArray(options) ? options.map((option) => isObject(option) ? asText(option.text) || asText(option.content) || asText(option.value) : asText(option)) : isObject(options) ? Object.values(options).map((option) => isObject(option) ? asText(option.text) || asText(option.content) || asText(option.value) : asText(option)) : [];
+  const stem = asText(item.stem) || asText(item.question) || asText(item.question_text) || asText(item.prompt) || asText(item.vignette);
+  const id = kind === "question" && stem
+    ? `${book.id}:q:${stableHash(`${stem}|${optionTexts.join("|")}`)}`
+    : kind === "case"
+      ? `${book.id}:c:${stableHash(`${asText(item.title) || asText(item.name)}|${asText(item.presentation) || asText(item.scenario) || asText(item.vignette)}`)}`
+      : kind === "atlas-entry" && (item.file || item.path || item.filename)
+        ? `${book.id}:atlas:${stableHash(asText(item.file) || asText(item.path) || asText(item.filename))}`
+        : `${book.id}:${kind}:${stablePart(sourceId)}`;
   const title = values(item, ["title", "name", "question", "stem", "prompt", "heading", "section"])[0] || `${book.title} ${kind}`;
   const searchText = normalise([...values(item, TEXT_KEYS), ...values(item, ["options", "choices"])].join(" "));
   const tags = [...new Set(values(item, TAG_KEYS).flatMap((value) => value.split(/[,;|]/).map((tag) => tag.trim()).filter(Boolean)))];

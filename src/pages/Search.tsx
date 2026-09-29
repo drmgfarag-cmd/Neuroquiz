@@ -6,11 +6,14 @@ import { allCases, allFlashcards, db } from "../lib/db";
 import { plain } from "../lib/markdown";
 import { useOnline } from "../lib/platform";
 import { search, type SearchHit } from "../lib/search";
-import type { Annotation } from "../lib/types";
+import { searchGlobalContent } from "../lib/global-index";
+import type { Annotation, ContentIndexRecord } from "../lib/types";
+
+type RowKind = Annotation["kind"] | "atlas-entry" | "reference-section" | "media";
 
 interface Row {
   id: string;
-  kind: Annotation["kind"];
+  kind: RowKind;
   text: string;
   topic: string;
   subtopic: string;
@@ -18,6 +21,17 @@ interface Row {
 }
 
 const KINDS: Annotation["kind"][] = ["question", "flashcard", "case"];
+
+function globalRows(records: ContentIndexRecord[]): Row[] {
+  return records.map((record) => ({
+    id: record.id,
+    kind: record.kind as RowKind,
+    text: plain(record.title || record.searchText, 220),
+    topic: record.topics[0] ?? record.tags[0] ?? "",
+    subtopic: record.topics[1] ?? "",
+    score: 0.5
+  }));
+}
 
 async function hydrate(hits: { id: string; kind: Annotation["kind"]; score: number }[]): Promise<Row[]> {
   const ids = hits.map((h) => h.id);
@@ -56,7 +70,12 @@ export default function SearchPage() {
     try {
       let hits: SearchHit[] = await search(text, { kinds });
       if (!hits.length) hits = await search(text, { kinds, combineWith: "OR" });
-      setRows(await hydrate(hits.slice(0, 500)));
+      const [localRows, global] = await Promise.all([
+        hydrate(hits.slice(0, 500)),
+        searchGlobalContent(text, { limit: 500 }).catch(() => [])
+      ]);
+      const localIds = new Set(localRows.map((row) => row.id));
+      setRows([...localRows, ...globalRows(global.filter((row) => !localIds.has(row.id)))].sort((a, b) => b.score - a.score));
     } finally {
       setBusy(false);
     }
@@ -182,7 +201,7 @@ export default function SearchPage() {
           {rows.map((r) => (
             <Link
               key={r.id}
-              to={r.kind === "question" ? `/question/${encodeURIComponent(r.id)}` : r.kind === "case" ? `/cases/${encodeURIComponent(r.id)}` : `/flashcards?card=${encodeURIComponent(r.id)}`}
+              to={r.kind === "question" ? `/question/${encodeURIComponent(r.id)}` : r.kind === "case" ? `/cases/${encodeURIComponent(r.id)}` : r.kind === "flashcard" ? `/flashcards?card=${encodeURIComponent(r.id)}` : r.kind === "atlas-entry" || r.kind === "media" ? "/atlas" : "/reference"}
               className="list-item clickable"
               style={{ textDecoration: "none", color: "inherit" }}
             >
