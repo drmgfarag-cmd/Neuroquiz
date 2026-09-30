@@ -15,6 +15,8 @@ export interface LibrarySourceManifest {
   schema: string;
   adapter: string;
   source: string | string[];
+  /** Optional media archive; it may be omitted when running the JSON/index-only app. */
+  mediaSource?: string | string[];
   primaryJson?: string;
   /** Whether content from this entry may enter scored question pools. */
   quizEligible: boolean;

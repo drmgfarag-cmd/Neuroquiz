@@ -292,7 +292,12 @@ export function toMedia(v: Json): MediaRef[] {
   if (isObj(v)) {
     const file = pick(v, ["file", "filename", "file_name", "src", "path", "name", "url", "image", "href", "ref"]);
     const caption = pick(v, ["caption", "title", "label", "alt", "description", "legend"]);
-    if (typeof file === "string") return [{ file: file.trim(), caption: caption ? toText(caption) : undefined }];
+    const nestedPanels = pick(v, ["panels", "individual_panels", "panel_images"]);
+    if (typeof file === "string") {
+      const head = [{ file: file.trim(), caption: caption ? toText(caption) : undefined }];
+      return nestedPanels === undefined ? head : [...head, ...toMedia(nestedPanels)];
+    }
+    if (nestedPanels !== undefined) return toMedia(nestedPanels);
     return Object.values(v).flatMap((x) => (typeof x === "string" && looksLikeFile(x) ? [{ file: x }] : []));
   }
   return [];
@@ -631,6 +636,93 @@ function expandParts(o: Obj): Obj[] {
   });
 }
 
+/**
+ * Greenberg Rapid Review is deliberately adapted before the generic walker.
+ * Its printed sub-items are not generic `parts`, and its matching/true-false
+ * answer keys live beside the item list. Keeping this adapter source-specific
+ * prevents the broad normalizer from guessing at unrelated books.
+ */
+function adaptGreenbergQuestion(input: Obj): Obj {
+  const type = toText(pick(input, ["type", "question_type", "format"])).toLowerCase().replace(/[\s-]+/g, "_");
+  const out: Obj = { ...input };
+  const items = Array.isArray(input.items) ? input.items.filter(isObj) as Obj[] : [];
+  const leaves = (list: Obj[], prefix = ""): Obj[] => list.flatMap((item) => {
+    const label = toText(pick(item, ["label", "item_label"])) || "";
+    const path = [prefix, label].filter(Boolean).join(".");
+    const nested = Array.isArray(item.items) ? item.items.filter(isObj) as Obj[] : [];
+    if (nested.length) return leaves(nested, path);
+    return [item];
+  });
+  const answerOf = (item: Obj) => pick(item, ["answer", "answer_resolved", "correct_answer"]);
+
+  if (type === "matching" && items.length && !pick(out, F.keyMap)) {
+    out.answer_key_map = Object.fromEntries(items.map((item) => {
+      const label = toText(pick(item, ["label", "item_label"]));
+      return [label, answerOf(item) ?? ""];
+    }).filter(([label, answer]) => label && answer !== ""));
+    if (Array.isArray(input.options)) out.choice_list = input.options;
+  } else if (type === "true_false" && items.length && !pick(out, F.verdicts)) {
+    out.option_verdicts = Object.fromEntries(items.map((item) => {
+      const label = toText(pick(item, ["label", "item_label"]));
+      return [label, answerOf(item) ?? ""];
+    }).filter(([label, answer]) => label && answer !== ""));
+  } else if (type === "multiple_choice" && !pick(out, F.answer)) {
+    const key = pick(out, ["answer_key"]);
+    if (key !== undefined) out.correct_answer = key;
+  } else if (type === "ordering" && pick(out, ["answer"]) !== undefined) {
+    // The source prints the ordered agents as prose with durations. It is a
+    // valid recall item, not a reliable option-key ordering without invention.
+    out.question_type = "text";
+    out.accepted_answers = [toText(pick(out, ["answer"]))];
+  } else if (["fill_in_blank", "list", "short_answer", "label_diagram"].includes(type)) {
+    const flat = leaves(items);
+    if (flat.some((item) => answerOf(item) !== undefined && toText(answerOf(item)))) {
+      const parent = toText(pick(out, F.stem));
+      out.parts = flat.map((item, i) => {
+        const label = toText(pick(item, ["label", "item_label"])) || String(i + 1);
+        const prompt = toText(pick(item, ["prompt", "question", "stem", "text"]));
+        const answer = toText(answerOf(item));
+        return {
+          label,
+          question: [parent, `**${label}.** ${prompt}`].filter(Boolean).join("\n\n"),
+          question_type: "fill_in_blank",
+          accepted_answers: [answer],
+          ...(pick(item, ["greenberg_ref"]) !== undefined ? { greenberg_ref: pick(item, ["greenberg_ref"]) } : {})
+        } as Obj;
+      });
+      delete out.items;
+      delete out.answer;
+    } else if (pick(out, ["answer"]) !== undefined && toText(pick(out, ["answer"]))) {
+      out.question_type = "text";
+      out.accepted_answers = [toText(pick(out, ["answer"]))];
+    } else if (type === "label_diagram") {
+      // The printed answer is the labelled figure itself; retain it as a
+      // readable, editable item rather than dropping its answer-only media.
+      out.question_type = "text";
+      out.accepted_answers = [];
+    }
+  }
+  if (Array.isArray(input.figures)) {
+    const questionFigures = input.figures.filter(isObj).filter((figure) => toText(pick(figure, ["role"])).toLowerCase() !== "answer");
+    const answerFigures = input.figures.filter(isObj).filter((figure) => toText(pick(figure, ["role"])).toLowerCase() === "answer");
+    if (questionFigures.length) out.question_images = questionFigures;
+    if (answerFigures.length) out.answer_images = answerFigures;
+  }
+  return out;
+}
+
+function adaptGreenbergJson(json: Json): Json {
+  if (!isObj(json) || toText(pick(json, ["schema_version"])) !== "GRR-1") return json;
+  const out: Obj = { ...json };
+  if (Array.isArray(out.chapters)) {
+    out.chapters = out.chapters.map((chapter) => {
+      if (!isObj(chapter) || !Array.isArray(chapter.questions)) return chapter;
+      return { ...chapter, questions: chapter.questions.filter(isObj).map(adaptGreenbergQuestion) };
+    });
+  }
+  return out;
+}
+
 function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuestion | null {
   const media = (value: Json) => toMedia(value).map((ref) => ({ ...ref, file: opts.assetNames?.get(ref.file) ?? ref.file }));
   const stemRaw = pick(o, F.stem);
@@ -782,6 +874,11 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   let explanation = reflow(toText(pick(o, F.explanation)));
   if (!options.length && toText(pick(o, ["question_type"])).toUpperCase() === "VISUAL_LABEL") {
     const printedLabel = toText(pick(o, F.answer));
+    const visualAnswer = explanation;
+    if (visualAnswer) {
+      format = "text";
+      accepted = [visualAnswer];
+    }
     if (/^[A-Z]$/i.test(printedLabel)) explanation = `**Printed figure label: ${printedLabel.toUpperCase()}**${explanation ? `\n\n${explanation}` : ""}`;
   }
   const sharedAnswer = reflow(toText(pick(o, ["shared_answer_context", "shared_explanation"])));
@@ -853,7 +950,13 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const emi = pick(o, ["emi_set_id", "emi_set", "emi_group_id"]);
   const srcId = pick(o, ["question_id", "qid", "id"]);
   const section = pick(o, ["section_id", "section_name"]);
-  const review = toText(pick(o, ["verification_status"])).toUpperCase() === "REQUIRES_SOURCE_REVIEW" ||
+  // Some extraction pipelines mark every record with a broad verification
+  // status even though only records carrying an explicit review/anomaly list
+  // are unresolved. Keep the broad marker as provenance, but gate scoring on
+  // the actionable per-record flags.
+  const verification = toText(pick(o, ["verification_status"])).toUpperCase() === "REQUIRES_SOURCE_REVIEW";
+  const review = (verification && ((Array.isArray(o.review_required) && o.review_required.length > 0) ||
+    (Array.isArray(o.source_encoding_anomalies) && o.source_encoding_anomalies.length > 0))) ||
     (Array.isArray(o.review_required) && o.review_required.length > 0);
   const warning = toText(pick(o, ["source_warning", "extraction_warning"])) ||
     (review ? "Source extraction requires visual comparison with the printed book before scored use." : "");
@@ -968,6 +1071,12 @@ function parseCase(o: Obj, opts: NormalizeOptions): ParsedCase | null {
   let discussion = toText(pick(o, F.caseDiscussion));
   if (!presentation && !stages.length) return null;
   const presentationMedia = toMedia(pick(o, ["presentation_media", "images", "image", "figures", "figure", "media", "imaging"]));
+  const caseQuestionMedia = toMedia(pick(o, F.questionMedia));
+  const caseAnswerMedia = toMedia(pick(o, F.explanationMedia));
+  if (stages.length && (caseQuestionMedia.length || caseAnswerMedia.length)) {
+    stages[0].media = [...caseQuestionMedia, ...stages[0].media].filter((m, i, all) => all.findIndex((x) => x.file === m.file) === i);
+    stages[0].answerMedia = [...caseAnswerMedia, ...(stages[0].answerMedia ?? [])].filter((m, i, all) => all.findIndex((x) => x.file === m.file) === i);
+  }
   const deferredPresentation = presentationMedia.filter((m) => imageRole(m.file) === "answer");
   const safePresentation = linkInlineImages(presentation).replace(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g, (match, file: string) => {
     if (imageRole(file) !== "answer") return match;
@@ -1134,6 +1243,7 @@ function fileTitle(fileName: string): string {
 }
 
 export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFile {
+  json = adaptGreenbergJson(json);
   const warnings: string[] = [];
   const chapters: ParsedChapter[] = [];
   let bookTitle: string | undefined;
@@ -1282,7 +1392,32 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
       if (no !== undefined) ch.sortKey = no;
       if (Array.isArray(qs)) addItems(qs, ch);
       if (Array.isArray(fcs)) fcs.forEach((f) => isObj(f) && (() => { const p = parseFlashcard(f); if (p) ch.flashcards.push(p); })());
-      if (Array.isArray(cs)) cs.forEach((c) => isObj(c) && (() => { const p = parseCase(c, opts); if (p) ch.cases.push(p); })());
+      if (Array.isArray(cs)) cs.forEach((c) => {
+        if (!isObj(c)) return;
+        // Some case extractions wrap each printed case in a group with a
+        // `leaf` record, or replace that leaf with numbered `subcases`.
+        // Prefer subcases when present so the parent is not duplicated.
+        const nested = Array.isArray(c.subcases) && c.subcases.length
+          ? c.subcases.map((item, index) => {
+            if (index !== 0 || !isObj(item) || !isObj(c.leaf)) return item;
+            // A few grouped cases keep a parent-level composite figure while
+            // their numbered subcases carry the clinical text. Keep that
+            // media attached to the first subcase instead of dropping it.
+            const mediaKeys = ["presentation_media", "question_media", "answer_media", "images", "figures"];
+            const merged = { ...item } as Obj;
+            for (const key of mediaKeys) {
+              const parentMedia = c.leaf[key];
+              if (parentMedia !== undefined) merged[key] = [parentMedia, merged[key]].filter((v) => v !== undefined).flat() as Json;
+            }
+            return merged;
+          })
+          : isObj(c.leaf) ? [c.leaf] : [c];
+        nested.forEach((item) => {
+          if (!isObj(item)) return;
+          const p = parseCase(item, opts);
+          if (p) ch.cases.push(p);
+        });
+      });
       if (Array.isArray(qa)) {
         const p = parseQaChapter(qa, t, warnings);
         if (p) ch.cases.push(p);

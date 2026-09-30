@@ -232,6 +232,8 @@ export interface ContentIndexRecord {
   contextTags?: string[];
   /** How semantic tags were obtained for this record. */
   tagQuality?: "source" | "derived-local" | "enriched-ai" | "unverified";
+  /** Central reference corpus identity for reference-section records. */
+  referenceHub?: "citow" | "gh11";
   /** Query-specific confidence assigned by global search. */
   searchConfidence?: number;
   sourcePath?: string;
@@ -255,7 +257,9 @@ export interface ContentLink {
   kind: ContentLinkKind;
   confidence: number;
   source: "editorial" | "deterministic" | "ai" | "manual";
-  basis?: "explicit-media" | "shared-specific-tag" | "source-reference";
+  basis?: "explicit-media" | "shared-specific-tag" | "source-reference" | "reference-hub-topic";
+  hub?: "citow" | "gh11";
+  matchedTag?: string;
   verified: boolean;
 }
 

@@ -75,7 +75,7 @@ const stats = { before: 0, after: 0 };
 /** Collect the image filenames used by flat question lists and chapter books. */
 function referencedImages(json) {
   const linked = new Set();
-  const records = Array.isArray(json) ? json : Object.values(json.chapters ?? {}).flatMap((chapter) => [
+  const records = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : Object.values(json.chapters ?? {}).flatMap((chapter) => [
     ...(chapter.questions ?? []), ...(chapter.qa_pairs ?? []), ...(chapter.cases ?? []),
   ]);
   for (const item of records) {
@@ -116,6 +116,7 @@ for (const book of books) {
   }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(book.id)) throw new Error(`book id "${book.id}" must be lower-case letters, digits or dashes`);
   const sources = Array.isArray(book.source) ? book.source : [book.source];
+  const mediaSources = Array.isArray(book.mediaSource) ? book.mediaSource : book.mediaSource ? [book.mediaSource] : [];
   const hash = createHash("sha256");
   // book settings change the installed content too
   if (book.questionImages) hash.update(`questionImages=${book.questionImages}`);
@@ -147,13 +148,14 @@ for (const book of books) {
     writeFileSync(target, data);
     files.push(posix.join(book.id, rel));
   };
-  for (const src of sources) {
+  for (const src of [...sources, ...mediaSources]) {
+    const mediaOnly = mediaSources.includes(src);
     const data = readSource(src);
     hash.update(data);
     if (/\.zip(?:\.(?:part)?001)?$/i.test(src)) {
       const zip = await JSZip.loadAsync(data);
       let linkedAssets = externalLinkedAssets;
-      if (book.primaryJson && book.referencedAssetsOnly) {
+      if (!mediaOnly && book.primaryJson && book.referencedAssetsOnly) {
         const main = Object.values(zip.files).find((e) => posix.basename(e.name) === book.primaryJson);
         if (!main) throw new Error(`Missing ${book.primaryJson} in ${src}`);
         const json = JSON.parse(await main.async("string"));
@@ -161,7 +163,8 @@ for (const book of books) {
       }
       for (const entry of Object.values(zip.files)) {
         if (entry.dir || /(^|\/)(__MACOSX|\.)/.test(entry.name) || !KEEP.test(entry.name) || SKIP.test(entry.name)) continue;
-        if (book.primaryJson && /\.json$/i.test(entry.name) && posix.basename(entry.name) !== book.primaryJson) continue;
+        if (mediaOnly && /\.json$/i.test(entry.name)) continue;
+        if (!mediaOnly && book.primaryJson && /\.json$/i.test(entry.name) && posix.basename(entry.name) !== book.primaryJson) continue;
         if (linkedAssets && !/\.json$/i.test(entry.name) && !linkedAssets.has(posix.basename(entry.name).replace(/\.[^.]+$/, "").toLowerCase())) continue;
         const data = await entry.async("nodebuffer");
         write(...(/\.json$/i.test(entry.name) ? [entry.name, data] : await optimise(entry.name, data, book)));

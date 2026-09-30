@@ -5,6 +5,7 @@ import { basename, join, resolve } from "node:path";
 const root = resolve(new URL("..", import.meta.url).pathname);
 const libraryDir = join(root, "library");
 const sourceDir = join(libraryDir, "sources");
+const mediaDir = join(libraryDir, "media");
 const metadataOnly = process.env.LIBRARY_VALIDATE_METADATA_ONLY === "1";
 
 const allowedKinds = new Set(["question-bank", "hybrid-question-bank", "case-book", "visual-atlas", "reference-corpus"]);
@@ -57,6 +58,13 @@ function checkSource(book, source) {
   return { source, present: true, parts };
 }
 
+function checkMediaSource(book, source) {
+  const path = join(libraryDir, source);
+  const present = metadataOnly || book.status === "retired" || existsSync(path);
+  if (!present) errors.push(`${book.id}: missing media source ${source}`);
+  return { source, present };
+}
+
 for (const book of books) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(book.id)) errors.push(`Invalid book id: ${book.id}`);
   if (!book.title) errors.push(`${book.id}: missing title`);
@@ -71,8 +79,17 @@ for (const book of books) {
   const sources = Array.isArray(book.source) ? book.source : [book.source];
   if (!sources.length || sources.some((source) => typeof source !== "string" || !source)) errors.push(`${book.id}: missing source`);
   const checked = sources.filter((source) => typeof source === "string").map((source) => checkSource(book, source));
+  const mediaSources = Array.isArray(book.mediaSource) ? book.mediaSource : book.mediaSource ? [book.mediaSource] : [];
+  const checkedMedia = mediaSources.filter((source) => typeof source === "string").map((source) => checkMediaSource(book, source));
   if (book.primaryJson && !book.source) errors.push(`${book.id}: primaryJson has no source`);
-  resultBooks.push({ id: book.id, kind: book.kind, status: book.status, sourceCount: checked.length, sources: checked });
+  if (book.primaryJson) {
+    const primaryName = basename(book.primaryJson);
+    if (sourceSet.has(primaryName)) {
+      declared.add(primaryName);
+      sourceGroups.set(sourceGroup(primaryName), true);
+    }
+  }
+  resultBooks.push({ id: book.id, kind: book.kind, status: book.status, sourceCount: checked.length, mediaSourceCount: checkedMedia.length, sources: checked, mediaSources: checkedMedia });
 }
 
 if (!metadataOnly && sourceFiles.length) {

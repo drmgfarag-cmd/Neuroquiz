@@ -1,0 +1,858 @@
+{
+  "generatedAt": "2026-09-30T18:43:37.889Z",
+  "hubs": [
+    "citow",
+    "gh11"
+  ],
+  "totals": {
+    "sourceRecords": 28375
+  },
+  "books": [
+    {
+      "bookId": "01",
+      "sourceRecords": 112,
+      "citow": {
+        "linkedRecords": 57,
+        "links": 285,
+        "coverage": 0.5089,
+        "highConfidence": 285,
+        "hubTopicLinks": 285
+      },
+      "gh11": {
+        "linkedRecords": 57,
+        "links": 285,
+        "coverage": 0.5089,
+        "highConfidence": 285,
+        "hubTopicLinks": 285
+      }
+    },
+    {
+      "bookId": "02",
+      "sourceRecords": 88,
+      "citow": {
+        "linkedRecords": 9,
+        "links": 45,
+        "coverage": 0.1023,
+        "highConfidence": 45,
+        "hubTopicLinks": 45
+      },
+      "gh11": {
+        "linkedRecords": 9,
+        "links": 45,
+        "coverage": 0.1023,
+        "highConfidence": 45,
+        "hubTopicLinks": 45
+      }
+    },
+    {
+      "bookId": "05",
+      "sourceRecords": 1334,
+      "citow": {
+        "linkedRecords": 566,
+        "links": 2830,
+        "coverage": 0.4243,
+        "highConfidence": 2830,
+        "hubTopicLinks": 2830
+      },
+      "gh11": {
+        "linkedRecords": 566,
+        "links": 2830,
+        "coverage": 0.4243,
+        "highConfidence": 2830,
+        "hubTopicLinks": 2830
+      }
+    },
+    {
+      "bookId": "07",
+      "sourceRecords": 1219,
+      "citow": {
+        "linkedRecords": 288,
+        "links": 1440,
+        "coverage": 0.2363,
+        "highConfidence": 1440,
+        "hubTopicLinks": 1440
+      },
+      "gh11": {
+        "linkedRecords": 288,
+        "links": 1440,
+        "coverage": 0.2363,
+        "highConfidence": 1440,
+        "hubTopicLinks": 1440
+      }
+    },
+    {
+      "bookId": "08",
+      "sourceRecords": 500,
+      "citow": {
+        "linkedRecords": 177,
+        "links": 885,
+        "coverage": 0.354,
+        "highConfidence": 885,
+        "hubTopicLinks": 885
+      },
+      "gh11": {
+        "linkedRecords": 177,
+        "links": 885,
+        "coverage": 0.354,
+        "highConfidence": 885,
+        "hubTopicLinks": 885
+      }
+    },
+    {
+      "bookId": "09",
+      "sourceRecords": 1000,
+      "citow": {
+        "linkedRecords": 548,
+        "links": 2740,
+        "coverage": 0.548,
+        "highConfidence": 2733,
+        "hubTopicLinks": 2740
+      },
+      "gh11": {
+        "linkedRecords": 548,
+        "links": 2740,
+        "coverage": 0.548,
+        "highConfidence": 2740,
+        "hubTopicLinks": 2740
+      }
+    },
+    {
+      "bookId": "case-reviews-neurosurgery-2017",
+      "sourceRecords": 100,
+      "citow": {
+        "linkedRecords": 62,
+        "links": 310,
+        "coverage": 0.62,
+        "highConfidence": 240,
+        "hubTopicLinks": 310
+      },
+      "gh11": {
+        "linkedRecords": 84,
+        "links": 402,
+        "coverage": 0.84,
+        "highConfidence": 240,
+        "hubTopicLinks": 402
+      }
+    },
+    {
+      "bookId": "cbbi",
+      "sourceRecords": 152,
+      "citow": {
+        "linkedRecords": 138,
+        "links": 659,
+        "coverage": 0.9079,
+        "highConfidence": 474,
+        "hubTopicLinks": 659
+      },
+      "gh11": {
+        "linkedRecords": 147,
+        "links": 685,
+        "coverage": 0.9671,
+        "highConfidence": 483,
+        "hubTopicLinks": 685
+      }
+    },
+    {
+      "bookId": "cbinr",
+      "sourceRecords": 72,
+      "citow": {
+        "linkedRecords": 40,
+        "links": 179,
+        "coverage": 0.5556,
+        "highConfidence": 166,
+        "hubTopicLinks": 179
+      },
+      "gh11": {
+        "linkedRecords": 66,
+        "links": 319,
+        "coverage": 0.9167,
+        "highConfidence": 167,
+        "hubTopicLinks": 319
+      }
+    },
+    {
+      "bookId": "frcs-neurosurgery-viva-case-book",
+      "sourceRecords": 73,
+      "citow": {
+        "linkedRecords": 45,
+        "links": 209,
+        "coverage": 0.6164,
+        "highConfidence": 55,
+        "hubTopicLinks": 209
+      },
+      "gh11": {
+        "linkedRecords": 60,
+        "links": 251,
+        "coverage": 0.8219,
+        "highConfidence": 80,
+        "hubTopicLinks": 251
+      }
+    },
+    {
+      "bookId": "goodmans-neurosurgery-oral-board-review-2017",
+      "sourceRecords": 49,
+      "citow": {
+        "linkedRecords": 44,
+        "links": 220,
+        "coverage": 0.898,
+        "highConfidence": 200,
+        "hubTopicLinks": 220
+      },
+      "gh11": {
+        "linkedRecords": 44,
+        "links": 220,
+        "coverage": 0.898,
+        "highConfidence": 204,
+        "hubTopicLinks": 220
+      }
+    },
+    {
+      "bookId": "greenberg-rapid-review-2017",
+      "sourceRecords": 8545,
+      "citow": {
+        "linkedRecords": 5541,
+        "links": 24057,
+        "coverage": 0.6484,
+        "highConfidence": 18050,
+        "hubTopicLinks": 24057
+      },
+      "gh11": {
+        "linkedRecords": 8381,
+        "links": 41546,
+        "coverage": 0.9808,
+        "highConfidence": 38219,
+        "hubTopicLinks": 41546
+      }
+    },
+    {
+      "bookId": "inbr",
+      "sourceRecords": 1300,
+      "citow": {
+        "linkedRecords": 379,
+        "links": 1895,
+        "coverage": 0.2915,
+        "highConfidence": 1895,
+        "hubTopicLinks": 1895
+      },
+      "gh11": {
+        "linkedRecords": 379,
+        "links": 1895,
+        "coverage": 0.2915,
+        "highConfidence": 1895,
+        "hubTopicLinks": 1895
+      }
+    },
+    {
+      "bookId": "infographic-neurosurgery-2025",
+      "sourceRecords": 69,
+      "citow": {
+        "linkedRecords": 69,
+        "links": 345,
+        "coverage": 1,
+        "highConfidence": 345,
+        "hubTopicLinks": 345
+      },
+      "gh11": {
+        "linkedRecords": 69,
+        "links": 345,
+        "coverage": 1,
+        "highConfidence": 345,
+        "hubTopicLinks": 345
+      }
+    },
+    {
+      "bookId": "mcqs-neuroanatomy-2",
+      "sourceRecords": 77,
+      "citow": {
+        "linkedRecords": 10,
+        "links": 50,
+        "coverage": 0.1299,
+        "highConfidence": 50,
+        "hubTopicLinks": 50
+      },
+      "gh11": {
+        "linkedRecords": 10,
+        "links": 50,
+        "coverage": 0.1299,
+        "highConfidence": 50,
+        "hubTopicLinks": 50
+      }
+    },
+    {
+      "bookId": "nbe-cv",
+      "sourceRecords": 32,
+      "citow": {
+        "linkedRecords": 28,
+        "links": 140,
+        "coverage": 0.875,
+        "highConfidence": 140,
+        "hubTopicLinks": 140
+      },
+      "gh11": {
+        "linkedRecords": 32,
+        "links": 144,
+        "coverage": 1,
+        "highConfidence": 140,
+        "hubTopicLinks": 144
+      }
+    },
+    {
+      "bookId": "nbe-no",
+      "sourceRecords": 28,
+      "citow": {
+        "linkedRecords": 25,
+        "links": 121,
+        "coverage": 0.8929,
+        "highConfidence": 103,
+        "hubTopicLinks": 121
+      },
+      "gh11": {
+        "linkedRecords": 27,
+        "links": 129,
+        "coverage": 0.9643,
+        "highConfidence": 118,
+        "hubTopicLinks": 129
+      }
+    },
+    {
+      "bookId": "nbe-nt",
+      "sourceRecords": 22,
+      "citow": {
+        "linkedRecords": 16,
+        "links": 70,
+        "coverage": 0.7273,
+        "highConfidence": 63,
+        "hubTopicLinks": 70
+      },
+      "gh11": {
+        "linkedRecords": 19,
+        "links": 91,
+        "coverage": 0.8636,
+        "highConfidence": 76,
+        "hubTopicLinks": 91
+      }
+    },
+    {
+      "bookId": "nbe-pd",
+      "sourceRecords": 31,
+      "citow": {
+        "linkedRecords": 30,
+        "links": 146,
+        "coverage": 0.9677,
+        "highConfidence": 135,
+        "hubTopicLinks": 146
+      },
+      "gh11": {
+        "linkedRecords": 31,
+        "links": 152,
+        "coverage": 1,
+        "highConfidence": 135,
+        "hubTopicLinks": 152
+      }
+    },
+    {
+      "bookId": "nbe-sp",
+      "sourceRecords": 26,
+      "citow": {
+        "linkedRecords": 23,
+        "links": 106,
+        "coverage": 0.8846,
+        "highConfidence": 91,
+        "hubTopicLinks": 106
+      },
+      "gh11": {
+        "linkedRecords": 26,
+        "links": 130,
+        "coverage": 1,
+        "highConfidence": 106,
+        "hubTopicLinks": 130
+      }
+    },
+    {
+      "bookId": "nbr2013",
+      "sourceRecords": 1998,
+      "citow": {
+        "linkedRecords": 568,
+        "links": 2840,
+        "coverage": 0.2843,
+        "highConfidence": 2840,
+        "hubTopicLinks": 2840
+      },
+      "gh11": {
+        "linkedRecords": 568,
+        "links": 2840,
+        "coverage": 0.2843,
+        "highConfidence": 2840,
+        "hubTopicLinks": 2840
+      }
+    },
+    {
+      "bookId": "nbr3",
+      "sourceRecords": 1302,
+      "citow": {
+        "linkedRecords": 229,
+        "links": 1145,
+        "coverage": 0.1759,
+        "highConfidence": 1145,
+        "hubTopicLinks": 1145
+      },
+      "gh11": {
+        "linkedRecords": 229,
+        "links": 1145,
+        "coverage": 0.1759,
+        "highConfidence": 1145,
+        "hubTopicLinks": 1145
+      }
+    },
+    {
+      "bookId": "ncba",
+      "sourceRecords": 49,
+      "citow": {
+        "linkedRecords": 40,
+        "links": 181,
+        "coverage": 0.8163,
+        "highConfidence": 148,
+        "hubTopicLinks": 181
+      },
+      "gh11": {
+        "linkedRecords": 48,
+        "links": 239,
+        "coverage": 0.9796,
+        "highConfidence": 168,
+        "hubTopicLinks": 239
+      }
+    },
+    {
+      "bookId": "neurology-board-review-2016",
+      "sourceRecords": 1058,
+      "citow": {
+        "linkedRecords": 341,
+        "links": 1705,
+        "coverage": 0.3223,
+        "highConfidence": 1696,
+        "hubTopicLinks": 1705
+      },
+      "gh11": {
+        "linkedRecords": 341,
+        "links": 1705,
+        "coverage": 0.3223,
+        "highConfidence": 1699,
+        "hubTopicLinks": 1705
+      }
+    },
+    {
+      "bookId": "neurosurgery-case-review-nader-sabbagh-2010",
+      "sourceRecords": 113,
+      "citow": {
+        "linkedRecords": 113,
+        "links": 425,
+        "coverage": 1,
+        "highConfidence": 280,
+        "hubTopicLinks": 425
+      },
+      "gh11": {
+        "linkedRecords": 113,
+        "links": 565,
+        "coverage": 1,
+        "highConfidence": 337,
+        "hubTopicLinks": 565
+      }
+    },
+    {
+      "bookId": "neurosurgery-rounds-2e",
+      "sourceRecords": 85,
+      "citow": {
+        "linkedRecords": 29,
+        "links": 145,
+        "coverage": 0.3412,
+        "highConfidence": 145,
+        "hubTopicLinks": 145
+      },
+      "gh11": {
+        "linkedRecords": 29,
+        "links": 145,
+        "coverage": 0.3412,
+        "highConfidence": 145,
+        "hubTopicLinks": 145
+      }
+    },
+    {
+      "bookId": "npbr",
+      "sourceRecords": 1577,
+      "citow": {
+        "linkedRecords": 452,
+        "links": 2260,
+        "coverage": 0.2866,
+        "highConfidence": 2260,
+        "hubTopicLinks": 2260
+      },
+      "gh11": {
+        "linkedRecords": 452,
+        "links": 2260,
+        "coverage": 0.2866,
+        "highConfidence": 2260,
+        "hubTopicLinks": 2260
+      }
+    },
+    {
+      "bookId": "nper",
+      "sourceRecords": 600,
+      "citow": {
+        "linkedRecords": 151,
+        "links": 755,
+        "coverage": 0.2517,
+        "highConfidence": 755,
+        "hubTopicLinks": 755
+      },
+      "gh11": {
+        "linkedRecords": 151,
+        "links": 755,
+        "coverage": 0.2517,
+        "highConfidence": 755,
+        "hubTopicLinks": 755
+      }
+    },
+    {
+      "bookId": "npqa2",
+      "sourceRecords": 686,
+      "citow": {
+        "linkedRecords": 159,
+        "links": 795,
+        "coverage": 0.2318,
+        "highConfidence": 795,
+        "hubTopicLinks": 795
+      },
+      "gh11": {
+        "linkedRecords": 159,
+        "links": 795,
+        "coverage": 0.2318,
+        "highConfidence": 795,
+        "hubTopicLinks": 795
+      }
+    },
+    {
+      "bookId": "nrb-favorites-2024",
+      "sourceRecords": 121,
+      "citow": {
+        "linkedRecords": 121,
+        "links": 605,
+        "coverage": 1,
+        "highConfidence": 189,
+        "hubTopicLinks": 605
+      },
+      "gh11": {
+        "linkedRecords": 121,
+        "links": 605,
+        "coverage": 1,
+        "highConfidence": 200,
+        "hubTopicLinks": 605
+      }
+    },
+    {
+      "bookId": "nrcr",
+      "sourceRecords": 168,
+      "citow": {
+        "linkedRecords": 144,
+        "links": 720,
+        "coverage": 0.8571,
+        "highConfidence": 165,
+        "hubTopicLinks": 720
+      },
+      "gh11": {
+        "linkedRecords": 168,
+        "links": 768,
+        "coverage": 1,
+        "highConfidence": 195,
+        "hubTopicLinks": 768
+      }
+    },
+    {
+      "bookId": "nscb",
+      "sourceRecords": 80,
+      "citow": {
+        "linkedRecords": 63,
+        "links": 269,
+        "coverage": 0.7875,
+        "highConfidence": 65,
+        "hubTopicLinks": 269
+      },
+      "gh11": {
+        "linkedRecords": 80,
+        "links": 372,
+        "coverage": 1,
+        "highConfidence": 65,
+        "hubTopicLinks": 372
+      }
+    },
+    {
+      "bookId": "ntmcq2022",
+      "sourceRecords": 336,
+      "citow": {
+        "linkedRecords": 79,
+        "links": 395,
+        "coverage": 0.2351,
+        "highConfidence": 395,
+        "hubTopicLinks": 395
+      },
+      "gh11": {
+        "linkedRecords": 79,
+        "links": 395,
+        "coverage": 0.2351,
+        "highConfidence": 395,
+        "hubTopicLinks": 395
+      }
+    },
+    {
+      "bookId": "ochn-oxford-case-histories-neurosurgery",
+      "sourceRecords": 67,
+      "citow": {
+        "linkedRecords": 57,
+        "links": 185,
+        "coverage": 0.8507,
+        "highConfidence": 80,
+        "hubTopicLinks": 185
+      },
+      "gh11": {
+        "linkedRecords": 62,
+        "links": 227,
+        "coverage": 0.9254,
+        "highConfidence": 80,
+        "hubTopicLinks": 227
+      }
+    },
+    {
+      "bookId": "ocnc-neurological-case-histories",
+      "sourceRecords": 51,
+      "citow": {
+        "linkedRecords": 33,
+        "links": 150,
+        "coverage": 0.6471,
+        "highConfidence": 135,
+        "hubTopicLinks": 150
+      },
+      "gh11": {
+        "linkedRecords": 43,
+        "links": 187,
+        "coverage": 0.8431,
+        "highConfidence": 135,
+        "hubTopicLinks": 187
+      }
+    },
+    {
+      "bookId": "octs-oxford-case-histories-tia-stroke",
+      "sourceRecords": 51,
+      "citow": {
+        "linkedRecords": 51,
+        "links": 255,
+        "coverage": 1,
+        "highConfidence": 135,
+        "hubTopicLinks": 255
+      },
+      "gh11": {
+        "linkedRecords": 51,
+        "links": 255,
+        "coverage": 1,
+        "highConfidence": 135,
+        "hubTopicLinks": 255
+      }
+    },
+    {
+      "bookId": "pnsbr2023",
+      "sourceRecords": 87,
+      "citow": {
+        "linkedRecords": 86,
+        "links": 430,
+        "coverage": 0.9885,
+        "highConfidence": 430,
+        "hubTopicLinks": 430
+      },
+      "gh11": {
+        "linkedRecords": 86,
+        "links": 430,
+        "coverage": 0.9885,
+        "highConfidence": 430,
+        "hubTopicLinks": 430
+      }
+    },
+    {
+      "bookId": "practical-neurosurgery-cases",
+      "sourceRecords": 52,
+      "citow": {
+        "linkedRecords": 44,
+        "links": 182,
+        "coverage": 0.8462,
+        "highConfidence": 125,
+        "hubTopicLinks": 182
+      },
+      "gh11": {
+        "linkedRecords": 52,
+        "links": 260,
+        "coverage": 1,
+        "highConfidence": 125,
+        "hubTopicLinks": 260
+      }
+    },
+    {
+      "bookId": "question-bank-neurosurgery-integrated",
+      "sourceRecords": 2328,
+      "citow": {
+        "linkedRecords": 424,
+        "links": 2120,
+        "coverage": 0.1821,
+        "highConfidence": 2118,
+        "hubTopicLinks": 2120
+      },
+      "gh11": {
+        "linkedRecords": 424,
+        "links": 2120,
+        "coverage": 0.1821,
+        "highConfidence": 2120,
+        "hubTopicLinks": 2120
+      }
+    },
+    {
+      "bookId": "radiology-case-review-brain",
+      "sourceRecords": 200,
+      "citow": {
+        "linkedRecords": 177,
+        "links": 561,
+        "coverage": 0.885,
+        "highConfidence": 415,
+        "hubTopicLinks": 561
+      },
+      "gh11": {
+        "linkedRecords": 112,
+        "links": 553,
+        "coverage": 0.56,
+        "highConfidence": 467,
+        "hubTopicLinks": 553
+      }
+    },
+    {
+      "bookId": "radiology-case-review-spine",
+      "sourceRecords": 183,
+      "citow": {
+        "linkedRecords": 128,
+        "links": 628,
+        "coverage": 0.6995,
+        "highConfidence": 610,
+        "hubTopicLinks": 628
+      },
+      "gh11": {
+        "linkedRecords": 138,
+        "links": 682,
+        "coverage": 0.7541,
+        "highConfidence": 618,
+        "hubTopicLinks": 682
+      }
+    },
+    {
+      "bookId": "raj2009",
+      "sourceRecords": 1008,
+      "citow": {
+        "linkedRecords": 178,
+        "links": 890,
+        "coverage": 0.1766,
+        "highConfidence": 890,
+        "hubTopicLinks": 890
+      },
+      "gh11": {
+        "linkedRecords": 178,
+        "links": 890,
+        "coverage": 0.1766,
+        "highConfidence": 890,
+        "hubTopicLinks": 890
+      }
+    },
+    {
+      "bookId": "spv-spine-viva",
+      "sourceRecords": 14,
+      "citow": {
+        "linkedRecords": 10,
+        "links": 41,
+        "coverage": 0.7143,
+        "highConfidence": 34,
+        "hubTopicLinks": 41
+      },
+      "gh11": {
+        "linkedRecords": 11,
+        "links": 49,
+        "coverage": 0.7857,
+        "highConfidence": 40,
+        "hubTopicLinks": 49
+      }
+    },
+    {
+      "bookId": "teaching-files-brain-spine-fatterpekar-2012",
+      "sourceRecords": 384,
+      "citow": {
+        "linkedRecords": 384,
+        "links": 1920,
+        "coverage": 1,
+        "highConfidence": 1920,
+        "hubTopicLinks": 1920
+      },
+      "gh11": {
+        "linkedRecords": 384,
+        "links": 1920,
+        "coverage": 1,
+        "highConfidence": 1920,
+        "hubTopicLinks": 1920
+      }
+    },
+    {
+      "bookId": "ultimate-neurology-boards-2011",
+      "sourceRecords": 579,
+      "citow": {
+        "linkedRecords": 348,
+        "links": 1632,
+        "coverage": 0.601,
+        "highConfidence": 1452,
+        "hubTopicLinks": 1632
+      },
+      "gh11": {
+        "linkedRecords": 395,
+        "links": 1850,
+        "coverage": 0.6822,
+        "highConfidence": 1704,
+        "hubTopicLinks": 1850
+      }
+    },
+    {
+      "bookId": "vasc2017",
+      "sourceRecords": 349,
+      "citow": {
+        "linkedRecords": 245,
+        "links": 1225,
+        "coverage": 0.702,
+        "highConfidence": 1225,
+        "hubTopicLinks": 1225
+      },
+      "gh11": {
+        "linkedRecords": 245,
+        "links": 1225,
+        "coverage": 0.702,
+        "highConfidence": 1225,
+        "hubTopicLinks": 1225
+      }
+    },
+    {
+      "bookId": "ward-rounds-clinical-neurology",
+      "sourceRecords": 20,
+      "citow": {
+        "linkedRecords": 19,
+        "links": 95,
+        "coverage": 0.95,
+        "highConfidence": 95,
+        "hubTopicLinks": 95
+      },
+      "gh11": {
+        "linkedRecords": 19,
+        "links": 95,
+        "coverage": 0.95,
+        "highConfidence": 95,
+        "hubTopicLinks": 95
+      }
+    }
+  ]
+}

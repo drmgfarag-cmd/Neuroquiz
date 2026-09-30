@@ -11,3 +11,12 @@ tsconfig.tsbuildinfo
 
 dist-web
 public/library
+public/indexes
+dist-core
+dist-media
+library/media
+library/sources/*.zip*
+library/bridges/*.zip
+*.zip
+*.zip.*
+.neuroquiz-normalize.mjs

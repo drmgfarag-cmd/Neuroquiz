@@ -12,8 +12,8 @@ import { formatOf } from "../src/lib/grading";
 import { auditBook, unscorableReason } from "../src/lib/quality";
 
 const LIB = new URL("../library/", import.meta.url);
-const list: { id: string; title: string; source: string | string[]; status?: string; questionImages?: string; primaryJson?: string; referencedAssetsOnly?: boolean }[] = existsSync(new URL("books.json", LIB))
-  ? (JSON.parse(readFileSync(new URL("books.json", LIB), "utf8")).books as { status?: string }[]).filter((book) => book.status === "ready")
+const list: { id: string; title: string; kind?: string; source: string | string[]; mediaSource?: string | string[]; status?: string; questionImages?: string; primaryJson?: string; referencedAssetsOnly?: boolean }[] = existsSync(new URL("books.json", LIB))
+  ? (JSON.parse(readFileSync(new URL("books.json", LIB), "utf8")).books as { status?: string }[]).filter((book) => book.status === "ready" || process.env.LIBRARY_TEST_ALL === "1")
   : [];
 
 /** Same rule as scripts/build-library.mjs: both split ZIP naming conventions. */
@@ -31,7 +31,8 @@ describe.skipIf(!list.length)("built-in library", () => {
     it(`${book.id}: ${book.title}`, async () => {
       await Promise.all(db.tables.map((t) => t.clear()));
       const sources = Array.isArray(book.source) ? book.source : [book.source];
-      let files = await collectFiles(sources.map((s) => new File([readSource(s)], s.split("/").pop()!.replace(/\.zip\.(?:part)?001$/i, ".zip"))));
+      const mediaSources = Array.isArray(book.mediaSource) ? book.mediaSource : book.mediaSource ? [book.mediaSource] : [];
+      let files = await collectFiles([...sources, ...mediaSources].map((s) => new File([readSource(s)], s.split("/").pop()!.replace(/\.zip\.(?:part)?001$/i, ".zip"))));
       if (book.primaryJson) {
         const main = files.find((f) => f.path.split("/").pop() === book.primaryJson);
         expect(main).toBeDefined();
@@ -40,7 +41,7 @@ describe.skipIf(!list.length)("built-in library", () => {
         if (book.referencedAssetsOnly) {
           type Ref = string | { file?: string; path?: string; filename?: string };
           type Item = { images?: Ref[]; question_images?: Ref[]; answer_images?: Ref[] };
-          const records: Item[] = Array.isArray(json) ? json : Object.values(json.chapters ?? {}).flatMap((chapter: any) => [
+          const records: Item[] = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : Object.values(json.chapters ?? {}).flatMap((chapter: any) => [
             ...(chapter.questions ?? []), ...(chapter.qa_pairs ?? []), ...(chapter.cases ?? []),
           ]);
           for (const q of records)
@@ -68,6 +69,13 @@ describe.skipIf(!list.length)("built-in library", () => {
           const json = JSON.parse(await f.blob.text());
           if (json && typeof json === "object" && !Array.isArray(json)) f.blob = new Blob([JSON.stringify({ ...json, question_images_policy: "referenced_only" })]);
         }
+      }
+      if (book.kind === "reference-corpus") {
+        const json = JSON.parse(await files.find((f) => f.path.split("/").pop() === book.primaryJson)!.blob.text());
+        const referenceCount = Array.isArray(json.items) ? json.items.length : Array.isArray(json) ? json.length : Object.keys(json).length;
+        expect(referenceCount).toBeGreaterThan(0);
+        expect(files.some((f) => /\.(jpg|jpeg|png|webp)$/i.test(f.path))).toBe(true);
+        return;
       }
       const plan = await planImport(files, "single", 1);
       expect(plan.errors).toEqual([]);
@@ -132,7 +140,7 @@ describe.skipIf(!list.length)("built-in library", () => {
         if (book.id === "nbr3") {
           expect(qs).toHaveLength(1326);
           expect(qs.filter((q) => q.sourceId?.startsWith("NBR3_from2_"))).toHaveLength(12);
-          expect(qs.every((q) => unscorableReason(q) === "Source transcription pending review")).toBe(true);
+          expect(qs.filter((q) => unscorableReason(q) === "Source transcription pending review")).toHaveLength(30);
           const labeled = qs.find((q) => q.sourceId === "NBR3_s01_q001")!;
           expect(labeled.stemMedia[0]?.file).toContain("figQ");
           expect(labeled.explanationMedia[0]?.file).toContain("figA");

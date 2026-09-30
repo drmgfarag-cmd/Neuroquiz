@@ -1,0 +1,792 @@
+{
+  "format": 1,
+  "metadataOnly": false,
+  "bookCount": 51,
+  "counts": {
+    "questionBanks": 21,
+    "caseBooks": 25,
+    "atlases": 2,
+    "references": 3,
+    "ready": 51,
+    "staged": 0
+  },
+  "errors": [],
+  "warnings": [],
+  "books": [
+    {
+      "id": "01",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/01.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "02",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/02.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nbr2013",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NBR2013_extraction.json",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "05",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 2,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/05.json",
+          "present": true,
+          "parts": 1
+        },
+        {
+          "source": "sources/05_images.zip.001",
+          "present": true,
+          "parts": 2
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "07",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/07.zip.001",
+          "present": true,
+          "parts": 2
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "08",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/08.zip.001",
+          "present": true,
+          "parts": 2
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "09",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/09.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "npqa2",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NPQA2.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "inbr",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/INBR.zip.001",
+          "present": true,
+          "parts": 6
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "neurosurgery-rounds-2e",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Neurosurgery-Rounds-QA2.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nbr3",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NBR3_with_second_edition_additions_complete.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nper",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NBER.zip.001",
+          "present": true,
+          "parts": 3
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "npbr",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NPBR_v3.zip.001",
+          "present": true,
+          "parts": 3
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "pnsbr2023",
+      "kind": "hybrid-question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Pediatric_Board_Review_import.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "ntmcq2022",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NTMCQ2022_bundle.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "raj2009",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/RAJ2009_extraction.json",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "mcqs-neuroanatomy-2",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/MCQs_Neuroanatomy_2_extracted.json",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "vasc2017",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/VASC2017_bundle.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "surgical-instruments-atlas",
+      "kind": "visual-atlas",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Surgical_Instruments_Atlas.zip.part001",
+          "present": true,
+          "parts": 5
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "neuro-uw-tables-figures-wdaljunaid",
+      "kind": "visual-atlas",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NeuroUW_Tables_Figures_Atlas_v2.zip.001",
+          "present": true,
+          "parts": 8
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "case-reviews-neurosurgery-2017",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/100_Case_Reviews_in_Neurosurgery_full_figures.zip.001",
+          "present": true,
+          "parts": 5
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "frcs-neurosurgery-viva-case-book",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/FRCS_Viva_Cases_Fixed.zip.001",
+          "present": true,
+          "parts": 3
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "goodmans-neurosurgery-oral-board-review-2017",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Goodmans_Neurosurgery_Oral_Board_Review_2017_cases.zip.001",
+          "present": true,
+          "parts": 9
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "infographic-neurosurgery-2025",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Infographic_Neurosurgery_2025_Cases.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "neurosurgery-case-review-nader-sabbagh-2010",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Neurosurgery_Case_Review_Nader_Sabbagh_2010_cases.zip.001",
+          "present": true,
+          "parts": 8
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "teaching-files-brain-spine-fatterpekar-2012",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Teaching_Files_Brain_Spine_2012_cases.zip.001",
+          "present": true,
+          "parts": 5
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "cbbi",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/CBBI.zip.001",
+          "present": true,
+          "parts": 9
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "cbinr",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/CBINR.zip.001",
+          "present": true,
+          "parts": 3
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nbe-cv",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NBE_CV.zip.001",
+          "present": true,
+          "parts": 7
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nbe-no",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NBE_NO.zip.001",
+          "present": true,
+          "parts": 5
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nbe-nt",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NBE_NT.zip.001",
+          "present": true,
+          "parts": 3
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nbe-pd",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NBE_PD.zip.001",
+          "present": true,
+          "parts": 5
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nbe-sp",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NBE_SP.zip.001",
+          "present": true,
+          "parts": 4
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "ncba",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NCBA.zip.001",
+          "present": true,
+          "parts": 2
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nrcr",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NRCR.zip.001",
+          "present": true,
+          "parts": 6
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nscb",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/NSCB.zip.001",
+          "present": true,
+          "parts": 6
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "neurology-board-review-2016",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Neurology_Board_Review_2016_extracted.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "ocnc-neurological-case-histories",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/OCNC_Neurological_Case_Histories.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "radiology-case-review-brain",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Radiology_Case_Review_Brain_Imaging_extracted.zip.001",
+          "present": true,
+          "parts": 14
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "radiology-case-review-spine",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Radiology_Case_Review_Spine_extracted.zip.001",
+          "present": true,
+          "parts": 7
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "spv-spine-viva",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/SPV.zip.001",
+          "present": true,
+          "parts": 2
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "ultimate-neurology-boards-2011",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Ultimate_Review_Neurology_Boards_QA_2011_extracted.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "ward-rounds-clinical-neurology",
+      "kind": "reference-corpus",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Ward_Rounds_Clinical_Neurology_extracted.zip.001",
+          "present": true,
+          "parts": 3
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "practical-neurosurgery-cases",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/practical neurosurgery cases.zip.001",
+          "present": true,
+          "parts": 8
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "nrb-favorites-2024",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Neuroradiology_Boards_Favorites_Case_Extraction.zip.001",
+          "present": true,
+          "parts": 9
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "question-bank-neurosurgery-integrated",
+      "kind": "question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Neurosurgery_exams_integrated_2003_01_20_scored.zip.001",
+          "present": true,
+          "parts": 13
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "citow-comprehensive-neurosurgery-board-review-2020",
+      "kind": "reference-corpus",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/Citow_reference_core_v19_neuroquiz.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "ochn-oxford-case-histories-neurosurgery",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/OCHN_Oxford_Case_Histories_Neurosurgery.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "octs-oxford-case-histories-tia-stroke",
+      "kind": "case-book",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/OCTS_TIA_and_Stroke_complete.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "greenberg-rapid-review-2017",
+      "kind": "hybrid-question-bank",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 0,
+      "sources": [
+        {
+          "source": "sources/GRR_Greenberg_Rapid_Review_ch01-102_hybrid.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": []
+    },
+    {
+      "id": "gh11-greenberg-handbook-neurosurgery-11e",
+      "kind": "reference-corpus",
+      "status": "ready",
+      "sourceCount": 1,
+      "mediaSourceCount": 1,
+      "sources": [
+        {
+          "source": "sources/GH11_reference_core_v38.zip",
+          "present": true,
+          "parts": 1
+        }
+      ],
+      "mediaSources": [
+        {
+          "source": "media/GH11_reference_media_v38.zip",
+          "present": true
+        }
+      ]
+    }
+  ]
+}

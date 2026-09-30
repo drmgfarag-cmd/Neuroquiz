@@ -16,6 +16,10 @@ const MEDIA_EXT = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 const TEXT_KEYS = ["title", "name", "question", "stem", "prompt", "text", "body", "description", "presentation", "discussion", "answer", "explanation", "rationale", "notes", "keywords", "tags", "topic", "topics", "category", "section", "chapter"];
 const TAG_KEYS = ["tags", "keywords", "topic", "topics", "category", "categories", "subject", "subtopic", "section"];
 const BROAD_TAGS = new Set(["image", "images", "imaging", "figure", "figures", "medical", "neurosurgery", "neurology", "question", "case"]);
+const REFERENCE_HUBS = new Map([
+  ["citow-comprehensive-neurosurgery-board-review-2020", "citow"],
+  ["gh11-greenberg-handbook-neurosurgery-11e", "gh11"]
+]);
 
 const asText = (value) => typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
 const values = (object, keys) => keys.flatMap((key) => {
@@ -126,6 +130,7 @@ function record(book, kind, item, sourcePath, recordPath, ordinal, canonicalReco
     sourcePath,
     recordPath,
     indexQuality: canonical ? "canonical" : "heuristic",
+    ...(kind === "reference-section" && REFERENCE_HUBS.has(book.id) ? { referenceHub: REFERENCE_HUBS.get(book.id) } : {}),
     ...(paths.length ? { mediaPaths: paths } : {}),
     ...(kind === "atlas-entry" && (item.file || item.path || item.filename || item.image) ? { mediaPath: asText(item.file) || asText(item.path) || asText(item.filename) || asText(item.image) } : {}),
     quizEligible: kind === "question" && Boolean(book.quizEligible)
@@ -169,14 +174,34 @@ function linkKind(from, to) {
 
 function sharedLinks(fromRows, toRows, options = {}) {
   const links = [];
+  const tagsFor = (row) => new Set([...row.tags, ...row.topics].map(normalise).filter((tag) => tag && !BROAD_TAGS.has(tag)));
+  const toTags = new Map();
+  const toById = new Map(toRows.map((row) => [row.id, row]));
+  const byTag = new Map();
+  for (const to of toRows) {
+    const tags = tagsFor(to);
+    toTags.set(to.id, tags);
+    for (const tag of tags) {
+      const rows = byTag.get(tag) ?? [];
+      rows.push(to);
+      byTag.set(tag, rows);
+    }
+  }
   for (const from of fromRows) {
-    const fromTags = new Set([...from.tags, ...from.topics].map(normalise).filter((tag) => tag && !BROAD_TAGS.has(tag)));
+    const fromTags = tagsFor(from);
     if (!fromTags.size) continue;
-    const candidates = toRows.map((to) => {
-      const toTags = new Set([...to.tags, ...to.topics].map(normalise).filter((tag) => tag && !BROAD_TAGS.has(tag)));
-      const overlap = [...fromTags].filter((tag) => toTags.has(tag)).length;
-      return { to, overlap, confidence: overlap / Math.max(fromTags.size, toTags.size, 1) };
-    }).filter((candidate) => candidate.overlap >= (options.minOverlap ?? 1) && (!options.sameBook || candidate.to.bookId === from.bookId)).sort((a, b) => b.overlap - a.overlap || b.confidence - a.confidence).slice(0, 5);
+    const overlapCounts = new Map();
+    for (const tag of fromTags) {
+      for (const to of byTag.get(tag) ?? []) {
+        if (options.sameBook && to.bookId !== from.bookId) continue;
+        overlapCounts.set(to.id, (overlapCounts.get(to.id) ?? 0) + 1);
+      }
+    }
+    const candidates = [...overlapCounts.entries()].map(([id, overlap]) => {
+      const to = toById.get(id);
+      const targetTags = toTags.get(id) ?? new Set();
+      return { to, overlap, confidence: overlap / Math.max(fromTags.size, targetTags.size, 1) };
+    }).filter((candidate) => candidate.to && candidate.overlap >= (options.minOverlap ?? 1)).sort((a, b) => b.overlap - a.overlap || b.confidence - a.confidence).slice(0, 5);
     for (const candidate of candidates) {
       const kind = linkKind(from, candidate.to);
       if (!kind) continue;
@@ -191,6 +216,48 @@ function sharedLinks(fromRows, toRows, options = {}) {
         verified: false
       });
     }
+  }
+  return links;
+}
+
+/** Central-reference links use semantic tags against hub heading/text fields. */
+function referenceHubLinks(fromRows, referenceRows, hubId) {
+  const targets = referenceRows.filter((row) => row.bookId === hubId);
+  const tokenise = (value) => new Set(normalise(value).split(/[^a-z0-9]+/).filter((token) => token.length >= 4));
+  const byToken = new Map();
+  const targetTokens = new Map();
+  for (const target of targets) {
+    const tokens = tokenise(`${target.title} ${target.searchText} ${(target.tags ?? []).join(" ")}`);
+    targetTokens.set(target.id, tokens);
+    for (const token of tokens) {
+      const rows = byToken.get(token) ?? [];
+      rows.push(target);
+      byToken.set(token, rows);
+    }
+  }
+  const links = [];
+  for (const from of fromRows) {
+    const tags = [...new Set((from.tags ?? []).map(normalise))].filter((tag) => tag.length >= 5 && !BROAD_TAGS.has(tag));
+    const candidates = new Map();
+    for (const tag of tags) {
+      const tagTokens = tokenise(tag);
+      if (!tagTokens.size) continue;
+      const seed = [...tagTokens].map((token) => byToken.get(token) ?? []).sort((a, b) => a.length - b.length)[0] ?? [];
+      for (const target of seed) {
+        const targetSet = targetTokens.get(target.id) ?? new Set();
+        if (![...tagTokens].every((token) => targetSet.has(token))) continue;
+        const confidence = normalise(`${target.title} ${target.searchText}`).includes(tag) ? 0.86 : 0.72;
+        const old = candidates.get(target.id);
+        if (!old || confidence > old.confidence) candidates.set(target.id, { target, confidence, tag });
+      }
+    }
+    [...candidates.values()]
+      .sort((a, b) => b.confidence - a.confidence || a.target.title.localeCompare(b.target.title))
+      .slice(0, 5)
+      .forEach(({ target, confidence, tag }) => {
+        const kind = linkKind(from, target);
+        if (kind) links.push({ id: `${from.id}->${target.id}`, fromId: from.id, toId: target.id, kind, confidence, source: "deterministic", basis: "reference-hub-topic", hub: REFERENCE_HUBS.get(hubId), matchedTag: tag, verified: false });
+      });
   }
   return links;
 }
@@ -260,13 +327,19 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
     }
   }
 
-  indexes.links.push(
-    ...sharedLinks(indexes.questions, indexes.cases, { minOverlap: 2, sameBook: true }),
-    ...explicitMediaLinks(indexes.questions, [...indexes.atlas, ...indexes.media]),
-    ...sharedLinks(indexes.questions, indexes.references),
-    ...explicitMediaLinks(indexes.cases, [...indexes.atlas, ...indexes.media]),
-    ...sharedLinks(indexes.cases, indexes.references),
-    ...sharedLinks(indexes.atlas, indexes.references)
+  indexes.links = indexes.links.concat(
+    sharedLinks(indexes.questions, indexes.cases, { minOverlap: 2, sameBook: true }),
+    explicitMediaLinks(indexes.questions, indexes.atlas.concat(indexes.media)),
+    referenceHubLinks(indexes.questions, indexes.references, "citow-comprehensive-neurosurgery-board-review-2020"),
+    referenceHubLinks(indexes.questions, indexes.references, "gh11-greenberg-handbook-neurosurgery-11e"),
+    sharedLinks(indexes.questions, indexes.references),
+    explicitMediaLinks(indexes.cases, indexes.atlas.concat(indexes.media)),
+    referenceHubLinks(indexes.cases, indexes.references, "citow-comprehensive-neurosurgery-board-review-2020"),
+    referenceHubLinks(indexes.cases, indexes.references, "gh11-greenberg-handbook-neurosurgery-11e"),
+    sharedLinks(indexes.cases, indexes.references),
+    referenceHubLinks(indexes.atlas, indexes.references, "citow-comprehensive-neurosurgery-board-review-2020"),
+    referenceHubLinks(indexes.atlas, indexes.references, "gh11-greenberg-handbook-neurosurgery-11e"),
+    sharedLinks(indexes.atlas, indexes.references)
   );
 
   const deduped = Object.fromEntries(Object.entries(indexes).map(([key, rows]) => [key, dedupe(rows)]));

@@ -18,8 +18,11 @@
     "predev": "node scripts/build-library.mjs && node scripts/build-canonical-records.mjs && node scripts/build-indexes.mjs",
     "prebuild": "node scripts/build-library.mjs && node scripts/build-canonical-records.mjs && node scripts/build-indexes.mjs",
     "build:web": "LIBRARY_PACK=1 node scripts/build-library.mjs && node scripts/build-canonical-records.mjs && node scripts/build-indexes.mjs && VITE_WEB_PREVIEW=1 vite build --outDir dist-web",
+    "package:offline": "node scripts/package-offline-distributions.mjs",
     "validate-library": "node scripts/validate-library.mjs",
     "audit-json": "node scripts/audit-json-text.mjs",
+    "audit-json-text": "node scripts/audit-json-text.mjs",
+    "audit-reference-hubs": "node scripts/audit-reference-hubs.mjs",
     "build-library:staged": "LIBRARY_INCLUDE_STAGED=1 node scripts/build-library.mjs && node scripts/build-canonical-records.mjs && node scripts/build-indexes.mjs",
     "check-books": "vitest run tests/library.test.ts --disable-console-intercept"
   },
@@ -50,7 +53,6 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
     "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^5.0.1",
-    "esbuild": "^0.27.0"
+    "vitest": "^5.0.1"
   }
 }
