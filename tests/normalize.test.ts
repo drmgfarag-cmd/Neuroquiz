@@ -1,11 +1,16 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { linkInlineImages, normalizeBookJson } from "../src/import/normalize";
+import { linkInlineImages, normalizeBookJson, reflow } from "../src/import/normalize";
 
 const load = (f: string) => JSON.parse(readFileSync(new URL(`../samples/sample-book/${f}`, import.meta.url), "utf8"));
 const opts = (fileName: string) => ({ fileName, numericAnswerBase: 1 as const });
 
 describe("normalizeBookJson", () => {
+  it("repairs reviewed mojibake and extraction controls only in normalized text", () => {
+    expect(reflow("Guillain-BarrÃ© syndrome; NaÃ¯ve patients; dÃ©jÃ  vu; Â© source")).toBe("Guillain-Barré syndrome; Naïve patients; déjà vu; © source");
+    expect(reflow("CPP = MAP\u0004 ICP\u0003 threshold")).toBe("CPP = MAP≤ ICP≥ threshold");
+  });
+
   it("imports a chapter of short answers without making unscorable MCQs or exposing answer figures", () => {
     const r = normalizeBookJson({ book_title: "Oral review", chapters: [{ title: "Vascular", qa_pairs: [
       { number: 1, question: "Describe the scan ![](answer_fig1.png)", answer: "The source answer", question_images: ["question_1.png", "answer_2.png"], answer_images: ["answer_3.png"] },
@@ -120,6 +125,73 @@ describe("normalizeBookJson", () => {
   it("warns when an answer cannot be resolved", () => {
     const r = normalizeBookJson([{ question: "Q", options: ["a", "b"] }], opts("w.json"));
     expect(r.warnings.some((w) => w.includes("no correct answer"))).toBe(true);
+  });
+
+  it("applies only source-confirmed NBR3 notation repairs", () => {
+    const r = normalizeBookJson({ book_id: "NBR3", chapters: [{ title: "Neurosurgery", questions: [
+      { question_id: "NBR3_s01_q201", question: "Grade the injury", answers: { A: "A", B: "B" }, correct_answer: "A", explanation: "where . 50% have , grade 3 power", verification_status: "REQUIRES_SOURCE_REVIEW", review_required: ["source_encoding_anomaly_requires_visual_or_independent_source_review"] },
+      { question_id: "NBR3_s01_q202", question: "Ambulatory", answers: { A: ", 3%", B: "50%" }, correct_answer: "A", verification_status: "REQUIRES_SOURCE_REVIEW", review_required: ["source_encoding_anomaly_requires_visual_or_independent_source_review"] },
+      { question_id: "NBR3_s02_q014", question: "EEG", answers: { A: "Alpha" }, correct_answer: "A", explanation: "Beta is . 12 Hz", verification_status: "REQUIRES_SOURCE_REVIEW", review_required: ["source_encoding_anomaly_requires_visual_or_independent_source_review"] }
+    ] }] }, opts("NBR3_extraction.json"));
+    const qs = r.chapters[0].questions;
+    expect(qs[0].explanation).toContain("≥ 50%");
+    expect(qs[0].explanation).toContain("≥ grade 3");
+    expect(qs[0].sourceReviewRequired).toBeUndefined();
+    expect(qs[1].options[0].text).toBe("< 3%");
+    expect(qs[2].explanation).toContain("> 12 Hz");
+  });
+
+  it("resolves the uploaded non-NBR3 remediation records from their source-internal corrections", () => {
+    const r = normalizeBookJson({ questions: [
+      { question_id: "NTMCQ22_ch01_q020", question: "Which is false?", answers: { A: "A", B: "B", C: "C", D: "D", E: "E" }, correct_answer: "E", review_required: ["missing_printed_explanation_or_continuation"] },
+      { question_id: "RAJ2009_q0377", question: "All are correct EXCEPT", answers: { A: "A", B: "B", C: "C", D: "D", E: "E" }, correct_answers: ["A", "B", "D", "E"], review_required: ["except_key_conflict"] },
+      { question_id: "VASC2017_ch07_q017", question: "FALSE answer", answers: { A: "A", B: "B", C: "C", D: "D" }, correct_answer: "D", review_required: ["option_count_not_five"] }
+    ] }, opts("mixed-remediation.json"));
+    expect(r.chapters[0].questions[0].explanation).toContain("Large scalp laceration");
+    expect(r.chapters[0].questions[1].answer).toEqual(["C"]);
+    expect(r.chapters[0].questions[2].answer).toEqual(["D"]);
+    expect(r.chapters[0].questions.every((q) => !q.sourceReviewRequired)).toBe(true);
+  });
+
+  it("normalizes Greenberg mixed-format keys without combining answer menus with prompts", () => {
+    const r = normalizeBookJson({ schema_version: "GRR-1", chapters: [{ title: "C", questions: [
+      {
+        id: "GRR-01-003", type: "matching", stem: "Match areas", options: [
+          { key: "①", text: "motor" }, { key: "②", text: "sensory" }
+        ], items: [
+          { label: "a", prompt: "Area 4", answer: "①" },
+          { label: "b", prompt: "Area 3", answer: "②" }
+        ]
+      },
+      { id: "GRR-01-031", type: "matching", stem: "Match the figure", figures: [{ labels_in_figure: ["A", "B"] }], items: [
+        { label: "a", prompt: "Face", answer: "B genu" }
+      ] },
+      { id: "GRR-10-010", type: "true_false", stem: "True or False. X", answer: "true (source note)" },
+      { id: "GRR-29-005", type: "multiple_choice", stem: "Which two?", options: [
+        { key: "a", text: "one" }, { key: "b", text: "two" }, { key: "c", text: "infraspinatus" }, { key: "d", text: "supraspinatus" }
+      ], answer: "infraspinatus and supraspinatus (source explanation)" }
+    ] }] }, opts("GRR.json"));
+    const qs = r.chapters[0].questions;
+    expect(qs[0]).toMatchObject({ format: "matching", answer: [], matches: { A: "①", B: "②" } });
+    expect(qs[0].options.map((o) => o.key)).toEqual(["A", "B"]);
+    expect(qs[1]).toMatchObject({ format: "matching", matches: { A: "b" } });
+    expect(qs[2]).toMatchObject({ format: "truefalse", answer: ["A"] });
+    expect(qs[3]).toMatchObject({ answer: ["C", "D"] });
+  });
+
+  it("omits unavailable Arab Board crop references without changing source answer status", () => {
+    const r = normalizeBookJson([{
+      id: "AB-2012-P1-Q001",
+      stem: "The blood-brain barrier:",
+      options: [{ label: "A", text: "Option A" }, { label: "B", text: "Option B" }],
+      question_images: [{ path: "question_images/AB-2012-P1_Q001_part01.jpg" }],
+      answer_status: "not_established"
+    }], opts("questions.json"));
+    const q = r.chapters[0].questions[0];
+    expect(q.stemMedia).toEqual([]);
+    expect(q.explanationMedia).toEqual([]);
+    expect(q.sourceWarning).toContain("crop files were not included");
+    expect(q.answer).toEqual([]);
   });
 });
 

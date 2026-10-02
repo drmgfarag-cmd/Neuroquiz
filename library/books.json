@@ -3,74 +3,141 @@
     {
       "id": "01",
       "title": "MCQs in Neurology and Neurosurgery for Medical Students",
-      "source": "sources/01.zip"
+      "source": "sources/01.zip",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "02",
       "title": "AAOS Adult Spine Self-Assessment Examination (2015)",
-      "source": "sources/02.zip"
+      "source": "sources/02.zip",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "nbr2013",
       "title": "Neurosurgery Board Review (2013)",
-      "source": "sources/NBR2013_extraction.json"
+      "source": "sources/NBR2013_extraction.json",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "05",
-      "title": "The Comprehensive Neurosurgery Board Preparation Book: Illustrated Questions and Answers",
+      "title": "Neurosurgery Self-Assessment: 10 Subject Chapters and Practice Examination",
       "source": [
         "sources/05.json",
         "sources/05_images.zip.001"
       ],
       "referencedAssetsOnly": true,
       "webMaxPx": 900,
-      "webQuality": 45
+      "webQuality": 45,
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "07",
       "title": "MCQs in Spine Surgery",
-      "source": "sources/07.zip.001"
+      "source": "sources/07.zip.001",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "08",
       "title": "Thieme Test Prep for the USMLE: Medical Neuroscience Q&A",
       "source": "sources/08.zip.001",
       "webMaxPx": 1000,
-      "webQuality": 50
+      "webQuality": 50,
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "09",
       "title": "Neurosurgery: Board and Certification Review, 2023 Edition",
       "source": "sources/09.zip",
-      "questionImages": "referenced-only"
+      "questionImages": "referenced-only",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "npqa2",
       "title": "Neurosurgery Practice Questions and Answers, 2nd Edition",
-      "source": "sources/NPQA2.zip"
+      "source": "sources/NPQA2.zip",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "inbr",
       "title": "Intensive Neurosurgery Board Review",
       "source": "sources/INBR.zip.001",
       "webMaxPx": 720,
-      "webQuality": 38
+      "webQuality": 38,
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "neurosurgery-rounds-2e",
       "title": "Neurosurgery Rounds: Questions and Answers, 2nd Edition",
       "source": "sources/Neurosurgery-Rounds-QA2.zip",
       "webMaxPx": 1100,
-      "webQuality": 60
+      "webQuality": 60,
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "nbr3",
       "title": "Neurosurgery Board Review: Questions and Answers for Self-Assessment, Third Edition",
-      "source": "sources/NBR3_with_second_edition_additions.zip.001",
+      "source": "sources/NBR3_with_second_edition_additions_complete.zip",
       "primaryJson": "NBR3_extraction.json",
       "referencedAssetsOnly": true,
       "webMaxPx": 1000,
-      "webQuality": 58
+      "webQuality": 58,
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown",
+      "sourceVersion": "uploaded temp.zip; 1314 base questions plus 12 second-edition additions; 1326 normalized records remain source-review gated"
     },
     {
       "id": "nper",
@@ -79,7 +146,13 @@
       "primaryJson": "NPER_extraction.json",
       "referencedAssetsOnly": true,
       "webMaxPx": 1000,
-      "webQuality": 58
+      "webQuality": 58,
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "npbr",
@@ -88,7 +161,13 @@
       "primaryJson": "questions.json",
       "referencedAssetsOnly": true,
       "webMaxPx": 1000,
-      "webQuality": 58
+      "webQuality": 58,
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "pnsbr2023",
@@ -97,78 +176,576 @@
       "primaryJson": "PNSBR2023_import.json",
       "referencedAssetsOnly": true,
       "webMaxPx": 1000,
-      "webQuality": 58
+      "webQuality": 58,
+      "kind": "hybrid-question-bank",
+      "schema": "hybrid-v1",
+      "adapter": "adaptHybridBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "ntmcq2022",
       "title": "Neurotrauma in Multiple-Choice Questions",
       "source": "sources/NTMCQ2022_bundle.zip",
       "primaryJson": "NTMCQ2022_extraction.json",
-      "referencedAssetsOnly": true
+      "referencedAssetsOnly": true,
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "raj2009",
       "title": "Neurosurgery Review (2009)",
-      "source": "sources/RAJ2009_extraction.json"
+      "source": "sources/RAJ2009_extraction.json",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "mcqs-neuroanatomy-2",
       "title": "MCQs Neuroanatomy 2",
-      "source": "sources/MCQs_Neuroanatomy_2_extracted.json"
+      "source": "sources/MCQs_Neuroanatomy_2_extracted.json",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "vasc2017",
       "title": "Vascular Neurosurgery: In Multiple-Choice Questions",
       "source": "sources/VASC2017_bundle.zip",
-      "primaryJson": "VASC2017_extraction.json"
+      "primaryJson": "VASC2017_extraction.json",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "surgical-instruments-atlas",
       "title": "Surgical Instruments Atlas",
       "source": "sources/Surgical_Instruments_Atlas.zip.part001",
-      "primaryJson": "Surgical_Instruments_Atlas.json"
+      "primaryJson": "Surgical_Instruments_Atlas.json",
+      "kind": "visual-atlas",
+      "schema": "atlas-v1",
+      "adapter": "adaptVisualAtlas",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "neuro-uw-tables-figures-wdaljunaid",
       "title": "NeuroUW Tables and Figures (Mohammed Aljunaid)",
       "source": "sources/NeuroUW_Tables_Figures_Atlas_v2.zip.001",
-      "primaryJson": "NeuroUW_Atlas.json"
+      "primaryJson": "NeuroUW_Atlas.json",
+      "kind": "visual-atlas",
+      "schema": "atlas-v1",
+      "adapter": "adaptVisualAtlas",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "case-reviews-neurosurgery-2017",
       "title": "100 Case Reviews in Neurosurgery (2017)",
       "source": "sources/100_Case_Reviews_in_Neurosurgery_full_figures.zip.001",
-      "primaryJson": "100_Case_Reviews_in_Neurosurgery.json"
+      "primaryJson": "100_Case_Reviews_in_Neurosurgery.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "frcs-neurosurgery-viva-case-book",
       "title": "FRCS (Neurosurgery) Viva Case Book",
       "source": "sources/FRCS_Viva_Cases_Fixed.zip.001",
-      "primaryJson": "frcs_neurosurgery_viva_cases.json"
+      "primaryJson": "frcs_neurosurgery_viva_cases.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "goodmans-neurosurgery-oral-board-review-2017",
       "title": "Goodman's Neurosurgery Oral Board Review: A Primer (2017)",
       "source": "sources/Goodmans_Neurosurgery_Oral_Board_Review_2017_cases.zip.001",
-      "primaryJson": "Goodmans_Neurosurgery_Oral_Board_Review_2017.json"
+      "primaryJson": "Goodmans_Neurosurgery_Oral_Board_Review_2017.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "infographic-neurosurgery-2025",
       "title": "The Infographic Guide to Neurosurgery (2025) — cases",
       "source": "sources/Infographic_Neurosurgery_2025_Cases.zip",
-      "primaryJson": "infographic-neurosurgery-2025_cases.json"
+      "primaryJson": "infographic-neurosurgery-2025_cases.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "neurosurgery-case-review-nader-sabbagh-2010",
       "title": "Neurosurgery Case Review: Questions and Answers (Nader & Sabbagh, 2010)",
       "source": "sources/Neurosurgery_Case_Review_Nader_Sabbagh_2010_cases.zip.001",
-      "primaryJson": "Neurosurgery_Case_Review_Nader_Sabbagh_2010.json"
+      "primaryJson": "Neurosurgery_Case_Review_Nader_Sabbagh_2010.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
     },
     {
       "id": "teaching-files-brain-spine-fatterpekar-2012",
       "title": "The Teaching Files: Brain and Spine Imaging (Fatterpekar, Naidich & Som, 2012)",
       "source": "sources/Teaching_Files_Brain_Spine_2012_cases.zip.001",
-      "primaryJson": "Teaching_Files_Brain_Spine_2012.json"
+      "primaryJson": "Teaching_Files_Brain_Spine_2012.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "cbbi",
+      "title": "Case-Based Brain Imaging, 2nd Edition (Tsiouris, Sanelli, and Comunale)",
+      "source": "sources/CBBI.zip.001",
+      "primaryJson": "CBBI_complete.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "cbinr",
+      "title": "Case-Based Interventional Neuroradiology (Krings, ter Brugge, and Geibprasert)",
+      "source": "sources/CBINR.zip.001",
+      "primaryJson": "CBINR_complete.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "nbe-cv",
+      "title": "NBE Cerebrovascular Neurosurgery",
+      "source": "sources/NBE_CV.zip.001",
+      "primaryJson": "NBE_CV_Cerebrovascular_Neurosurgery.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "nbe-no",
+      "title": "NBE Surgical Neuro-Oncology",
+      "source": "sources/NBE_NO.zip.001",
+      "primaryJson": "NBE_NO_Surgical_Neuro-Oncology.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "nbe-nt",
+      "title": "NBE Neurotrauma",
+      "source": "sources/NBE_NT.zip.001",
+      "primaryJson": "NBE_NT_complete.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "nbe-pd",
+      "title": "NBE Pediatric Neurosurgery",
+      "source": "sources/NBE_PD.zip.001",
+      "primaryJson": "NBE_PD_Pediatric_Neurosurgery.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "nbe-sp",
+      "title": "NBE Spinal Neurosurgery",
+      "source": "sources/NBE_SP.zip.001",
+      "primaryJson": "NBE_SP_Spinal_Neurosurgery.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "ncba",
+      "title": "Neurosurgery: A Case-Based Approach (Tolias et al., 2019)",
+      "source": "sources/NCBA.zip.001",
+      "primaryJson": "NCBA_complete.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "nrcr",
+      "title": "Neuroradiology: A Core Review",
+      "source": "sources/NRCR.zip.001",
+      "primaryJson": "NRCR_complete.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "nscb",
+      "title": "The Neurosurgical Consult Book, 1st Edition (Elsevier, 2023)",
+      "source": "sources/NSCB.zip.001",
+      "primaryJson": "NSCB_The_Neurosurgical_Consult_Book.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "neurology-board-review-2016",
+      "title": "Neurology Board Review 2016",
+      "source": "sources/Neurology_Board_Review_2016_extracted.zip",
+      "primaryJson": "questions.json",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "ocnc-neurological-case-histories",
+      "title": "Oxford Case Histories: Neurological Case Histories — Acute Neurology and General Neurology, 1st Edition",
+      "source": "sources/OCNC_Neurological_Case_Histories.zip",
+      "primaryJson": "OCNC_Neurological_Case_Histories.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "radiology-case-review-brain",
+      "title": "Radiology Case Review Brain Imaging",
+      "source": "sources/Radiology_Case_Review_Brain_Imaging_extracted.zip.001",
+      "primaryJson": "cases.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "radiology-case-review-spine",
+      "title": "Radiology Case Review Spine Imaging",
+      "source": "sources/Radiology_Case_Review_Spine_extracted.zip.001",
+      "primaryJson": "cases.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "spv-spine-viva",
+      "title": "Spine Viva (Aiman Sideeg and Isam Moghamis)",
+      "source": "sources/SPV.zip.001",
+      "primaryJson": "SPV_Spine_Viva.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "ultimate-neurology-boards-2011",
+      "title": "Ultimate Review Neurology Boards 2011",
+      "source": "sources/Ultimate_Review_Neurology_Boards_QA_2011_extracted.zip",
+      "primaryJson": "questions.json",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "ward-rounds-clinical-neurology",
+      "title": "Ward Rounds: Clinical Neurology",
+      "source": "sources/Ward_Rounds_Clinical_Neurology_extracted.zip.001",
+      "primaryJson": "case_studies.json",
+      "kind": "reference-corpus",
+      "schema": "reference-v1",
+      "adapter": "adaptReferenceBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "practical-neurosurgery-cases",
+      "title": "Practical Neurosurgery Cases",
+      "source": "sources/practical neurosurgery cases.zip.001",
+      "primaryJson": "Practical_Neurosurgery_Clinical_Cases.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "nrb-favorites-2024",
+      "title": "Neuroradiology Board's Favorites: 100 MRI-Based Pathology-Proven Cases (2024)",
+      "source": "sources/Neuroradiology_Boards_Favorites_Case_Extraction.zip.001",
+      "primaryJson": "cases.json",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "question-bank-neurosurgery-integrated",
+      "title": "Question Bank of Neurosurgery: Integrated Examinations (2003–2020)",
+      "source": "sources/Neurosurgery_exams_integrated_2003_01_20_scored.zip.001",
+      "primaryJson": "canonical_questions.json",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown"
+    },
+    {
+      "id": "citow-comprehensive-neurosurgery-board-review-2020",
+      "title": "Comprehensive Neurosurgery Board Review (Citow et al., 2020)",
+      "source": "sources/Citow_reference_core_v19_neuroquiz.zip",
+      "primaryJson": "Citow_reference_items.json",
+      "kind": "reference-corpus",
+      "schema": "reference-v1",
+      "adapter": "adaptReferenceBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "user-supplied-extraction",
+      "sourceVersion": "Citow v19; source PDF SHA-256 2652ceffc25ad54d916acf6008ce9a6ad97834c18e57ea910de46dca50d",
+      "referencedAssetsOnly": true
+    },
+    {
+      "id": "ochn-oxford-case-histories-neurosurgery",
+      "title": "Oxford Case Histories in Neurosurgery, 1st Edition (Hasegawa, Crocker & Minhas)",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "source": "sources/OCHN_Oxford_Case_Histories_Neurosurgery.zip",
+      "primaryJson": "OCHN_Oxford_Case_Histories_Neurosurgery.json",
+      "sourceVersion": "uploaded temp.zip; archive integrity passed; importer audit passed with 0 warnings/unscorable records"
+    },
+    {
+      "id": "octs-oxford-case-histories-tia-stroke",
+      "title": "Oxford Case Histories in TIA and Stroke, 1st Edition (Pendlebury et al.)",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptCaseBook",
+      "quizEligible": false,
+      "status": "ready",
+      "source": "sources/OCTS_TIA_and_Stroke_complete.zip",
+      "primaryJson": "OCTS_TIA_and_Stroke.json",
+      "sourceVersion": "uploaded temp.zip; archive integrity passed; importer audit passed with 0 warnings/unscorable records"
+    },
+    {
+      "id": "greenberg-rapid-review-2017",
+      "title": "The Greenberg Rapid Review — A Companion to the 8th Edition (Kranzler & Hobbs, Thieme 2017)",
+      "kind": "hybrid-question-bank",
+      "schema": "grr-1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "source": "sources/GRR_Greenberg_Rapid_Review_ch01-102_hybrid.zip",
+      "primaryJson": "GRR_Greenberg_Rapid_Review.json",
+      "sourceVersion": "uploaded temp.zip; 2387 source questions; mixed-format review required; full-book verbatim proofreading not performed"
+    },
+    {
+      "id": "gh11-greenberg-handbook-neurosurgery-11e",
+      "title": "Greenberg Handbook of Neurosurgery, 11th Edition",
+      "kind": "reference-corpus",
+      "schema": "gh11-reference-v1",
+      "adapter": "adaptReferenceBook",
+      "quizEligible": false,
+      "status": "ready",
+      "source": "sources/GH11_reference_core_v38.zip",
+      "mediaSource": "media/GH11_reference_media_v38.zip",
+      "primaryJson": "GH11_reference_items_v38.json",
+      "referencedAssetsOnly": true,
+      "licenseStatus": "user-supplied-extraction",
+      "sourceVersion": "GH11 v38; source PDF SHA-256 aeb1713620f4c33acbf0804c4cac74db17dbddd173910831102ebd6484ae4dc7; targeted visual/page QA complete; semantic citation QA pending"
+    },
+    {
+      "id": "neuropathology-review-3e",
+      "title": "Neuropathology Review, Third Edition",
+      "source": "sources/Neuropathology_Review_3E_v4.zip",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown",
+      "sourceVersion": "647 questions; 225 resolved referenced sections; 341 figure links; structural validation passed"
+    },
+    {
+      "id": "pediatric-neurosurgery-mcqs",
+      "title": "Pediatric Neurosurgery: In Multiple-Choice Questions",
+      "source": "sources/Pediatric_Neurosurgery_MCQs_789.zip",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown",
+      "sourceVersion": "789 questions; 20 chapters; 9 missing printed explanations; all 789 printed answer keys present"
+    },
+    {
+      "id": "surgical-neuro-oncology",
+      "title": "Surgical Neuro-Oncology: In Multiple Choice Questions",
+      "source": "sources/Surgical_Neuro_Oncology_Question_Bank.zip",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "unknown",
+      "sourceVersion": "824 MCQs; 15 key-only explanations; four irregular option counts preserved"
+    },
+    {
+      "id": "imaging-spine-after-treatment",
+      "title": "Imaging Spine After Treatment: A Case-based Atlas",
+      "source": "sources/Imaging_Spine_After_Treatment_Case_Atlas_v2.zip",
+      "kind": "case-book",
+      "schema": "case-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": false,
+      "status": "ready",
+      "licenseStatus": "unknown",
+      "sourceVersion": "126 cases; 299 stages; 466 rendered image components; every stage has caption and image"
+    },
+    {
+      "id": "colen-flash-review",
+      "title": "Colen Flash-Review: Neurosurgery",
+      "source": "sources/COLEN_FLASH_FINAL_STRICT_CROPS_2026-10-01.zip",
+      "primaryJson": "COLEN_FLASH_ALL.json",
+      "referencedAssetsOnly": true,
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "user-supplied-extraction",
+      "sourceVersion": "996 imported questions; 30 source-null/unscorable records; 249 referenced images; missing printed cards and null keys retained"
+    },
+    {
+      "id": "egyptian-fellowship-review",
+      "title": "Egyptian Fellowship Neurosurgery Review Questions",
+      "source": "sources/Egyptian_Fellowship_review_questions.zip",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "user-supplied-extraction",
+      "sourceVersion": "2243 imported questions; 222 unscorable records with no source-established key; 17 referenced images; SurveyMonkey/source omissions retained"
+    },
+    {
+      "id": "neuroicu-board-review",
+      "title": "The NeuroICU Board Review",
+      "source": "sources/The_NeuroICU_Board_Review_v25_content_complete_working.zip",
+      "primaryJson": "book.json",
+      "referencedAssetsOnly": true,
+      "kind": "hybrid-question-bank",
+      "schema": "case-question-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "user-supplied-extraction",
+      "sourceVersion": "644 imported questions; 2 source-null/unscorable records; source package reports 643/644 answer coverage; OCR/shared-stem review remains documented"
+    },
+    {
+      "id": "arab-board-review",
+      "title": "Arab Board Neurosurgery Examination Review",
+      "source": "sources/arab_board.zip",
+      "primaryJson": "questions.json",
+      "kind": "question-bank",
+      "schema": "mcq-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "user-supplied-extraction",
+      "sourceVersion": "763 imported questions; 699 unscorable records with no resolvable key; 64 source-marked/external keys retained; supplied archive contains no crop files, so broken media references are omitted in normalized output"
+    },
+    {
+      "id": "complete-neurosurgery-board-review",
+      "title": "The Complete Neurosurgery Board Review",
+      "source": "sources/neurosurgery_board_review_book_bundle.zip",
+      "primaryJson": "neurosurgery_board_review_book.json",
+      "referencedAssetsOnly": true,
+      "kind": "hybrid-question-bank",
+      "schema": "hybrid-v1",
+      "adapter": "adaptMcqBook",
+      "quizEligible": true,
+      "status": "ready",
+      "licenseStatus": "user-supplied-extraction",
+      "sourceVersion": "290 imported questions; 28 cases/132 stages in source package; 37 referenced images; verification counts reconciled; one unreferenced chapter plate excluded from runtime"
     }
   ]
 }

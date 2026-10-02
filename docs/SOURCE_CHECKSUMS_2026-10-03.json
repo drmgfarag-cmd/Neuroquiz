@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-10-03",
+  "files": [
+    {
+      "path": "library/sources/COLEN_FLASH_FINAL_STRICT_CROPS_2026-10-01.zip",
+      "bytes": 67010836,
+      "sha256": "af5fa67bbd6781d6126c9adbc83152469d444248cfba56bdfb491bad59bc1a3e"
+    },
+    {
+      "path": "library/sources/Egyptian_Fellowship_review_questions.zip",
+      "bytes": 4406624,
+      "sha256": "7a98b041f52dc95127aa3c412eead8a4bd0b28f820bed5fe1dfadfb57a63bed9"
+    },
+    {
+      "path": "library/sources/The_NeuroICU_Board_Review_v25_content_complete_working.zip",
+      "bytes": 277697282,
+      "sha256": "51a136bc31d60f69aa99381759206e730221424ee05ce681eb6ed09b068c9882"
+    },
+    {
+      "path": "library/sources/arab_board.zip",
+      "bytes": 1875515,
+      "sha256": "29ddbf881f4e3dc82425e237e97cbcd9f9d2f02a3dc364fc4bfd2489db4ff281"
+    },
+    {
+      "path": "library/sources/neurosurgery_board_review_book_bundle.zip",
+      "bytes": 14513873,
+      "sha256": "84f9dadfc6613dde31d4fde65f0628a91aef1036a26e54cc3d1566afe051beda"
+    },
+    {
+      "path": "library/books.json",
+      "bytes": 26394,
+      "sha256": "1ee675d300ad0eaefb4d7216c4312f0bc9baa14d2059528398d47033528822c8"
+    },
+    {
+      "path": "src/import/normalize.ts",
+      "bytes": 82938,
+      "sha256": "7fd7fb45ecc08e73dd36264475ba796f70e6884f0767b3ca7c3bb606f931faa3"
+    },
+    {
+      "path": "scripts/build-library.mjs",
+      "bytes": 11607,
+      "sha256": "50ed9b318e4ecdd31a340cd953c431224cf5ed83261518e6c0255e130ef81770"
+    },
+    {
+      "path": "public/library/index.json",
+      "bytes": 1494842,
+      "sha256": "eafdcb715cfb952597286639df655284b403665a9112de659ce6803bfd032016"
+    },
+    {
+      "path": "public/indexes/index.json",
+      "bytes": 156,
+      "sha256": "674c39117f0d33d5c80ddc23b25c20c1d9f8e374cfe069e8a493d21230934e92"
+    },
+    {
+      "path": "docs/CONTENT_REMEDIATION_QUEUE.md",
+      "bytes": 10153,
+      "sha256": "7627a1e494aae738c3bf2361951dc84931087555c171bda4a533d7ce9c1e3d5c"
+    },
+    {
+      "path": "docs/REMEDIATION_COMPLETION_REPORT.md",
+      "bytes": 8380,
+      "sha256": "a92107017c86e859dd9f9e1a62b09539934503a4fa78ad75b560ec10add2bd7b"
+    },
+    {
+      "path": "docs/CONTINUATION_HANDOFF_2026-10-03.md",
+      "bytes": 4088,
+      "sha256": "61edd1cb954727886a4ddf0ae9d0052662402a1e698a4dca93823bb71324e36a"
+    }
+  ]
+}

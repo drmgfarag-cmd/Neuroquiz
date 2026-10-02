@@ -20,8 +20,8 @@
  * archives remain in the repository for validation and later full builds.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, posix } from "node:path";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
 import sharp from "sharp";
@@ -29,6 +29,13 @@ import sharp from "sharp";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const libDir = join(root, "library");
 const outDir = join(root, "public", "library");
+// Organized handoffs may contain the already-extracted runtime library next
+// to the project instead of the original ZIP archives. Keep the archive
+// pipeline as the default, but recognize that layout automatically so dev,
+// builds and canonical-index generation remain reproducible.
+const extractedDir = process.env.LIBRARY_EXTRACTED_DIR
+  ? resolve(root, process.env.LIBRARY_EXTRACTED_DIR)
+  : join(root, "..", "content", "public-library");
 const KEEP = /\.(json|png|jpe?g|gif|webp|svg|avif)$/i;
 // reports that travel with an extraction but hold no questions
 const SKIP = /(^|\/)[^/]*(audit|page_ocr|ocr_pages|manifest|answer_key)[^/]*\.json$|contact_sheet/i;
@@ -53,7 +60,7 @@ function readSource(src) {
 rmSync(outDir, { recursive: true, force: true });
 if (process.env.LIBRARY_BUNDLE === "none") {
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "index.json"), JSON.stringify({ books: [] }));
+  writeFileSync(join(outDir, "index.json"), JSON.stringify({ format: 2, books: [] }));
   console.log("build-library: empty bundle selected; books can be imported in the app");
   process.exit(0);
 }
@@ -62,8 +69,28 @@ if (!existsSync(listFile)) {
   console.log("build-library: no library/books.json – app ships without built-in books");
   process.exit(0);
 }
+const extractedIndex = join(extractedDir, "index.json");
+const hasCompleteArchiveInputs = (() => {
+  try {
+    const { books: declared = [] } = JSON.parse(readFileSync(listFile, "utf8"));
+    const sources = declared.flatMap((book) => {
+      return [...(Array.isArray(book.source) ? book.source : [book.source]), ...(Array.isArray(book.mediaSource) ? book.mediaSource : book.mediaSource ? [book.mediaSource] : [])];
+    });
+    return sources.length > 0 && sources.every((src) => existsSync(join(libDir, src)));
+  } catch {
+    return false;
+  }
+})();
+if (!hasCompleteArchiveInputs && existsSync(extractedIndex)) {
+  if (process.env.LIBRARY_PACK || process.env.LIBRARY_OPTIMIZE_IMAGES) {
+    throw new Error("build-library: extracted runtime content is available, but image packing/optimization needs the original source archives; use the supplied ready-app-core build or provide archive inputs.");
+  }
+  cpSync(extractedDir, outDir, { recursive: true, force: true });
+  console.log(`build-library: using extracted runtime library at ${extractedDir}`);
+  process.exit(0);
+}
 const { books } = JSON.parse(readFileSync(listFile, "utf8"));
-const index = { books: [] };
+const index = { format: 2, generatedAt: new Date().toISOString(), books: [] };
 const PACK = !!process.env.LIBRARY_PACK;
 // app builds keep the original images; only the size-limited web preview shrinks them
 const OPTIMIZE = PACK || !!process.env.LIBRARY_OPTIMIZE_IMAGES;
@@ -75,7 +102,7 @@ const stats = { before: 0, after: 0 };
 /** Collect the image filenames used by flat question lists and chapter books. */
 function referencedImages(json) {
   const linked = new Set();
-  const records = Array.isArray(json) ? json : Object.values(json.chapters ?? {}).flatMap((chapter) => [
+  const records = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : Object.values(json.chapters ?? {}).flatMap((chapter) => [
     ...(chapter.questions ?? []), ...(chapter.qa_pairs ?? []), ...(chapter.cases ?? []),
   ]);
   for (const item of records) {
@@ -110,8 +137,13 @@ async function optimise(rel, data, book) {
 }
 
 for (const book of books) {
+  if (book.status !== "ready" && process.env.LIBRARY_INCLUDE_STAGED !== "1") {
+    console.log(`build-library: ${book.id} – staged (${book.status ?? "draft"}), skipped from runtime bundle`);
+    continue;
+  }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(book.id)) throw new Error(`book id "${book.id}" must be lower-case letters, digits or dashes`);
   const sources = Array.isArray(book.source) ? book.source : [book.source];
+  const mediaSources = Array.isArray(book.mediaSource) ? book.mediaSource : book.mediaSource ? [book.mediaSource] : [];
   const hash = createHash("sha256");
   // book settings change the installed content too
   if (book.questionImages) hash.update(`questionImages=${book.questionImages}`);
@@ -143,13 +175,14 @@ for (const book of books) {
     writeFileSync(target, data);
     files.push(posix.join(book.id, rel));
   };
-  for (const src of sources) {
+  for (const src of [...sources, ...mediaSources]) {
+    const mediaOnly = mediaSources.includes(src);
     const data = readSource(src);
     hash.update(data);
     if (/\.zip(?:\.(?:part)?001)?$/i.test(src)) {
       const zip = await JSZip.loadAsync(data);
       let linkedAssets = externalLinkedAssets;
-      if (book.primaryJson && book.referencedAssetsOnly) {
+      if (!mediaOnly && book.primaryJson && book.referencedAssetsOnly) {
         const main = Object.values(zip.files).find((e) => posix.basename(e.name) === book.primaryJson);
         if (!main) throw new Error(`Missing ${book.primaryJson} in ${src}`);
         const json = JSON.parse(await main.async("string"));
@@ -157,7 +190,8 @@ for (const book of books) {
       }
       for (const entry of Object.values(zip.files)) {
         if (entry.dir || /(^|\/)(__MACOSX|\.)/.test(entry.name) || !KEEP.test(entry.name) || SKIP.test(entry.name)) continue;
-        if (book.primaryJson && /\.json$/i.test(entry.name) && posix.basename(entry.name) !== book.primaryJson) continue;
+        if (mediaOnly && /\.json$/i.test(entry.name)) continue;
+        if (!mediaOnly && book.primaryJson && /\.json$/i.test(entry.name) && posix.basename(entry.name) !== book.primaryJson) continue;
         if (linkedAssets && !/\.json$/i.test(entry.name) && !linkedAssets.has(posix.basename(entry.name).replace(/\.[^.]+$/, "").toLowerCase())) continue;
         const data = await entry.async("nodebuffer");
         write(...(/\.json$/i.test(entry.name) ? [entry.name, data] : await optimise(entry.name, data, book)));
@@ -187,7 +221,19 @@ for (const book of books) {
     }
     flush();
   }
-  index.books.push({ id: book.id, title: book.title, version: hash.digest("hex").slice(0, 16), files: files.sort(), ...(packs.length ? { packs } : {}) });
+  index.books.push({
+    id: book.id,
+    title: book.title,
+    kind: book.kind ?? "question-bank",
+    schema: book.schema ?? "mcq-v1",
+    adapter: book.adapter ?? "adaptMcqBook",
+    quizEligible: book.quizEligible ?? (book.kind !== "visual-atlas" && book.kind !== "reference-corpus" && book.kind !== "case-book"),
+    status: book.status ?? "ready",
+    ...(book.sourceVersion ? { sourceVersion: book.sourceVersion } : {}),
+    version: hash.digest("hex").slice(0, 16),
+    files: files.sort(),
+    ...(packs.length ? { packs } : {})
+  });
   console.log(`build-library: ${book.id} – ${files.length} files`);
 }
 writeFileSync(join(outDir, "index.json"), JSON.stringify(index, null, 1));

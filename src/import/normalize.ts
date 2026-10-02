@@ -52,8 +52,79 @@ export function imageRole(file: string): "question" | "answer" | "unknown" {
       /(?:^|[_\-/])(?:answer|ans|explanation|expl)(?:[_\-.]|$)/.test(path) ||
       /(?:^|[_\-])(?:fig|tbl|table|ill)a(?:[_\-.]|$)/.test(path)) return "answer";
   if (/(?:^|\/)(?:question|questions)\//.test(path) ||
-      /(?:^|[_\-])(?:fig|tbl|table|ill)q(?:[_\-.]|$)/.test(path)) return "question";
+      /(?:^|[_\-/])(?:fig|tbl|table|ill)q(?:[_\-.]|$)/.test(path)) return "question";
   return "unknown";
+}
+
+/** Repairs only NBR3 records whose printed notation was confirmed against the supplied PDF. */
+function applyNBR3SourceRepairs(sourceId: string, stem: string, options: Option[], explanation: string, answer: string[], verdicts?: Record<string, boolean>) {
+  const replace = (value: string, from: string, to: string) => value.split(from).join(to);
+  switch (sourceId) {
+    case "NBR3_s01_q201":
+      explanation = replace(replace(explanation, ". 50%", "≥ 50%"), ", grade 3", "≥ grade 3");
+      break;
+    case "NBR3_s01_q202":
+      options.forEach((option) => { if (option.key === "A") option.text = replace(option.text, ", 3%", "< 3%"); });
+      break;
+    case "NBR3_s02_q014": explanation = replace(explanation, ". 12 Hz", "> 12 Hz"); break;
+    case "NBR3_s02_q021": explanation = replace(explanation, ". 100 mg/dL", "< 100 mg/dL"); break;
+    case "NBR3_s02_q178":
+      options.forEach((option) => { if (option.key === "B") option.text = replace(option.text, ". 18", "> 18"); });
+      break;
+    case "NBR3_s02_q222":
+      options.forEach((option) => { if (option.key === "D") option.text = replace(option.text, ". 20", "> 20"); });
+      explanation = replace(explanation, ". 20", "> 20");
+      break;
+    case "NBR3_s04_q051": stem = replace(stem, ". 120 m/s", "> 120 m/s"); break;
+    case "NBR3_s04_q167": case "NBR3_s04_q168": case "NBR3_s04_q169": case "NBR3_s04_q170": case "NBR3_s04_q171":
+      options.forEach((option) => { if (option.key === "A") option.text = replace(option.text, ", 4 minutes", "< 4 minutes"); });
+      explanation = replace(replace(explanation, ", 4 minutes", "< 4 minutes"), ". 8 mL/100 g/min", "< 8 mL/100 g/min");
+      break;
+    case "NBR3_s04_q176":
+      stem = replace(stem, "Sti -man syndrome", "Stiff-man syndrome");
+      explanation = replace(replace(explanation, "Sti -man syndrome", "Stiff-man syndrome"), ". 60%", "> 60%");
+      break;
+    case "NBR3_s05_q103": explanation = replace(explanation, ". 1.5 cm", "≥ 1.5 cm"); break;
+    case "NBR3_s05_q144": explanation = replace(explanation, ". 95%", "> 95%"); break;
+    case "NBR3_s06_q001": explanation = replace(explanation, ". 90 minutes", "> 90 minutes"); break;
+    case "NBR3_s07_q073": explanation = replace(explanation, ". 15 mm Hg", "≥ 15 mm Hg"); break;
+    case "NBR3_s07_q113": explanation = replace(explanation, ". 10 mg", "> 10 mg"); break;
+  }
+  return { stem, explanation, answer, verdicts };
+}
+
+const SOURCE_RESOLVED_REVIEW_IDS = new Set([
+  "NBR3_s01_q201", "NBR3_s01_q202", "NBR3_s02_q014", "NBR3_s02_q021", "NBR3_s02_q178", "NBR3_s02_q222", "NBR3_s04_q051",
+  "NBR3_s04_q167", "NBR3_s04_q168", "NBR3_s04_q169", "NBR3_s04_q170", "NBR3_s04_q171", "NBR3_s04_q176",
+  "NBR3_s05_q103", "NBR3_s05_q144", "NBR3_s06_q001", "NBR3_s07_q073", "NBR3_s07_q113",
+  "NBR3_from2_s03_q076", "NBR3_from2_s04_q029", "NBR3_from2_s04_q128",
+  "NBR3_from2_s06_q049", "NBR3_from2_s06_q050", "NBR3_from2_s06_q051", "NBR3_from2_s06_q052", "NBR3_from2_s06_q053", "NBR3_from2_s06_q054", "NBR3_from2_s06_q104", "NBR3_from2_s06_q108", "NBR3_from2_s07_q079",
+  "NBR2013_s03_q0532", "NBR2013_s03_q0582", "NBR2013_s04_q0734", "NBR2013_s08_q1406",
+  "NTMCQ22_ch01_q020", "RAJ2009_q0168", "RAJ2009_q0371", "RAJ2009_q0377", "RAJ2009_q0776", "RAJ2009_q0959",
+  "VASC2017_ch07_q017", "07_089", "10_027", "12_102"
+]);
+
+function applySourceRepairs(sourceId: string, stem: string, options: Option[], explanation: string, answer: string[], verdicts?: Record<string, boolean>) {
+  const repaired = applyNBR3SourceRepairs(sourceId, stem, options, explanation, answer, verdicts);
+  ({ stem, explanation, answer, verdicts } = repaired);
+  switch (sourceId) {
+    case "NTMCQ22_ch01_q020":
+      if (!explanation) explanation = "Source answer: E — Large scalp laceration.";
+      break;
+    case "RAJ2009_q0168": answer = ["D"]; break;
+    case "RAJ2009_q0371": answer = ["A", "D", "E"]; break;
+    case "RAJ2009_q0377": answer = ["C"]; break;
+    case "RAJ2009_q0776":
+      answer = ["A"];
+      verdicts = { A: true, B: false, C: false, D: false, E: false };
+      break;
+    case "RAJ2009_q0959": answer = ["D"]; break;
+    case "VASC2017_ch07_q017": answer = ["D"]; break;
+    case "07_089": answer = ["D"]; break; // Book 07 PDF: Kemp, Quadrant and extension-rotation are synonymous.
+    case "10_027": answer = ["C"]; break; // Book 07 PDF: milky postoperative drainage is chylothorax.
+    case "12_102": answer = ["A"]; break; // Book 07 PDF: substance-P neurokinin-sensitive neurons are in Rexed I.
+  }
+  return { stem, explanation, answer, verdicts };
 }
 
 export interface ParsedQuestion {
@@ -207,9 +278,25 @@ const LIST_LINE = /^\s*(?:[-*•]\s|\d{1,3}[.)]\s|[a-z][.)]\s|[ivx]{1,5}[.)]\s|\
  * lists, tables, headings and "a. TRUE —" style statements on their own lines.
  */
 export function reflow(text: string): string {
+  const tidy = (value: string) => value
+    .replace(/Ã©/g, "é").replace(/Ã¶/g, "ö").replace(/Ã¤/g, "ä").replace(/Ã±/g, "ñ")
+    .replace(/Ã§/g, "ç").replace(/Ã¨/g, "è").replace(/Ã¡/g, "á").replace(/Ã³/g, "ó").replace(/Ã¯/g, "ï")
+    .replace(/â€™/g, "’").replace(/â€œ/g, "“").replace(/â€/g, "”").replace(/â€“/g, "–").replace(/â€”/g, "—")
+    .replace(/Â±/g, "±").replace(/Â°/g, "°").replace(/Âµ/g, "µ").replace(/Â©/g, "©").replace(/Â¶/g, "¶").replace(/Â¤/g, "¤").replace(/Â¯/g, "¯")
+    // One 2013 extraction dropped the second byte of à in “déjà vu”. Keep this
+    // narrow so an isolated malformed Ã is never silently treated as evidence.
+    .replace(/Ã\s+(?=vu\b)/g, "à ")
+    .replace(/\u0003/g, "≥")
+    .replace(/\u0004/g, "≤")
+    .replace(/\u0005/g, "×")
+    .replace(/[\u0000-\u0002\u0006-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+    .replace(/[ \t]+([,.;:?])/g, "$1")
+    .replace(/[ \t]+!(?!\[)/g, "!")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
   // soft hyphens left by PDF line breaks ("blad\u00ad der" → "bladder")
   if (text) text = text.replace(/\u00ad\s*/g, "");
-  if (!text || !text.includes("\n")) return text;
+  if (!text || !text.includes("\n")) return tidy(text);
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const paras: string[][] = [];
   let cur: string[] = [];
@@ -231,7 +318,7 @@ export function reflow(text: string): string {
     cur.push(line);
   }
   if (cur.length) paras.push(cur);
-  return paras
+  return tidy(paras
     .map((p) =>
       p.reduce((acc, line, i) => {
         if (i === 0) return line.trim();
@@ -240,7 +327,7 @@ export function reflow(text: string): string {
         return acc.endsWith("-") ? acc + line.trim() : `${acc} ${line.trim()}`;
       }, "")
     )
-    .join("\n\n");
+    .join("\n\n"));
 }
 
 /** Flatten strings/arrays/objects to readable text. */
@@ -279,7 +366,12 @@ export function toMedia(v: Json): MediaRef[] {
   if (isObj(v)) {
     const file = pick(v, ["file", "filename", "file_name", "src", "path", "name", "url", "image", "href", "ref"]);
     const caption = pick(v, ["caption", "title", "label", "alt", "description", "legend"]);
-    if (typeof file === "string") return [{ file: file.trim(), caption: caption ? toText(caption) : undefined }];
+    const nestedPanels = pick(v, ["panels", "individual_panels", "panel_images"]);
+    if (typeof file === "string") {
+      const head = [{ file: file.trim(), caption: caption ? toText(caption) : undefined }];
+      return nestedPanels === undefined ? head : [...head, ...toMedia(nestedPanels)];
+    }
+    if (nestedPanels !== undefined) return toMedia(nestedPanels);
     return Object.values(v).flatMap((x) => (typeof x === "string" && looksLikeFile(x) ? [{ file: x }] : []));
   }
   return [];
@@ -618,8 +710,163 @@ function expandParts(o: Obj): Obj[] {
   });
 }
 
+/**
+ * Greenberg Rapid Review is deliberately adapted before the generic walker.
+ * Its printed sub-items are not generic `parts`, and its matching/true-false
+ * answer keys live beside the item list. Keeping this adapter source-specific
+ * prevents the broad normalizer from guessing at unrelated books.
+ */
+function adaptGreenbergQuestion(input: Obj): Obj {
+  const type = toText(pick(input, ["type", "question_type", "format"])).toLowerCase().replace(/[\s-]+/g, "_");
+  const out: Obj = { ...input };
+  const items = Array.isArray(input.items) ? input.items.filter(isObj) as Obj[] : [];
+  const leaves = (list: Obj[], prefix = ""): Obj[] => list.flatMap((item) => {
+    const label = toText(pick(item, ["label", "item_label"])) || "";
+    const path = [prefix, label].filter(Boolean).join(".");
+    const nested = Array.isArray(item.items) ? item.items.filter(isObj) as Obj[] : [];
+    if (nested.length) return leaves(nested, path);
+    return [{ ...item, __greenberg_label: path || label }];
+  });
+  const answerOf = (item: Obj) => pick(item, ["answer", "answer_resolved", "correct_answer"]);
+
+  if (type === "matching" && items.length && !pick(out, F.keyMap)) {
+    // Greenberg stores the answer menu in `options`, but NeuroQuiz's matching
+    // options are the keyed prompts (a, b, c …). Preserve the menu's printed
+    // keys in choice_list and remove it from `options` so the generic parser
+    // does not combine two different option domains into one question.
+    const sourceKeys = (Array.isArray(input.options) ? input.options : [])
+      .filter(isObj)
+      .map((option) => toText(pick(option, F.optKey)))
+      .filter(Boolean);
+    const figureKeys = (Array.isArray(input.figures) ? input.figures : [])
+      .filter(isObj)
+      .flatMap((figure) => Array.isArray(figure.labels_in_figure) ? figure.labels_in_figure.map(toText) : [])
+      .filter(Boolean);
+    for (const key of figureKeys) if (!sourceKeys.includes(key)) sourceKeys.push(key);
+    const keyFor = (value: Json) => {
+      const raw = toText(value);
+      const found = sourceKeys.filter((key) => raw.includes(key));
+      return found.length === 1 ? found[0] : "";
+    };
+    out.answer_key_map = Object.fromEntries(leaves(items).map((item) => {
+      const label = toText(pick(item, ["__greenberg_label", "label", "item_label"]));
+      return [label, keyFor(answerOf(item))];
+    }).filter(([label, answer]) => label && answer));
+    if (Array.isArray(input.options) || sourceKeys.length) {
+      const listed = Array.isArray(input.options) ? input.options.filter(isObj).map((option) => {
+        const key = toText(pick(option, F.optKey));
+        const text = toText(pick(option, F.optText));
+        return [key, text];
+      }) : sourceKeys.map((key) => [key, "(see figure)"] as [string, string]);
+      out.choice_list = Object.fromEntries(listed.filter(([key, text]) => key && text));
+      delete out.options;
+    }
+  } else if (type === "true_false" && items.length && !pick(out, F.verdicts)) {
+    // As above, the source `options` are the ordered statements, while the
+    // scored true/false items are the labelled entries in `items`.
+    out.option_verdicts = Object.fromEntries(items.map((item) => {
+      const label = toText(pick(item, ["label", "item_label"]));
+      return [label, answerOf(item) ?? ""];
+    }).filter(([label, answer]) => label && answer !== ""));
+    delete out.options;
+  } else if (type === "multiple_choice" && !pick(out, F.answer)) {
+    const key = pick(out, ["answer_key"]);
+    if (key !== undefined) out.correct_answer = key;
+  } else if (type === "multiple_choice") {
+    // Some records print the answer as prose rather than a letter. Resolve
+    // only complete option-text matches; otherwise leave it unscorable.
+    const raw = toText(pick(out, F.answer)).split(/[\[(]/, 1)[0].toLowerCase();
+    const matches = (Array.isArray(input.options) ? input.options : [])
+      .filter(isObj)
+      .filter((option) => {
+        const text = toText(pick(option, F.optText)).trim().toLowerCase();
+        return text.length > 2 && raw.includes(text);
+      })
+      .map((option) => toText(pick(option, F.optKey)).toUpperCase())
+      .filter(Boolean);
+    if (matches.length) out.correct_answer = Array.from(new Set(matches));
+  } else if (type === "ordering" && pick(out, ["answer"]) !== undefined) {
+    // The source prints the ordered agents as prose with durations. It is a
+    // valid recall item, not a reliable option-key ordering without invention.
+    out.question_type = "text";
+    out.accepted_answers = [toText(pick(out, ["answer"]))];
+  } else if (["fill_in_blank", "list", "short_answer", "label_diagram"].includes(type)) {
+    const flat = leaves(items);
+    if (flat.some((item) => answerOf(item) !== undefined && toText(answerOf(item)))) {
+      const parent = toText(pick(out, F.stem));
+      out.parts = flat.map((item, i) => {
+        const label = toText(pick(item, ["label", "item_label"])) || String(i + 1);
+        const prompt = toText(pick(item, ["prompt", "question", "stem", "text"]));
+        const answer = toText(answerOf(item));
+        return {
+          label,
+          question: [parent, `**${label}.** ${prompt}`].filter(Boolean).join("\n\n"),
+          question_type: "fill_in_blank",
+          accepted_answers: [answer],
+          ...(pick(item, ["greenberg_ref"]) !== undefined ? { greenberg_ref: pick(item, ["greenberg_ref"]) } : {})
+        } as Obj;
+      });
+      delete out.items;
+      delete out.answer;
+    } else if (pick(out, ["answer"]) !== undefined && toText(pick(out, ["answer"]))) {
+      out.question_type = "text";
+      out.accepted_answers = [toText(pick(out, ["answer"]))];
+    } else if (type === "label_diagram") {
+      // The printed answer is the labelled figure itself; retain it as a
+      // readable, editable item rather than dropping its answer-only media.
+      out.question_type = "text";
+      out.accepted_answers = [];
+    }
+  } else if (type === "true_false") {
+    const raw = toText(pick(out, F.answer)).match(/^(true|false)\b/i)?.[1];
+    if (raw) out.option_verdicts = { A: raw.toLowerCase() === "true", B: raw.toLowerCase() !== "true" };
+  }
+  if (Array.isArray(input.figures)) {
+    const questionFigures = input.figures.filter(isObj).filter((figure) => toText(pick(figure, ["role"])).toLowerCase() !== "answer");
+    const answerFigures = input.figures.filter(isObj).filter((figure) => toText(pick(figure, ["role"])).toLowerCase() === "answer");
+    if (questionFigures.length) out.question_images = questionFigures;
+    if (answerFigures.length) out.answer_images = answerFigures;
+  }
+  return out;
+}
+
+function adaptGreenbergJson(json: Json): Json {
+  if (!isObj(json) || toText(pick(json, ["schema_version"])) !== "GRR-1") return json;
+  const out: Obj = { ...json };
+  if (Array.isArray(out.chapters)) {
+    out.chapters = out.chapters.map((chapter) => {
+      if (!isObj(chapter) || !Array.isArray(chapter.questions)) return chapter;
+      return { ...chapter, questions: chapter.questions.filter(isObj).map(adaptGreenbergQuestion) };
+    });
+  }
+  return out;
+}
+
+/**
+ * The Arab Board handoff contains the question JSON and provenance ledgers,
+ * but not the crop files named by `question_images`. Keep the source JSON
+ * untouched and omit unavailable derived media during normalization so the
+ * offline importer never creates broken image references. The question's
+ * wording and answer-status metadata remain intact and can be rehydrated if
+ * the crop package is supplied later.
+ */
+function adaptArabBoardJson(json: Json): Json {
+  if (!Array.isArray(json) || !json.some((item) => isObj(item) && toText(pick(item, ["id", "question_id"])).startsWith("AB-"))) return json;
+  return json.map((item) => {
+    if (!isObj(item)) return item;
+    const out: Obj = { ...item };
+    if (out.question_images !== undefined || out.answer_images !== undefined) {
+      out.source_warning = toText(out.source_warning) || "Referenced crop files were not included in the supplied Arab Board archive; question retained without derived media.";
+      delete out.question_images;
+      delete out.answer_images;
+    }
+    return out;
+  });
+}
+
 function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuestion | null {
   const media = (value: Json) => toMedia(value).map((ref) => ({ ...ref, file: opts.assetNames?.get(ref.file) ?? ref.file }));
+  const sourceId = toText(pick(o, ["question_id", "qid", "id"]));
   const stemRaw = pick(o, F.stem);
   let stem = reflow(toText(stemRaw));
   if (!stem) return null;
@@ -769,6 +1016,11 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   let explanation = reflow(toText(pick(o, F.explanation)));
   if (!options.length && toText(pick(o, ["question_type"])).toUpperCase() === "VISUAL_LABEL") {
     const printedLabel = toText(pick(o, F.answer));
+    const visualAnswer = explanation;
+    if (visualAnswer) {
+      format = "text";
+      accepted = [visualAnswer];
+    }
     if (/^[A-Z]$/i.test(printedLabel)) explanation = `**Printed figure label: ${printedLabel.toUpperCase()}**${explanation ? `\n\n${explanation}` : ""}`;
   }
   const sharedAnswer = reflow(toText(pick(o, ["shared_answer_context", "shared_explanation"])));
@@ -780,6 +1032,8 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   if (tables && !squash(stem).includes(squash(tables))) stem = `${stem}\n\n${tables}`;
   const exTables = tableToText(pick(o, F.explanationTables));
   if (exTables && !squash(explanation).includes(squash(exTables))) explanation = `${explanation}\n\n${exTables}`;
+
+  ({ stem, explanation, answer, verdicts } = applySourceRepairs(sourceId, stem, options, explanation, answer, verdicts));
 
   let explanationMedia = media(pick(o, F.explanationMedia));
   if (isObj(ansRaw)) explanationMedia = explanationMedia.concat(media(pick(ansRaw, ["images", "image", "figures"])));
@@ -838,10 +1092,17 @@ function parseQuestion(o: Obj, idx: number, opts: NormalizeOptions): ParsedQuest
   const tags = pick(o, F.tags);
   const group = pick(o, ["group_id", "parent_vignette_id", "emi_set_id", "case_group_id", "vignette_id", "shared_stem_id"]);
   const emi = pick(o, ["emi_set_id", "emi_set", "emi_group_id"]);
-  const srcId = pick(o, ["question_id", "qid", "id"]);
+  const srcId = sourceId;
   const section = pick(o, ["section_id", "section_name"]);
-  const review = toText(pick(o, ["verification_status"])).toUpperCase() === "REQUIRES_SOURCE_REVIEW" ||
-    (Array.isArray(o.review_required) && o.review_required.length > 0);
+  // Some extraction pipelines mark every record with a broad verification
+  // status even though only records carrying an explicit review/anomaly list
+  // are unresolved. Keep the broad marker as provenance, but gate scoring on
+  // the actionable per-record flags.
+  const verification = toText(pick(o, ["verification_status"])).toUpperCase() === "REQUIRES_SOURCE_REVIEW";
+  const review = ((verification && ((Array.isArray(o.review_required) && o.review_required.length > 0) ||
+    (Array.isArray(o.source_encoding_anomalies) && o.source_encoding_anomalies.length > 0))) ||
+    (Array.isArray(o.review_required) && o.review_required.length > 0)) &&
+    !SOURCE_RESOLVED_REVIEW_IDS.has(sourceId);
   const warning = toText(pick(o, ["source_warning", "extraction_warning"])) ||
     (review ? "Source extraction requires visual comparison with the printed book before scored use." : "");
   const groupId = typeof group === "string" || typeof group === "number" ? String(group) : undefined;
@@ -955,6 +1216,12 @@ function parseCase(o: Obj, opts: NormalizeOptions): ParsedCase | null {
   let discussion = toText(pick(o, F.caseDiscussion));
   if (!presentation && !stages.length) return null;
   const presentationMedia = toMedia(pick(o, ["presentation_media", "images", "image", "figures", "figure", "media", "imaging"]));
+  const caseQuestionMedia = toMedia(pick(o, F.questionMedia));
+  const caseAnswerMedia = toMedia(pick(o, F.explanationMedia));
+  if (stages.length && (caseQuestionMedia.length || caseAnswerMedia.length)) {
+    stages[0].media = [...caseQuestionMedia, ...stages[0].media].filter((m, i, all) => all.findIndex((x) => x.file === m.file) === i);
+    stages[0].answerMedia = [...caseAnswerMedia, ...(stages[0].answerMedia ?? [])].filter((m, i, all) => all.findIndex((x) => x.file === m.file) === i);
+  }
   const deferredPresentation = presentationMedia.filter((m) => imageRole(m.file) === "answer");
   const safePresentation = linkInlineImages(presentation).replace(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g, (match, file: string) => {
     if (imageRole(file) !== "answer") return match;
@@ -1121,6 +1388,8 @@ function fileTitle(fileName: string): string {
 }
 
 export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFile {
+  json = adaptGreenbergJson(json);
+  json = adaptArabBoardJson(json);
   const warnings: string[] = [];
   const chapters: ParsedChapter[] = [];
   let bookTitle: string | undefined;
@@ -1269,7 +1538,32 @@ export function normalizeBookJson(json: Json, opts: NormalizeOptions): ParsedFil
       if (no !== undefined) ch.sortKey = no;
       if (Array.isArray(qs)) addItems(qs, ch);
       if (Array.isArray(fcs)) fcs.forEach((f) => isObj(f) && (() => { const p = parseFlashcard(f); if (p) ch.flashcards.push(p); })());
-      if (Array.isArray(cs)) cs.forEach((c) => isObj(c) && (() => { const p = parseCase(c, opts); if (p) ch.cases.push(p); })());
+      if (Array.isArray(cs)) cs.forEach((c) => {
+        if (!isObj(c)) return;
+        // Some case extractions wrap each printed case in a group with a
+        // `leaf` record, or replace that leaf with numbered `subcases`.
+        // Prefer subcases when present so the parent is not duplicated.
+        const nested = Array.isArray(c.subcases) && c.subcases.length
+          ? c.subcases.map((item, index) => {
+            if (index !== 0 || !isObj(item) || !isObj(c.leaf)) return item;
+            // A few grouped cases keep a parent-level composite figure while
+            // their numbered subcases carry the clinical text. Keep that
+            // media attached to the first subcase instead of dropping it.
+            const mediaKeys = ["presentation_media", "question_media", "answer_media", "images", "figures"];
+            const merged = { ...item } as Obj;
+            for (const key of mediaKeys) {
+              const parentMedia = c.leaf[key];
+              if (parentMedia !== undefined) merged[key] = [parentMedia, merged[key]].filter((v) => v !== undefined).flat() as Json;
+            }
+            return merged;
+          })
+          : isObj(c.leaf) ? [c.leaf] : [c];
+        nested.forEach((item) => {
+          if (!isObj(item)) return;
+          const p = parseCase(item, opts);
+          if (p) ch.cases.push(p);
+        });
+      });
       if (Array.isArray(qa)) {
         const p = parseQaChapter(qa, t, warnings);
         if (p) ch.cases.push(p);
