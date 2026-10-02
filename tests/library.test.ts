@@ -33,9 +33,15 @@ function readSource(src: string): Buffer {
  * extracted tree is authoritative for offline validation in that layout.
  */
 function extractedFiles(bookId: string, primaryJson?: string): File[] {
-  const root = new URL(`../public/library/${bookId}/`, import.meta.url);
-  if (!existsSync(root)) return [];
-  const runtimeIndex = new URL("../public/library/index.json", import.meta.url);
+  const roots = [
+    new URL(`../public/library/${bookId}/`, import.meta.url),
+    new URL(`../../content/public-library/${bookId}/`, import.meta.url),
+  ];
+  const root = roots.find((candidate) => existsSync(candidate));
+  if (!root) return [];
+  const runtimeIndex = root.pathname.includes("/content/public-library/")
+    ? new URL("../../content/public-library/index.json", import.meta.url)
+    : new URL("../public/library/index.json", import.meta.url);
   const listed = existsSync(runtimeIndex)
     ? new Set<string>((JSON.parse(readFileSync(runtimeIndex, "utf8")).books.find((b: { id: string }) => b.id === bookId)?.files ?? [])
       .map((path: string) => path.replace(new RegExp(`^${bookId}/`), "")))

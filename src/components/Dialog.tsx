@@ -41,6 +41,7 @@ export function choose(message: string, choices: { label: string; value: string;
 export function DialogHost() {
   const [items, setItems] = useState<Request[]>([]);
   const okRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     push = (r) => setItems((s) => [...s, r]);
     if (queue.length) setItems(queue.splice(0));
@@ -51,17 +52,37 @@ export function DialogHost() {
   const cur = items[0];
   useEffect(() => {
     if (!cur) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     okRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopImmediatePropagation();
         close(false);
+        return;
+      }
+      if (e.key === "Tab") {
+        const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        ) ?? []);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  });
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [cur]);
   if (!cur) return null;
   function close(ok: boolean) {
     if (cur.choices) cur.resolveChoice?.(null);
@@ -74,7 +95,8 @@ export function DialogHost() {
   }
   return (
     <div className="dialog-backdrop" onClick={() => close(false)}>
-      <div className="card dialog" role="alertdialog" aria-modal="true" aria-describedby="dialog-msg" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="card dialog" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-msg" onClick={(e) => e.stopPropagation()}>
+        <h2 id="dialog-title" className="sr-only">NeuroQuiz confirmation</h2>
         <p id="dialog-msg">{cur.message}</p>
         <div className="row" style={{ justifyContent: "flex-end" }}>
           {cur.choices ? <>

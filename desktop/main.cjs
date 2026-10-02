@@ -56,7 +56,10 @@ app.whenReady().then(() => {
   protocol.handle("app", (req) => {
     const { pathname } = new URL(req.url);
     const file = path.normalize(path.join(ROOT, decodeURIComponent(pathname)));
-    if (!file.startsWith(ROOT)) return new Response("forbidden", { status: 403 });
+    const relative = path.relative(ROOT, file);
+    if (path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`)) {
+      return new Response("forbidden", { status: 403 });
+    }
     return net.fetch(pathToFileURL(file).toString());
   });
   createWindow();

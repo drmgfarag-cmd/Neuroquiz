@@ -4,6 +4,9 @@
  *
  *   SYNC_TOKEN=choose-a-secret PORT=8787 node sync-server/server.mjs
  *
+ * Anonymous sync is disabled by default. For an explicitly trusted isolated
+ * LAN only, set SYNC_ALLOW_ANONYMOUS=1 instead of exposing this server.
+ *
  * Run it on any always-on machine (your Windows PC, a Raspberry Pi, a small
  * VPS). Every device posts its changed rows and receives the rows other
  * devices changed since its last sync. Data is kept in sync-server/data/.
@@ -16,9 +19,13 @@ import { fileURLToPath } from "node:url";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const TOKEN = process.env.SYNC_TOKEN ?? "";
+const ALLOW_ANONYMOUS = process.env.SYNC_ALLOW_ANONYMOUS === "1";
+const CORS_ORIGIN = process.env.SYNC_CORS_ORIGIN ?? "*";
 const DATA_DIR = process.env.DATA_DIR ?? join(dirname(fileURLToPath(import.meta.url)), "data");
 const FILE = join(DATA_DIR, "store.json");
 const MAX_BODY = 50 * 1024 * 1024;
+const MAX_CHANGES = 10_000;
+const SYNC_TABLES = new Set(["annotations", "questionStates", "cardStates", "sessions", "userFlashcards", "userCases", "corrections", "aiReviews"]);
 
 mkdirSync(DATA_DIR, { recursive: true });
 /** @type {{ seq: number, records: Record<string, {table:string,id:string,updatedAt:number,row?:object,deleted?:boolean,seq:number,device?:string}> }} */
@@ -36,7 +43,7 @@ function save() {
 function send(res, status, body) {
   res.writeHead(status, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": CORS_ORIGIN,
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
   });
@@ -61,7 +68,7 @@ function readBody(req) {
 
 export function merge(changes, device) {
   for (const c of changes) {
-    if (!c || typeof c.table !== "string" || typeof c.id !== "string" || typeof c.updatedAt !== "number") continue;
+    if (!c || !SYNC_TABLES.has(c.table) || typeof c.id !== "string" || typeof c.updatedAt !== "number") continue;
     const key = `${c.table}:${c.id}`;
     const cur = store.records[key];
     if (cur && cur.updatedAt >= c.updatedAt) continue; // last writer wins
@@ -75,6 +82,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://x");
   if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, seq: store.seq, records: Object.keys(store.records).length });
 
+  if (!TOKEN && !ALLOW_ANONYMOUS) return send(res, 503, { error: "Sync server is not configured: set SYNC_TOKEN." });
   if (TOKEN && req.headers.authorization !== `Bearer ${TOKEN}`) return send(res, 401, { error: "bad token" });
 
   if (req.method === "POST" && url.pathname === "/sync") {
@@ -83,7 +91,9 @@ const server = createServer(async (req, res) => {
       const since = Number(body.since) || 0;
       const device = String(body.device ?? "device").slice(0, 60);
       const before = store.seq;
-      merge(Array.isArray(body.changes) ? body.changes : [], device);
+      const changes = Array.isArray(body.changes) ? body.changes : [];
+      if (changes.length > MAX_CHANGES) return send(res, 413, { error: `too many changes (maximum ${MAX_CHANGES})` });
+      merge(changes, device);
       if (store.seq !== before) save();
       const out = Object.values(store.records)
         .filter((r) => r.seq > since)
@@ -97,5 +107,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`NeuroQuiz sync server on http://0.0.0.0:${PORT} (${TOKEN ? "token required" : "NO TOKEN – set SYNC_TOKEN"})`);
+  console.log(`NeuroQuiz sync server on http://0.0.0.0:${PORT} (${TOKEN ? "token required" : ALLOW_ANONYMOUS ? "ANONYMOUS LAN MODE" : "SYNC DISABLED – set SYNC_TOKEN"})`);
 });
