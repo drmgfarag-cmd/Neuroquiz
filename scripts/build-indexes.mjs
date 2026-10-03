@@ -315,23 +315,30 @@ export function buildIndexes({ libraryRoot = libraryDir, outputRoot = indexesDir
   const canonical = existsSync(join(libraryRoot, "canonical", "index.json"))
     ? JSON.parse(readFileSync(join(libraryRoot, "canonical", "index.json"), "utf8"))
     : { books: {} };
-  const fingerprint = digest({
-    catalog: catalog.generatedAt ?? catalog.books?.map((book) => `${book.id}:${book.version}`).join("|") ?? "",
-    canonical: canonical.generatedAt ?? Object.keys(canonical.books ?? {}).length,
-    books: catalog.books?.length ?? 0
+  const catalogFingerprint = digest({
+    generatedAt: catalog.generatedAt ?? "",
+    books: catalog.books?.map((book) => `${book.id}:${book.version}`).join("|") ?? ""
   });
+  let canonicalFingerprint = canonical.generatedAt ?? Object.keys(canonical.books ?? {}).length;
+  if (!existsSync(join(libraryRoot, "canonical", "index.json")) && process.env.INDEX_FORCE !== "1") {
+    try {
+      const prior = JSON.parse(readFileSync(join(outputRoot, ".stages", "records.json"), "utf8"));
+      if (prior.catalogFingerprint === catalogFingerprint && prior.canonicalFingerprint) canonicalFingerprint = prior.canonicalFingerprint;
+    } catch { /* no reusable bridge metadata yet */ }
+  }
+  const fingerprint = digest({ catalogFingerprint, canonicalFingerprint });
   const stageRoot = resolve(outputRoot) === resolve(indexesDir) ? stagesDir : join(outputRoot, ".stages");
   const stageFile = (name) => join(stageRoot, `${name}.json`);
   const readCached = (name) => {
     if (process.env.INDEX_FORCE === "1" || !existsSync(stageFile(name))) return null;
     try {
       const stage = JSON.parse(readFileSync(stageFile(name), "utf8"));
-      return stage.fingerprint === fingerprint ? stage.data : null;
+      return stage.fingerprint === fingerprint && stage.catalogFingerprint === catalogFingerprint ? stage.data : null;
     } catch { return null; }
   };
   const writeCached = (name, data) => {
     mkdirSync(stageRoot, { recursive: true });
-    writeFileSync(stageFile(name), JSON.stringify({ format: 1, fingerprint, data }));
+    writeFileSync(stageFile(name), JSON.stringify({ format: 2, fingerprint, catalogFingerprint, canonicalFingerprint, data }));
   };
   const cachedRecords = readCached("records");
   const cachedMedia = readCached("media");
