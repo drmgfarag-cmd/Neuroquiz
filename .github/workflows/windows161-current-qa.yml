@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: d7ae5a6cae3d61a6ae7161af08184a772a21e145d7239a95a0223732de6a3893
+      TRANSFER_MANIFEST_SHA256: f341eb9a143b343669587c4a592d0ed09f2312e2dc969f17b62ae3c64e07e9a1
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -45,7 +45,7 @@ jobs:
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
           if($m.installer.bytes -ne 163831123 -or $m.installer.sha256 -ne 'f030642d99051faf8ed1cdcdf6aa6d464a835dac72f2c52fddf00ffb30240ec5'){throw 'Exact161 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111329 -or $m.runner.sha256 -ne 'f3a2619478713e6babc9858b4cf60dc7914649a33888eb12c8ab3aee2abb6a60'){throw 'Exact161 runner ZIP required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111363 -or $m.runner.sha256 -ne '5db9e06186417ba8352da892466d176334fe962398f1140557c4d13abfebbecd'){throw 'Exact161 runner ZIP required'}
           $installer=Join-Path $root 'NeuroQuiz-161-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
