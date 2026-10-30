@@ -33,7 +33,7 @@ async function run({runner, installer, output}) {
   runner = path.resolve(runner); installer = path.resolve(installer); output = path.resolve(output);
   assert(!fs.existsSync(output) && !fs.existsSync(output + '.fresh-install.json'), 'Fresh output required');
   const targetPath = path.join(runner, 'Windows_Target161.json'), target = JSON.parse(fs.readFileSync(targetPath));
-  assert.equal(target.release, 163); assert.equal(target.freshInstallDefault, true);
+  assert.equal(target.release, 164); assert.equal(target.freshInstallDefault, true);
   assert.equal(fs.statSync(installer).size, target.installer.bytes); assert.equal(sha(fs.readFileSync(installer)), target.installer.sha256);
   const logs = evidenceEmitter(), deadlineMs = 42 * 60 * 1000;
   let timedOut = false, scannerBusy = false, scanError = null;

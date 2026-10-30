@@ -1,21 +1,21 @@
 # LOCAL PREPARATION ONLY. Publication of the exact compiled runtime and generic
 # QA files requires the owner's explicit approval. No PR, cache or artifact action.
-name: NeuroQuiz exact Windows163 runtime QA
+name: NeuroQuiz exact Windows164 runtime QA
 on:
   push:
-    branches: [qa/windows163-runtime-024496f9]
+    branches: [qa/windows164-runtime-14d12dfa]
 permissions:
   contents: read
 concurrency:
-  group: windows163-exact-runtime
+  group: windows164-exact-runtime
   cancel-in-progress: false
 jobs:
   installed-windows:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows163-runtime-024496f9'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows164-runtime-14d12dfa'
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: a268a8d08db045d4aff832b6dab357c71607f15d427ecd9603059e73f56bd272
+      TRANSFER_MANIFEST_SHA256: cf371dd63d24fd35026a6183b97f28b0da9b9f51c31448868c2bf63a52875bc1
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -44,9 +44,9 @@ jobs:
           if((Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:TRANSFER_MANIFEST_SHA256){throw 'Transfer manifest SHA differs'}
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
-          if($m.installer.bytes -ne 163622786 -or $m.installer.sha256 -ne '024496f9ae611e8a6706f1148f963c48985bb3090721831dd7412b468bc298ae'){throw 'Exact163 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111440 -or $m.runner.sha256 -ne 'de8af24d2d0b22b1486d031a51c515771e937e86ab986370a1a55d9ce8d9e117'){throw 'Exact161 runner ZIP required'}
-          $installer=Join-Path $root 'NeuroQuiz-163-Windows-x64-Setup-Unsigned.exe'
+          if($m.installer.bytes -ne 163624390 -or $m.installer.sha256 -ne '14d12dfad979fd462b45316d6d3493c33b2da7e1f4bf79cd786d633cd47aed79'){throw 'Exact163 installer required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111444 -or $m.runner.sha256 -ne 'd8b24dfa6fc0209ce0922ef9ba46a57f7788974d3b552798876364607792f137'){throw 'Exact161 runner ZIP required'}
+          $installer=Join-Path $root 'NeuroQuiz-164-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
             for($index=0;$index -lt 40;$index++){
@@ -88,7 +88,7 @@ jobs:
           # Windows PowerShell 5.1 children must not inherit PowerShell 7 module paths,
           # otherwise built-in cmdlets such as Get-FileHash fail to load.
           $env:PSModulePath=[Environment]::GetEnvironmentVariable('PSModulePath','Machine')
-          & node.exe (Join-Path $env:NQ161_ROOT 'Run_Exact_Windows161.cjs') --runner (Join-Path $env:NQ161_ROOT 'Runner') --installer (Join-Path $env:NQ161_ROOT 'NeuroQuiz-163-Windows-x64-Setup-Unsigned.exe') --output (Join-Path $env:NQ161_ROOT 'Results')
+          & node.exe (Join-Path $env:NQ161_ROOT 'Run_Exact_Windows161.cjs') --runner (Join-Path $env:NQ161_ROOT 'Runner') --installer (Join-Path $env:NQ161_ROOT 'NeuroQuiz-164-Windows-x64-Setup-Unsigned.exe') --output (Join-Path $env:NQ161_ROOT 'Results')
           exit $LASTEXITCODE
 # Ordinary logs retain bounded, SHA-checked synthetic evidence. No upload/cache
 # storage is created. A green functional job never closes the213 attended gates.
