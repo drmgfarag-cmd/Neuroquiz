@@ -1,0 +1,91 @@
+# LOCAL PREPARATION ONLY. Publication of the exact compiled runtime and generic
+# QA files requires the owner's explicit approval. No PR, cache or artifact action.
+name: NeuroQuiz exact Windows161 runtime QA
+on:
+  push:
+    branches: [qa/windows161-runtime-f030642d]
+permissions:
+  contents: read
+concurrency:
+  group: windows161-exact-runtime
+  cancel-in-progress: false
+jobs:
+  installed-windows:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows161-runtime-f030642d'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      TRANSFER_MANIFEST_SHA256: 42414c6e8f08b70ff706695f308955f58ed062997244b51ae4c1a335a00deb5d
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      NPM_CONFIG_FETCH_TIMEOUT: '60000'
+      NPM_CONFIG_FETCH_RETRIES: '0'
+    steps:
+      - name: Fetch current commit inputs and verify every byte
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_REPOSITORY.ToLowerInvariant() -ne 'drmgfarag-cmd/neuroquiz'){throw 'Exact approved repository required'}
+          if($env:GITHUB_SHA -notmatch '^[a-f0-9]{40}$'){throw 'Exact commit required'}
+          if($env:TRANSFER_MANIFEST_SHA256 -notmatch '^[a-f0-9]{64}$'){throw 'Transfer manifest is not bound'}
+          $root=Join-Path $env:RUNNER_TEMP 'NQ161-Exact'
+          if(Test-Path -LiteralPath $root){throw 'Fresh input root required'}
+          New-Item -ItemType Directory -Path $root | Out-Null
+          function Fetch([string]$relative,[string]$destination){
+            if($relative -notmatch '^qa/[A-Za-z0-9._/-]+$' -or $relative.Contains('..')){throw 'Unsafe remote input path'}
+            $url='https://raw.githubusercontent.com/'+$env:GITHUB_REPOSITORY+'/'+$env:GITHUB_SHA+'/'+$relative
+            & curl.exe --silent --show-error --fail --location --connect-timeout 15 --max-time 120 --retry 1 --output $destination $url
+            if($LASTEXITCODE -ne 0){throw ('Raw input unavailable: '+$relative)}
+          }
+          function Verify([string]$file,$pin){
+            if($pin.sha256 -notmatch '^[a-f0-9]{64}$' -or (Get-Item -LiteralPath $file).Length -ne $pin.bytes -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $pin.sha256){throw ('Input identity differs: '+$file)}
+          }
+          $manifest=Join-Path $root 'Transfer_Inputs161.json'
+          Fetch 'qa/Transfer_Inputs161.json' $manifest
+          if((Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:TRANSFER_MANIFEST_SHA256){throw 'Transfer manifest SHA differs'}
+          $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
+          if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
+          if($m.installer.bytes -ne 163831123 -or $m.installer.sha256 -ne 'f030642d99051faf8ed1cdcdf6aa6d464a835dac72f2c52fddf00ffb30240ec5'){throw 'Exact161 installer required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111380 -or $m.runner.sha256 -ne '0c762cd46158a67b5629e6d9925dff2f3bbfc170b405853319600445a0f04e99'){throw 'Exact161 runner ZIP required'}
+          $installer=Join-Path $root 'NeuroQuiz-161-Windows-x64-Setup-Unsigned.exe'
+          $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
+          try{
+            for($index=0;$index -lt 40;$index++){
+              $pin=$m.installer.parts[$index];$expected='qa/installer.part-'+$index.ToString('000')
+              if($pin.path -ne $expected -or $pin.bytes -gt 4194304 -or $pin.bytes -lt 1){throw 'Part order or fixed4MiB bound differs'}
+              $part=Join-Path $root ('part-'+$index.ToString('000'))
+              Fetch $pin.path $part; Verify $part $pin
+              $bytes=[IO.File]::ReadAllBytes($part);$stream.Write($bytes,0,$bytes.Length)
+              Remove-Item -LiteralPath $part
+            }
+          }finally{$stream.Dispose()}
+          Verify $installer $m.installer
+          $zip=Join-Path $root 'Runner161.zip';Fetch $m.runner.path $zip;Verify $zip $m.runner
+          if($m.helpers.Count -ne 1 -or $m.helpers[0].path -ne 'qa/Run_Exact_Windows161.cjs'){throw 'Exact generic wrapper required'}
+          $wrapper=Join-Path $root 'Run_Exact_Windows161.cjs';Fetch $m.helpers[0].path $wrapper;Verify $wrapper $m.helpers[0]
+          Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $root 'Runner')
+          "NQ161_ROOT=$root" >> $env:GITHUB_ENV
+      - name: Parse PowerShell and install only locked acceptance dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $node=(Get-Command node.exe -ErrorAction Stop).Source
+          & $node -e "if(Number(process.versions.node.split('.')[0])<20)throw Error('Node20+ required')"
+          if($LASTEXITCODE -ne 0){throw 'Usable Node missing; no app installed'}
+          Set-Location (Join-Path $env:NQ161_ROOT 'Runner')
+          foreach($script in Get-ChildItem -LiteralPath . -Filter *.ps1 -Recurse){
+            $tokens=$null;$errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile($script.FullName,[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw ($script.Name+': '+($errors.Message -join '; '))}
+          }
+          & npm.cmd ci --ignore-scripts --no-audit --no-fund
+          if($LASTEXITCODE -ne 0){throw 'Locked dependency installation failed'}
+          & $node --test tests\runner-contract.test.cjs tests\sync-peer-contract.test.cjs
+          if($LASTEXITCODE -ne 0){throw 'Harness contract checks failed'}
+      - name: Run fresh current installed Windows UI and stream retained evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & node.exe (Join-Path $env:NQ161_ROOT 'Run_Exact_Windows161.cjs') --runner (Join-Path $env:NQ161_ROOT 'Runner') --installer (Join-Path $env:NQ161_ROOT 'NeuroQuiz-161-Windows-x64-Setup-Unsigned.exe') --output (Join-Path $env:NQ161_ROOT 'Results')
+          exit $LASTEXITCODE
+# Ordinary logs retain bounded, SHA-checked synthetic evidence. No upload/cache
+# storage is created. A green functional job never closes the213 attended gates.
