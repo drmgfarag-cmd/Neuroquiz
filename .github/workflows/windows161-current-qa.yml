@@ -85,6 +85,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
+          # Windows PowerShell 5.1 children must not inherit PowerShell 7 module paths,
+          # otherwise built-in cmdlets such as Get-FileHash fail to load.
+          $env:PSModulePath=[Environment]::GetEnvironmentVariable('PSModulePath','Machine')
           & node.exe (Join-Path $env:NQ161_ROOT 'Run_Exact_Windows161.cjs') --runner (Join-Path $env:NQ161_ROOT 'Runner') --installer (Join-Path $env:NQ161_ROOT 'NeuroQuiz-161-Windows-x64-Setup-Unsigned.exe') --output (Join-Path $env:NQ161_ROOT 'Results')
           exit $LASTEXITCODE
 # Ordinary logs retain bounded, SHA-checked synthetic evidence. No upload/cache
