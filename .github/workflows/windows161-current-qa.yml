@@ -3,7 +3,7 @@
 name: NeuroQuiz exact Windows165 runtime QA
 on:
   push:
-    branches: [qa/windows165-runtime-55ac677f]
+    branches: [qa/windows165-runtime-a6e7c5a7]
 permissions:
   contents: read
 concurrency:
@@ -11,11 +11,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   installed-windows:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows165-runtime-55ac677f'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows165-runtime-a6e7c5a7'
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: 0ab08cc48f6181d72776d6f746d7b42e52b68736947300ce4435770a5adb62d8
+      TRANSFER_MANIFEST_SHA256: 9e457a13982d12620c29fe498ae639b1c814791dc457d2817372bafece303ff8
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -44,8 +44,8 @@ jobs:
           if((Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:TRANSFER_MANIFEST_SHA256){throw 'Transfer manifest SHA differs'}
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
-          if($m.installer.bytes -ne 163625026 -or $m.installer.sha256 -ne '55ac677f1d423a04485263ac0ac895eeddec12b92ed7d1d3d8d7619adcf6504c'){throw 'Exact163 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111456 -or $m.runner.sha256 -ne '5d764ce7498c346058580be60815308235a98237d697177cfcc63429412a60a9'){throw 'Exact161 runner ZIP required'}
+          if($m.installer.bytes -ne 163624808 -or $m.installer.sha256 -ne 'a6e7c5a7f826bfe1c1fe35e43ccd0595bbf02ea79fe558a25ed7c0d2d5061312'){throw 'Exact163 installer required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111474 -or $m.runner.sha256 -ne '46505e958b07705f508dc1bd5df94e17f078d58b57b3c12333006643987983f4'){throw 'Exact161 runner ZIP required'}
           $installer=Join-Path $root 'NeuroQuiz-165-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
