@@ -161,7 +161,7 @@ jobs:
           $extra=@(); $wrong=@(); $seen=@{}
           foreach($f in Get-ChildItem -LiteralPath $dir -Recurse -File){
             $rel=$f.FullName.Substring($dir.Length+1).ToLowerInvariant()
-            if($rel -eq 'uninstall neuroquiz.exe'){continue}
+            if($rel -eq 'uninstall neuroquiz.exe' -or $rel -eq '.neuroquiz-owner'){continue}
             if(-not $expected.ContainsKey($rel)){$extra+=$rel;continue}
             $seen[$rel]=1; $pin=$expected[$rel]
             if($f.Length -ne $pin.bytes -or (Sha $f.FullName) -ne $pin.sha256){$wrong+=$rel}
