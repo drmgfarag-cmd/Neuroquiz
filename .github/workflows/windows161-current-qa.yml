@@ -3,7 +3,7 @@
 name: NeuroQuiz exact Windows169 runtime QA
 on:
   push:
-    branches: [qa/windows169-runtime-89dc041b]
+    branches: [qa/windows169-runtime-4e7c68ee]
 permissions:
   contents: read
 concurrency:
@@ -11,11 +11,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   installed-windows:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows169-runtime-89dc041b'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows169-runtime-4e7c68ee'
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: 362567d94c7ff60afa6889d537442be7e54d7492eb39ca57cb98f89bda78a3b0
+      TRANSFER_MANIFEST_SHA256: 948f4eb583c59d13a2482795cda784e78c32feeddec77df8084a178d1196f193
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -44,8 +44,8 @@ jobs:
           if((Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:TRANSFER_MANIFEST_SHA256){throw 'Transfer manifest SHA differs'}
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
-          if($m.installer.bytes -ne 163839825 -or $m.installer.sha256 -ne '89dc041b80ee66da7f28f34dd327ce476bf36d723dbfba694e91316104462906'){throw 'Exact163 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111711 -or $m.runner.sha256 -ne '5e3c3c051e06c5ffc915e1b273d23b3416514738c3af09d7d08129cfb1e1871e'){throw 'Exact161 runner ZIP required'}
+          if($m.installer.bytes -ne 163839942 -or $m.installer.sha256 -ne '4e7c68eea0a69b088792b785fbf2e0c05ab55be24aadef7e398114c1ab07db2c'){throw 'Exact163 installer required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111720 -or $m.runner.sha256 -ne '3b7eaccb86bff6fa4e7ddc768a32e7537290d0196d6599218fa1ad95bc416bef'){throw 'Exact161 runner ZIP required'}
           $installer=Join-Path $root 'NeuroQuiz-169-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
@@ -94,15 +94,15 @@ jobs:
   # release over it, and checks the result: exact payload files only (no leftovers), no stage/backup folders,
   # the registration version, and the Start-menu AppUserModelID needed for Windows reminder notifications.
   upgrade-windows:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows169-runtime-89dc041b'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows169-runtime-4e7c68ee'
     runs-on: windows-latest
     timeout-minutes: 30
     env:
       PREV_COMMIT: 30f67e2756ae8d02c9371b5a75d4c77154074776
       PREV_MANIFEST_SHA256: 5cccf91579ac2cf30c23ee6e2c795587be595a721fe2cbf4ff153318ac919618
       PREV_INSTALLER_SHA256: 88e8a7767eb4be351523be52368349cc7537816175a0a9d0a950acd0ed64e538
-      NEW_MANIFEST_SHA256: 362567d94c7ff60afa6889d537442be7e54d7492eb39ca57cb98f89bda78a3b0
-      NEW_INSTALLER_SHA256: 89dc041b80ee66da7f28f34dd327ce476bf36d723dbfba694e91316104462906
+      NEW_MANIFEST_SHA256: 948f4eb583c59d13a2482795cda784e78c32feeddec77df8084a178d1196f193
+      NEW_INSTALLER_SHA256: 4e7c68eea0a69b088792b785fbf2e0c05ab55be24aadef7e398114c1ab07db2c
     steps:
       - name: Install previous release, upgrade to current, verify
         shell: pwsh
