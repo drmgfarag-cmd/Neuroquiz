@@ -148,8 +148,13 @@ jobs:
           for($i=0;$i -lt 60 -and -not $free;$i++){ try{ $h=[IO.File]::Open($exePath,'Open','Write','Delete'); $h.Dispose(); $free=$true } catch { Start-Sleep -Seconds 2 } }
           Write-Output ("exe writable before upgrade: "+$free+" after "+$i+" tries; running: "+(@(Get-Process -Name NeuroQuiz -ErrorAction SilentlyContinue).Count))
           Write-Output ("registry AppId: "+(Get-ItemProperty -LiteralPath $key).AppId+"; owner marker: "+((Get-Content -LiteralPath (Join-Path $dir '.neuroquiz-owner') -Raw) -replace "`r`n",'<CRLF>'))
+          # Record how far the installer gets (stage/backup folders, registry version, exe handle) while it runs.
+          $watch=Start-Job -ArgumentList $dir,$key -ScriptBlock { param($d,$k) $seen=@{}; $t0=Get-Date
+            while(((Get-Date)-$t0).TotalSeconds -lt 120){ $s=@(); foreach($x in @($d,"$d.__stage169","$d.__previous169")){ if(Test-Path -LiteralPath $x){ $s+=(Split-Path $x -Leaf)+'='+@(Get-ChildItem -LiteralPath $x -Recurse -File -ErrorAction SilentlyContinue).Count } }
+              $s+='reg='+(Get-ItemProperty -LiteralPath $k -ErrorAction SilentlyContinue).DisplayVersion; $line=$s -join ' '; if(-not $seen.ContainsKey($line)){ $seen[$line]=1; "{0:N1}s {1}" -f ((Get-Date)-$t0).TotalSeconds,$line }; Start-Sleep -Milliseconds 100 } }
           $p=Start-Process -FilePath $cur.exe -ArgumentList '/S' -PassThru -Wait
           $first=$p.ExitCode
+          Start-Sleep -Seconds 2; Stop-Job $watch; Receive-Job $watch | Select-Object -First 40 | ForEach-Object { Write-Output ("trace "+$_) }
           if($first -ne 0){ Start-Sleep -Seconds 30; $p=Start-Process -FilePath $cur.exe -ArgumentList '/S' -PassThru -Wait }
           Check 'upgrade-exit' ($p.ExitCode -eq 0) ("exit "+$p.ExitCode+" (first attempt "+$first+"); previous files "+$before+"; previous version "+$prevVersion)
           $expected=@{}; foreach($r in $target.installedPayloads){ $expected[$r.path.Replace('/','\').ToLowerInvariant()]=$r }
