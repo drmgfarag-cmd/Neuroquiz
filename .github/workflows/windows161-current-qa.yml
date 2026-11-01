@@ -142,8 +142,16 @@ jobs:
           Check 'previous-install' ($p.ExitCode -eq 0 -and (Test-Path (Join-Path $dir 'NeuroQuiz.exe'))) ("exit "+$p.ExitCode)
           $before=@(Get-ChildItem -LiteralPath $dir -Recurse -File).Count
           $prevVersion=(Get-ItemProperty -LiteralPath $key).DisplayVersion
+          # The installer refuses to upgrade while NeuroQuiz.exe is open (it takes a write handle first). Right after an
+          # install, antivirus scanning can hold the new exe briefly; wait until a write handle is available.
+          $exePath=Join-Path $dir 'NeuroQuiz.exe'; $free=$false
+          for($i=0;$i -lt 60 -and -not $free;$i++){ try{ $h=[IO.File]::Open($exePath,'Open','Write','Delete'); $h.Dispose(); $free=$true } catch { Start-Sleep -Seconds 2 } }
+          Write-Output ("exe writable before upgrade: "+$free+" after "+$i+" tries; running: "+(@(Get-Process -Name NeuroQuiz -ErrorAction SilentlyContinue).Count))
+          Write-Output ("registry AppId: "+(Get-ItemProperty -LiteralPath $key).AppId+"; owner marker: "+((Get-Content -LiteralPath (Join-Path $dir '.neuroquiz-owner') -Raw) -replace "`r`n",'<CRLF>'))
           $p=Start-Process -FilePath $cur.exe -ArgumentList '/S' -PassThru -Wait
-          Check 'upgrade-exit' ($p.ExitCode -eq 0) ("exit "+$p.ExitCode+"; previous files "+$before+"; previous version "+$prevVersion)
+          $first=$p.ExitCode
+          if($first -ne 0){ Start-Sleep -Seconds 30; $p=Start-Process -FilePath $cur.exe -ArgumentList '/S' -PassThru -Wait }
+          Check 'upgrade-exit' ($p.ExitCode -eq 0) ("exit "+$p.ExitCode+" (first attempt "+$first+"); previous files "+$before+"; previous version "+$prevVersion)
           $expected=@{}; foreach($r in $target.installedPayloads){ $expected[$r.path.Replace('/','\').ToLowerInvariant()]=$r }
           $extra=@(); $wrong=@(); $seen=@{}
           foreach($f in Get-ChildItem -LiteralPath $dir -Recurse -File){
