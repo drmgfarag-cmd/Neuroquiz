@@ -1,4 +1,4 @@
-# NeuroQuiz163 remote Windows QA only
+# NeuroQuiz169 remote Windows QA only
 
 This disposable QA branch tests the exact locally rebuilt161 installer. It is not an application source branch and must never be merged into main. The application continues to run offline; GitHub is used only as a remote Windows test machine.
 
