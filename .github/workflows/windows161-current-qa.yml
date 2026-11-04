@@ -1,0 +1,183 @@
+# LOCAL PREPARATION ONLY. Publication of the exact compiled runtime and generic
+# QA files requires the owner's explicit approval. No PR, cache or artifact action.
+name: NeuroQuiz exact Windows172 runtime QA
+on:
+  push:
+    branches: [qa/windows172-runtime-111f850b]
+permissions:
+  contents: read
+concurrency:
+  group: windows172-exact-runtime
+  cancel-in-progress: false
+jobs:
+  installed-windows:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows172-runtime-111f850b'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      TRANSFER_MANIFEST_SHA256: c1d24ad04cc924cbba3fef857226c11925461bb38a5c625b601397aa37192f09
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      NPM_CONFIG_FETCH_TIMEOUT: '60000'
+      NPM_CONFIG_FETCH_RETRIES: '0'
+    steps:
+      - name: Fetch current commit inputs and verify every byte
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_REPOSITORY.ToLowerInvariant() -ne 'drmgfarag-cmd/neuroquiz'){throw 'Exact approved repository required'}
+          if($env:GITHUB_SHA -notmatch '^[a-f0-9]{40}$'){throw 'Exact commit required'}
+          if($env:TRANSFER_MANIFEST_SHA256 -notmatch '^[a-f0-9]{64}$'){throw 'Transfer manifest is not bound'}
+          $root=Join-Path $env:RUNNER_TEMP 'NQ161-Exact'
+          if(Test-Path -LiteralPath $root){throw 'Fresh input root required'}
+          New-Item -ItemType Directory -Path $root | Out-Null
+          function Fetch([string]$relative,[string]$destination){
+            if($relative -notmatch '^qa/[A-Za-z0-9._/-]+$' -or $relative.Contains('..')){throw 'Unsafe remote input path'}
+            $url='https://raw.githubusercontent.com/'+$env:GITHUB_REPOSITORY+'/'+$env:GITHUB_SHA+'/'+$relative
+            & curl.exe --silent --show-error --fail --location --connect-timeout 15 --max-time 120 --retry 1 --output $destination $url
+            if($LASTEXITCODE -ne 0){throw ('Raw input unavailable: '+$relative)}
+          }
+          function Verify([string]$file,$pin){
+            if($pin.sha256 -notmatch '^[a-f0-9]{64}$' -or (Get-Item -LiteralPath $file).Length -ne $pin.bytes -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $pin.sha256){throw ('Input identity differs: '+$file)}
+          }
+          $manifest=Join-Path $root 'Transfer_Inputs161.json'
+          Fetch 'qa/Transfer_Inputs161.json' $manifest
+          if((Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:TRANSFER_MANIFEST_SHA256){throw 'Transfer manifest SHA differs'}
+          $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
+          if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
+          if($m.installer.bytes -ne 163904939 -or $m.installer.sha256 -ne '111f850ba7a9b3726905f40e8da76724533ef927e33415d63fdafaf0332e730e'){throw 'Exact163 installer required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 112062 -or $m.runner.sha256 -ne '12b5fe1bd9ff101b8a9260d2f256896da907c1d3a13e1837e05ec0db11f1d629'){throw 'Exact161 runner ZIP required'}
+          $installer=Join-Path $root 'NeuroQuiz-172-Windows-x64-Setup-Unsigned.exe'
+          $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
+          try{
+            for($index=0;$index -lt 40;$index++){
+              $pin=$m.installer.parts[$index];$expected='qa/installer.part-'+$index.ToString('000')
+              if($pin.path -ne $expected -or $pin.bytes -gt 4194304 -or $pin.bytes -lt 1){throw 'Part order or fixed4MiB bound differs'}
+              $part=Join-Path $root ('part-'+$index.ToString('000'))
+              Fetch $pin.path $part; Verify $part $pin
+              $bytes=[IO.File]::ReadAllBytes($part);$stream.Write($bytes,0,$bytes.Length)
+              Remove-Item -LiteralPath $part
+            }
+          }finally{$stream.Dispose()}
+          Verify $installer $m.installer
+          $zip=Join-Path $root 'Runner161.zip';Fetch $m.runner.path $zip;Verify $zip $m.runner
+          if($m.helpers.Count -ne 1 -or $m.helpers[0].path -ne 'qa/Run_Exact_Windows161.cjs'){throw 'Exact generic wrapper required'}
+          $wrapper=Join-Path $root 'Run_Exact_Windows161.cjs';Fetch $m.helpers[0].path $wrapper;Verify $wrapper $m.helpers[0]
+          Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $root 'Runner')
+          "NQ161_ROOT=$root" >> $env:GITHUB_ENV
+      - name: Parse PowerShell and install only locked acceptance dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $node=(Get-Command node.exe -ErrorAction Stop).Source
+          & $node -e "if(Number(process.versions.node.split('.')[0])<20)throw Error('Node20+ required')"
+          if($LASTEXITCODE -ne 0){throw 'Usable Node missing; no app installed'}
+          Set-Location (Join-Path $env:NQ161_ROOT 'Runner')
+          foreach($script in Get-ChildItem -LiteralPath . -Filter *.ps1 -Recurse){
+            $tokens=$null;$errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile($script.FullName,[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw ($script.Name+': '+($errors.Message -join '; '))}
+          }
+          & npm.cmd ci --ignore-scripts --no-audit --no-fund
+          if($LASTEXITCODE -ne 0){throw 'Locked dependency installation failed'}
+          & $node --test tests\runner-contract.test.cjs tests\sync-peer-contract.test.cjs
+          if($LASTEXITCODE -ne 0){throw 'Harness contract checks failed'}
+      - name: Run fresh current installed Windows UI and stream retained evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          # Windows PowerShell 5.1 children must not inherit PowerShell 7 module paths,
+          # otherwise built-in cmdlets such as Get-FileHash fail to load.
+          $env:PSModulePath=[Environment]::GetEnvironmentVariable('PSModulePath','Machine')
+          & node.exe (Join-Path $env:NQ161_ROOT 'Run_Exact_Windows161.cjs') --runner (Join-Path $env:NQ161_ROOT 'Runner') --installer (Join-Path $env:NQ161_ROOT 'NeuroQuiz-172-Windows-x64-Setup-Unsigned.exe') --output (Join-Path $env:NQ161_ROOT 'Results')
+          exit $LASTEXITCODE
+  # 172: upgrade check. Installs the exact 171 release (fetched from its own pinned QA commit), then the current
+  # release over it, and checks the result: exact payload files only (no leftovers), no stage/backup folders,
+  # the registration version, and the Start-menu AppUserModelID needed for Windows reminder notifications.
+  upgrade-windows:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows172-runtime-111f850b'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      PREV_COMMIT: 81b894a599839cfba9c5818ef669eb565f99020e
+      PREV_MANIFEST_SHA256: 8f607db30080d148fe2e122027521112634c5228a0a69823b48166c673b3928b
+      PREV_INSTALLER_SHA256: 81b052abcd96b83860a71850a8c4ff9db0fe95d5c6620ae03b9a2ba090ae99c1
+      NEW_MANIFEST_SHA256: c1d24ad04cc924cbba3fef857226c11925461bb38a5c625b601397aa37192f09
+      NEW_INSTALLER_SHA256: 111f850ba7a9b3726905f40e8da76724533ef927e33415d63fdafaf0332e730e
+    steps:
+      - name: Install previous release, upgrade to current, verify
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_REPOSITORY.ToLowerInvariant() -ne 'drmgfarag-cmd/neuroquiz'){throw 'Exact approved repository required'}
+          $root=Join-Path $env:RUNNER_TEMP 'NQ-Upgrade'; New-Item -ItemType Directory -Path $root | Out-Null
+          function Fetch([string]$commit,[string]$relative,[string]$destination){
+            if($relative -notmatch '^qa/[A-Za-z0-9._/-]+$' -or $relative.Contains('..')){throw 'Unsafe remote input path'}
+            $url='https://raw.githubusercontent.com/'+$env:GITHUB_REPOSITORY+'/'+$commit+'/'+$relative
+            & curl.exe --silent --show-error --fail --location --connect-timeout 15 --max-time 120 --retry 1 --output $destination $url
+            if($LASTEXITCODE -ne 0){throw ('Raw input unavailable: '+$relative)}
+          }
+          function Sha([string]$f){(Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()}
+          function Assemble([string]$commit,[string]$manifestSha,[string]$installerSha,[string]$name){
+            $mf=Join-Path $root ($name+'.json'); Fetch $commit 'qa/Transfer_Inputs161.json' $mf
+            if((Sha $mf) -ne $manifestSha){throw ($name+': transfer manifest SHA differs')}
+            $m=Get-Content -LiteralPath $mf -Raw | ConvertFrom-Json
+            if($m.installer.sha256 -ne $installerSha){throw ($name+': installer pin differs')}
+            $exe=Join-Path $root ($name+'.exe'); $s=[IO.File]::Open($exe,[IO.FileMode]::CreateNew)
+            try{ for($i=0;$i -lt $m.installer.parts.Count;$i++){ $pin=$m.installer.parts[$i]; $p=Join-Path $root 'part'
+                Fetch $commit $pin.path $p; if((Sha $p) -ne $pin.sha256){throw 'Part SHA differs'}
+                $b=[IO.File]::ReadAllBytes($p); $s.Write($b,0,$b.Length); Remove-Item -LiteralPath $p } } finally { $s.Dispose() }
+            if((Sha $exe) -ne $installerSha){throw ($name+': installer SHA differs')}
+            return @{exe=$exe; manifest=$m}
+          }
+          $prev=Assemble $env:PREV_COMMIT $env:PREV_MANIFEST_SHA256 $env:PREV_INSTALLER_SHA256 'previous'
+          $cur=Assemble $env:GITHUB_SHA $env:NEW_MANIFEST_SHA256 $env:NEW_INSTALLER_SHA256 'current'
+          $zip=Join-Path $root 'Runner.zip'; Fetch $env:GITHUB_SHA $cur.manifest.runner.path $zip
+          if((Sha $zip) -ne $cur.manifest.runner.sha256){throw 'Runner SHA differs'}
+          Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $root 'Runner')
+          $target=Get-Content -LiteralPath (Join-Path $root 'Runner\Windows_Target161.json') -Raw | ConvertFrom-Json
+          $dir=Join-Path $env:LOCALAPPDATA 'Programs\NeuroQuiz'; $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\org.neuroquiz.desktop'
+          $results=[ordered]@{}
+          function Check([string]$name,[bool]$ok,[string]$detail){ $results[$name]=[ordered]@{pass=$ok;detail=$detail}; Write-Output ("{0} {1}: {2}" -f ($(if($ok){'PASS'}else{'FAIL'})),$name,$detail) }
+          $p=Start-Process -FilePath $prev.exe -ArgumentList '/S' -PassThru -Wait
+          Check 'previous-install' ($p.ExitCode -eq 0 -and (Test-Path (Join-Path $dir 'NeuroQuiz.exe'))) ("exit "+$p.ExitCode)
+          $before=@(Get-ChildItem -LiteralPath $dir -Recurse -File).Count
+          $prevVersion=(Get-ItemProperty -LiteralPath $key).DisplayVersion
+          # The installer refuses to upgrade while NeuroQuiz.exe is open (it takes a write handle first). Right after an
+          # install, antivirus scanning can hold the new exe briefly; wait until a write handle is available.
+          $exePath=Join-Path $dir 'NeuroQuiz.exe'; $free=$false
+          for($i=0;$i -lt 60 -and -not $free;$i++){ try{ $h=[IO.File]::Open($exePath,'Open','Write','Delete'); $h.Dispose(); $free=$true } catch { Start-Sleep -Seconds 2 } }
+          Write-Output ("exe writable before upgrade: "+$free+" after "+$i+" tries; running: "+(@(Get-Process -Name NeuroQuiz -ErrorAction SilentlyContinue).Count))
+          Write-Output ("registry AppId: "+(Get-ItemProperty -LiteralPath $key).AppId+"; owner marker: "+((Get-Content -LiteralPath (Join-Path $dir '.neuroquiz-owner') -Raw) -replace "`r`n",'<CRLF>'))
+          # Record how far the installer gets (stage/backup folders, registry version, exe handle) while it runs.
+          $watch=Start-Job -ArgumentList $dir,$key -ScriptBlock { param($d,$k) $seen=@{}; $t0=Get-Date
+            while(((Get-Date)-$t0).TotalSeconds -lt 120){ $s=@(); foreach($x in @($d,"$d.__stage172","$d.__previous172")){ if(Test-Path -LiteralPath $x){ $s+=(Split-Path $x -Leaf)+'='+@(Get-ChildItem -LiteralPath $x -Recurse -File -ErrorAction SilentlyContinue).Count } }
+              $s+='reg='+(Get-ItemProperty -LiteralPath $k -ErrorAction SilentlyContinue).DisplayVersion; $line=$s -join ' '; if(-not $seen.ContainsKey($line)){ $seen[$line]=1; "{0:N1}s {1}" -f ((Get-Date)-$t0).TotalSeconds,$line }; Start-Sleep -Milliseconds 100 } }
+          $p=Start-Process -FilePath $cur.exe -ArgumentList '/S' -PassThru -Wait
+          $first=$p.ExitCode
+          Start-Sleep -Seconds 2; Stop-Job $watch; Receive-Job $watch | Select-Object -First 40 | ForEach-Object { Write-Output ("trace "+$_) }
+          if($first -ne 0){ Start-Sleep -Seconds 30; $p=Start-Process -FilePath $cur.exe -ArgumentList '/S' -PassThru -Wait }
+          Check 'upgrade-exit' ($p.ExitCode -eq 0) ("exit "+$p.ExitCode+" (first attempt "+$first+"); previous files "+$before+"; previous version "+$prevVersion)
+          $expected=@{}; foreach($r in $target.installedPayloads){ $expected[$r.path.Replace('/','\').ToLowerInvariant()]=$r }
+          $extra=@(); $wrong=@(); $seen=@{}
+          foreach($f in Get-ChildItem -LiteralPath $dir -Recurse -File){
+            $rel=$f.FullName.Substring($dir.Length+1).ToLowerInvariant()
+            if($rel -eq 'uninstall neuroquiz.exe' -or $rel -eq '.neuroquiz-owner'){continue}
+            if(-not $expected.ContainsKey($rel)){$extra+=$rel;continue}
+            $seen[$rel]=1; $pin=$expected[$rel]
+            if($f.Length -ne $pin.bytes -or (Sha $f.FullName) -ne $pin.sha256){$wrong+=$rel}
+          }
+          $missing=@($expected.Keys | Where-Object { -not $seen.ContainsKey($_) })
+          Check 'payload-exact' ($extra.Count -eq 0 -and $wrong.Count -eq 0 -and $missing.Count -eq 0) ("expected "+$expected.Count+"; extra "+$extra.Count+" "+(($extra|Select-Object -First 5) -join ',')+"; changed "+$wrong.Count+"; missing "+$missing.Count)
+          $left=@(Get-ChildItem -LiteralPath (Split-Path $dir) -Directory -Filter 'NeuroQuiz.__*' -ErrorAction SilentlyContinue | ForEach-Object Name)
+          Check 'no-stage-or-backup' ($left.Count -eq 0) ($left -join ',')
+          $ver=(Get-ItemProperty -LiteralPath $key).DisplayVersion
+          Check 'registration-version' ($ver -like ('*runtime '+$target.release+'*')) $ver
+          $start=@(Get-StartApps | Where-Object { $_.Name -eq 'NeuroQuiz' })
+          Check 'start-menu-appid' (@($start | Where-Object AppID -eq 'org.neuroquiz.desktop').Count -ge 1) (($start | ForEach-Object { $_.AppID }) -join ',')
+          $p=Start-Process -FilePath (Join-Path $dir 'Uninstall NeuroQuiz.exe') -ArgumentList '/S' -PassThru -Wait
+          Start-Sleep -Seconds 5
+          Check 'uninstall-clean' ((-not (Test-Path -LiteralPath $dir)) -and (-not (Test-Path -LiteralPath $key))) ("exit "+$p.ExitCode)
+          $results | ConvertTo-Json -Depth 4
+          if(@($results.Values | Where-Object { -not $_.pass }).Count){ exit 1 }
+# Ordinary logs retain bounded, SHA-checked synthetic evidence. No upload/cache
+# storage is created. A green functional job never closes the213 attended gates.
