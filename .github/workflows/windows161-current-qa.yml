@@ -1,21 +1,21 @@
 # LOCAL PREPARATION ONLY. Publication of the exact compiled runtime and generic
 # QA files requires the owner's explicit approval. No PR, cache or artifact action.
-name: NeuroQuiz exact Windows171 runtime QA
+name: NeuroQuiz exact Windows172 runtime QA
 on:
   push:
-    branches: [qa/windows171-runtime-81b052ab]
+    branches: [qa/windows172-runtime-76ecbedf]
 permissions:
   contents: read
 concurrency:
-  group: windows171-exact-runtime
+  group: windows172-exact-runtime
   cancel-in-progress: false
 jobs:
   installed-windows:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows171-runtime-81b052ab'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows172-runtime-76ecbedf'
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: 8f607db30080d148fe2e122027521112634c5228a0a69823b48166c673b3928b
+      TRANSFER_MANIFEST_SHA256: 5cf2f8f5d78f1a740312493d13a416e082d6e3e9209191032aadcbacf877557a
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -44,9 +44,9 @@ jobs:
           if((Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:TRANSFER_MANIFEST_SHA256){throw 'Transfer manifest SHA differs'}
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
-          if($m.installer.bytes -ne 164148321 -or $m.installer.sha256 -ne '81b052abcd96b83860a71850a8c4ff9db0fe95d5c6620ae03b9a2ba090ae99c1'){throw 'Exact163 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 111894 -or $m.runner.sha256 -ne 'cf57a47549d5e071ad5cf3f164cf694330c614f050371ab3c15d0c291465780d'){throw 'Exact161 runner ZIP required'}
-          $installer=Join-Path $root 'NeuroQuiz-171-Windows-x64-Setup-Unsigned.exe'
+          if($m.installer.bytes -ne 163903575 -or $m.installer.sha256 -ne '76ecbedfc21c1241bc65f791b01c1e73632bfdc7c70451985207633a779e1e11'){throw 'Exact163 installer required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 112063 -or $m.runner.sha256 -ne 'd63ab3ee410f60a007c950263627c346914987a30e591359a2cae522225cad5e'){throw 'Exact161 runner ZIP required'}
+          $installer=Join-Path $root 'NeuroQuiz-172-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
             for($index=0;$index -lt 40;$index++){
@@ -88,21 +88,21 @@ jobs:
           # Windows PowerShell 5.1 children must not inherit PowerShell 7 module paths,
           # otherwise built-in cmdlets such as Get-FileHash fail to load.
           $env:PSModulePath=[Environment]::GetEnvironmentVariable('PSModulePath','Machine')
-          & node.exe (Join-Path $env:NQ161_ROOT 'Run_Exact_Windows161.cjs') --runner (Join-Path $env:NQ161_ROOT 'Runner') --installer (Join-Path $env:NQ161_ROOT 'NeuroQuiz-171-Windows-x64-Setup-Unsigned.exe') --output (Join-Path $env:NQ161_ROOT 'Results')
+          & node.exe (Join-Path $env:NQ161_ROOT 'Run_Exact_Windows161.cjs') --runner (Join-Path $env:NQ161_ROOT 'Runner') --installer (Join-Path $env:NQ161_ROOT 'NeuroQuiz-172-Windows-x64-Setup-Unsigned.exe') --output (Join-Path $env:NQ161_ROOT 'Results')
           exit $LASTEXITCODE
-  # 171: upgrade check. Installs the exact 170 release (fetched from its own pinned QA commit), then the current
+  # 172: upgrade check. Installs the exact 171 release (fetched from its own pinned QA commit), then the current
   # release over it, and checks the result: exact payload files only (no leftovers), no stage/backup folders,
   # the registration version, and the Start-menu AppUserModelID needed for Windows reminder notifications.
   upgrade-windows:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows171-runtime-81b052ab'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/windows172-runtime-76ecbedf'
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      PREV_COMMIT: 48d5b3ad95ca09aed0a5540466b9c3e6de5a8fb6
-      PREV_MANIFEST_SHA256: 93776a35b5816626705b8efca67f9e28d4940d5cf20e203f1638dd170f5a1ebe
-      PREV_INSTALLER_SHA256: d54bc47cfa14dead61ddaec3c5149da5f274bd3fc73d2935e89bb0d3ecc4825e
-      NEW_MANIFEST_SHA256: 8f607db30080d148fe2e122027521112634c5228a0a69823b48166c673b3928b
-      NEW_INSTALLER_SHA256: 81b052abcd96b83860a71850a8c4ff9db0fe95d5c6620ae03b9a2ba090ae99c1
+      PREV_COMMIT: 81b894a599839cfba9c5818ef669eb565f99020e
+      PREV_MANIFEST_SHA256: 8f607db30080d148fe2e122027521112634c5228a0a69823b48166c673b3928b
+      PREV_INSTALLER_SHA256: 81b052abcd96b83860a71850a8c4ff9db0fe95d5c6620ae03b9a2ba090ae99c1
+      NEW_MANIFEST_SHA256: 5cf2f8f5d78f1a740312493d13a416e082d6e3e9209191032aadcbacf877557a
+      NEW_INSTALLER_SHA256: 76ecbedfc21c1241bc65f791b01c1e73632bfdc7c70451985207633a779e1e11
     steps:
       - name: Install previous release, upgrade to current, verify
         shell: pwsh
@@ -150,7 +150,7 @@ jobs:
           Write-Output ("registry AppId: "+(Get-ItemProperty -LiteralPath $key).AppId+"; owner marker: "+((Get-Content -LiteralPath (Join-Path $dir '.neuroquiz-owner') -Raw) -replace "`r`n",'<CRLF>'))
           # Record how far the installer gets (stage/backup folders, registry version, exe handle) while it runs.
           $watch=Start-Job -ArgumentList $dir,$key -ScriptBlock { param($d,$k) $seen=@{}; $t0=Get-Date
-            while(((Get-Date)-$t0).TotalSeconds -lt 120){ $s=@(); foreach($x in @($d,"$d.__stage171","$d.__previous171")){ if(Test-Path -LiteralPath $x){ $s+=(Split-Path $x -Leaf)+'='+@(Get-ChildItem -LiteralPath $x -Recurse -File -ErrorAction SilentlyContinue).Count } }
+            while(((Get-Date)-$t0).TotalSeconds -lt 120){ $s=@(); foreach($x in @($d,"$d.__stage172","$d.__previous172")){ if(Test-Path -LiteralPath $x){ $s+=(Split-Path $x -Leaf)+'='+@(Get-ChildItem -LiteralPath $x -Recurse -File -ErrorAction SilentlyContinue).Count } }
               $s+='reg='+(Get-ItemProperty -LiteralPath $k -ErrorAction SilentlyContinue).DisplayVersion; $line=$s -join ' '; if(-not $seen.ContainsKey($line)){ $seen[$line]=1; "{0:N1}s {1}" -f ((Get-Date)-$t0).TotalSeconds,$line }; Start-Sleep -Milliseconds 100 } }
           $p=Start-Process -FilePath $cur.exe -ArgumentList '/S' -PassThru -Wait
           $first=$p.ExitCode
