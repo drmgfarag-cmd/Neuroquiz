@@ -1,12 +1,12 @@
-name: NeuroQuiz 171 Android emulator QA
+name: NeuroQuiz 172 Android emulator QA
 # QA-only branch: never merge, never touch main. Runs the synthetic acceptance suite on CI emulators.
 on:
   push:
-    branches: [qa/android171-emulator]
+    branches: [qa/android172-emulator]
 permissions:
   contents: read
 concurrency:
-  group: android171-emulator
+  group: android172-emulator
   cancel-in-progress: false
 jobs:
   emulator:
@@ -43,4 +43,4 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           emulator-boot-timeout: 900
-          script: bash qa/run171.sh
+          script: bash qa/run172.sh
