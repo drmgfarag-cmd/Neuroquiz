@@ -2,8 +2,8 @@
 # NeuroQuiz 174 Android acceptance on a CI emulator (QA-only branch, never merge). Synthetic fixtures only.
 set -u
 cd "$(dirname "$0")"
-echo "ed554827129335dafeaa56a31559a319b8079fe88ae887103779011cd461b143  NeuroQuiz-174-Android.apk" | sha256sum -c - || exit 2
-echo "8f388c0d83b94bdf7d5074c0ea93ed1b38670441291a1890b693924ea98a611c  NeuroQuiz-Android-Supervisor-Emulator174.apk" | sha256sum -c - || exit 2
+echo "0e641dbc0314d091440f8c04abcb496985cd664904e202c3cba1cd10fdf7a388  NeuroQuiz-174-Android.apk" | sha256sum -c - || exit 2
+echo "118928446f9afc1773789a85089f30b2c08a4fd4005a31afc0fdd6ea8c544877  NeuroQuiz-Android-Supervisor-Emulator174.apk" | sha256sum -c - || exit 2
 adb wait-for-device
 adb shell getprop ro.build.version.sdk; adb shell dumpsys package com.google.android.webview | grep -m1 versionName || true
 adb install -r -g NeuroQuiz-174-Android.apk
