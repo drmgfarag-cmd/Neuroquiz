@@ -3,7 +3,7 @@
 set -u
 cd "$(dirname "$0")"
 echo "9ba91a4bf63ae6daeac9eda68a37b49f9b24d195704707ed6900d6dd7f42686b  NeuroQuiz-175-Android.apk" | sha256sum -c - || exit 2
-echo "ba7ed8c185f53468e3ffaa3145e6b95fd69017e24494cdf437a08b010f9090b7  NeuroQuiz-Android-Supervisor-Emulator175.apk" | sha256sum -c - || exit 2
+echo "21b38983b5281da73038818ca5118a8c19b36212a156d5c9200541be4b995322  NeuroQuiz-Android-Supervisor-Emulator175.apk" | sha256sum -c - || exit 2
 adb wait-for-device
 adb shell getprop ro.build.version.sdk; adb shell dumpsys package com.google.android.webview | grep -m1 versionName || true
 adb install -r -g NeuroQuiz-175-Android.apk
@@ -26,6 +26,6 @@ for l in sys.stdin:
 c=collections.Counter(r["status"] for r in rows.values())
 print("distinct",len(rows),dict(c))
 for i,r in sorted(rows.items()):
-    if r["status"]!="PASS": print(r["status"],i,"|",str(r.get("message",""))[:400].replace("\n"," "))
+    if r["status"]!="PASS": print(r["status"],i,"|",str(r.get("message",""))[:3000].replace("\n"," "))
 '
 grep -a 'NQDOM154: SUMMARY\|NQSUP' logcat.txt | tail -5 | cut -c1-600
