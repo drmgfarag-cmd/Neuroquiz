@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: 3245925302175237023eea15955fbe6db29064aca0884432b6626a05645ff87b
+      TRANSFER_MANIFEST_SHA256: e5641dc00909f6ef654b076177325dc49365e56428fc0d675ccaae4fbfbe50d9
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -45,7 +45,7 @@ jobs:
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
           if($m.installer.bytes -ne 164530631 -or $m.installer.sha256 -ne '649c5de3b8e8f2828314968c17328f9cb201a7c01ab81ffb0bc239c6a741afa6'){throw 'Exact163 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 112675 -or $m.runner.sha256 -ne '45edff9ce6699f183bc0fa7571671839e438f373fdc5e24f4a76634c5c87fad1'){throw 'Exact161 runner ZIP required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 112666 -or $m.runner.sha256 -ne '1d4ce83cc2e581cfae3ea70389cddc8da2eb460cc581bb4d12a406529655c12a'){throw 'Exact161 runner ZIP required'}
           $installer=Join-Path $root 'NeuroQuiz-174-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
@@ -101,7 +101,7 @@ jobs:
       PREV_COMMIT: 2727082ce455a35fa90f6645fd682c43a1afe328
       PREV_MANIFEST_SHA256: 01b25c15d0776709d33804ce4d235582b9826118de2a14e0124c79d53bd1d85b
       PREV_INSTALLER_SHA256: 4c39714a8fe36afe1f02ef545b4cd4137fe8bd959c15bd114156f8f4a4f7da05
-      NEW_MANIFEST_SHA256: 3245925302175237023eea15955fbe6db29064aca0884432b6626a05645ff87b
+      NEW_MANIFEST_SHA256: e5641dc00909f6ef654b076177325dc49365e56428fc0d675ccaae4fbfbe50d9
       NEW_INSTALLER_SHA256: 649c5de3b8e8f2828314968c17328f9cb201a7c01ab81ffb0bc239c6a741afa6
     steps:
       - name: Install previous release, upgrade to current, verify
