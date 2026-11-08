@@ -3,7 +3,7 @@
 set -u
 cd "$(dirname "$0")"
 echo "cd4091f674f98523572854daedb773df1868a76e1bd1598bc6aa3026aab136b8  NeuroQuiz-176-Android.apk" | sha256sum -c - || exit 2
-echo "7967c4e5cdf92584842e36e5d39f5c069648f9ff71e2dfcf7a7c7da353e2d9af  NeuroQuiz-Android-Supervisor-Emulator176.apk" | sha256sum -c - || exit 2
+echo "e1fe25d61e2771f65debd6c4bcdf4f4a920f2bc09dc3985433132c2d4cd51683  NeuroQuiz-Android-Supervisor-Emulator176.apk" | sha256sum -c - || exit 2
 adb wait-for-device
 adb shell getprop ro.build.version.sdk; adb shell dumpsys package com.google.android.webview | grep -m1 versionName || true
 adb install -r -g NeuroQuiz-176-Android.apk
