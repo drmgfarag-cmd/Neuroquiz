@@ -130,7 +130,8 @@ async function main() {
       assert.notEqual(state.seededWith.releaseExeSha256, exeSha, 'the installed app did not change: no upgrade happened');
       const db = await dump(page);
       const session = db.sessions.find(s => s.id === state.sessionId);
-      assert.deepEqual(session, state.session, 'the finished test changed across the upgrade');
+      // The seeded row was saved as JSON (properties holding undefined are dropped); compare in the same form.
+      assert.deepEqual(session && JSON.parse(JSON.stringify(session)), state.session, 'the finished test changed across the upgrade');
       const lost = Object.entries(state.counts).filter(([n, k]) => (db.counts[n] ?? 0) < k);
       assert.deepEqual(lost, [], 'learner tables lost rows: ' + JSON.stringify(lost));
       assert(db.version >= state.dbVersion, 'database version went backwards');

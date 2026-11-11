@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: 8cec2cbd8bf9aa2134fba8d23ba5dbd5f3a523d8eafdf27dab1806c5f1845ca9
+      TRANSFER_MANIFEST_SHA256: 1d1e97875f558102350a362257a1ff9bf120283b52bb572dc0a0256951eb216a
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -45,7 +45,7 @@ jobs:
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
           if($m.installer.bytes -ne 166166305 -or $m.installer.sha256 -ne 'a7cb5347c77372077582a6dac15674988fd2de7bcd278bfddcf5160f1a3bb52d'){throw 'Exact163 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 114204 -or $m.runner.sha256 -ne 'edcbcdfc526bcdb3e8f9807b78b801025d7c481329002f99c8c61ac3b2d14d06'){throw 'Exact161 runner ZIP required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 114205 -or $m.runner.sha256 -ne '5fbcc28826def40b005ded18afde1d01c20e14c07efde69b42db0d968a435839'){throw 'Exact161 runner ZIP required'}
           $installer=Join-Path $root 'NeuroQuiz-177-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
@@ -105,8 +105,8 @@ jobs:
       PREV_COMMIT: d0c68b0550853f2e5be027e401f62beb114a36ef
       PREV_MANIFEST_SHA256: ce1fb8d508c3b3f4c2d5d4ad8a997c72ab6ee63a09f3d154d7593e371ae347c8
       PREV_INSTALLER_SHA256: 855e295dcf9ad8564a364770d32ba6e581617d2cef467dc6c0dd20dc6cf86a2e
-      SEED_SHA256: 34d9ac1599fc55eba7c95b162a8aed4a10996030b3d6e5eefe4be1375dafa0a3
-      NEW_MANIFEST_SHA256: 8cec2cbd8bf9aa2134fba8d23ba5dbd5f3a523d8eafdf27dab1806c5f1845ca9
+      SEED_SHA256: ea1f49c21e2295cc990f2ac879c201a475b1de777d5f8a3cc208d80f1d567c8e
+      NEW_MANIFEST_SHA256: 1d1e97875f558102350a362257a1ff9bf120283b52bb572dc0a0256951eb216a
       NEW_INSTALLER_SHA256: a7cb5347c77372077582a6dac15674988fd2de7bcd278bfddcf5160f1a3bb52d
     steps:
       - name: Install previous release, upgrade to current, verify
