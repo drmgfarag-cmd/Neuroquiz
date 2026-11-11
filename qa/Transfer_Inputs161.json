@@ -1,0 +1,222 @@
+{
+ "format": "neuroquiz-public-exact-transfer161-v1",
+ "installer": {
+  "filename": "NeuroQuiz-177-Windows-x64-Setup-Unsigned.exe",
+  "bytes": 166166164,
+  "sha256": "e1b87f7aff12e6cc85d1d7830c4f146a868481f733ce12d1dd8d95f1dbb19a36",
+  "parts": [
+   {
+    "path": "qa/installer.part-000",
+    "bytes": 4194304,
+    "sha256": "535da271d23d92a23dac7c88bd677e427757da3592b4b8d144f17a3171952eec"
+   },
+   {
+    "path": "qa/installer.part-001",
+    "bytes": 4194304,
+    "sha256": "8641fe8ca6952f828d6d1883a2df62c6d2b51dce4afa58ef4505014d2fcfcc10"
+   },
+   {
+    "path": "qa/installer.part-002",
+    "bytes": 4194304,
+    "sha256": "66b223087cc15335ded6a80c5f06246e4dc0714f6411615f8fd2d06bfd3135cd"
+   },
+   {
+    "path": "qa/installer.part-003",
+    "bytes": 4194304,
+    "sha256": "8394cd988330fe854733193d4efc307f55e1998e748f59e4470f6e1fed25b756"
+   },
+   {
+    "path": "qa/installer.part-004",
+    "bytes": 4194304,
+    "sha256": "0eff6313f1d1ed0fd5b4a09ad97176824acb81e1b05802b156e497e58a65dd6a"
+   },
+   {
+    "path": "qa/installer.part-005",
+    "bytes": 4194304,
+    "sha256": "0c714239384b6edfa0849737f6f722a2a014933425aa3956266f274ac64afc97"
+   },
+   {
+    "path": "qa/installer.part-006",
+    "bytes": 4194304,
+    "sha256": "7a62f67f5a127462f95ca3d616a85c7ab78d4aa2e3f81e1c286c30404b408ef8"
+   },
+   {
+    "path": "qa/installer.part-007",
+    "bytes": 4194304,
+    "sha256": "381215417b4d74424b71d919fe6c341121007a5f732b2df12497eb2897678b3c"
+   },
+   {
+    "path": "qa/installer.part-008",
+    "bytes": 4194304,
+    "sha256": "2f64f6d3003b066f9d2583ce4f49d797a30aaa98b9ed5459200d0438c0ab61e0"
+   },
+   {
+    "path": "qa/installer.part-009",
+    "bytes": 4194304,
+    "sha256": "8361c1ecb210b6dcbe1a75f2b972d0c5f473367816576572743e59991fc8d562"
+   },
+   {
+    "path": "qa/installer.part-010",
+    "bytes": 4194304,
+    "sha256": "29f78329a10348b5f49f8d1fbc6b5d42596bc5ea207a0d4c904d958c14fff6c6"
+   },
+   {
+    "path": "qa/installer.part-011",
+    "bytes": 4194304,
+    "sha256": "d5fc5137be68f3138a8791bdfdbd845c0c0568273911dc1e5937f71e4be37d50"
+   },
+   {
+    "path": "qa/installer.part-012",
+    "bytes": 4194304,
+    "sha256": "0b2daacd66f0ee527aae7e9a761ba6f284855de007459253d3899aa95c474468"
+   },
+   {
+    "path": "qa/installer.part-013",
+    "bytes": 4194304,
+    "sha256": "4d173203fd73a07980be2f5e4a2f29cb036b3443479a688b26af83bb5a9f7a84"
+   },
+   {
+    "path": "qa/installer.part-014",
+    "bytes": 4194304,
+    "sha256": "47dba08f89cf699e8931a002d8e074596bb0b281923678cf5b04d8d18ca4b863"
+   },
+   {
+    "path": "qa/installer.part-015",
+    "bytes": 4194304,
+    "sha256": "7e0b1fce0cfa24633579ed7d5f31bed831a4a529765011e4c11f7ec9f266e906"
+   },
+   {
+    "path": "qa/installer.part-016",
+    "bytes": 4194304,
+    "sha256": "59ba1a113431f4ca3ffd1c2592bde2e21e11964615adce19e127700a36ea116f"
+   },
+   {
+    "path": "qa/installer.part-017",
+    "bytes": 4194304,
+    "sha256": "96a0dabee9182cb98f9d32bf00ba5107b5d8b538fc18725eb92bcb48615788cd"
+   },
+   {
+    "path": "qa/installer.part-018",
+    "bytes": 4194304,
+    "sha256": "e6ad4cf2bea4a352f4c2917f7a78a7356b4c47d0ec31e7d7a0f0a82409dff84a"
+   },
+   {
+    "path": "qa/installer.part-019",
+    "bytes": 4194304,
+    "sha256": "9fe9cc309b7622db6f2efa41a5df0c1546b745b7ace9fdeb570671cd805fae61"
+   },
+   {
+    "path": "qa/installer.part-020",
+    "bytes": 4194304,
+    "sha256": "05d18eb43ae9d5688854d48572ee8732f6323f51a580bc8c1dc801d62893ba79"
+   },
+   {
+    "path": "qa/installer.part-021",
+    "bytes": 4194304,
+    "sha256": "9350d4201702fc467ec9e236874c56490d9814cc72b36cb4a806f40f2886f390"
+   },
+   {
+    "path": "qa/installer.part-022",
+    "bytes": 4194304,
+    "sha256": "90ecc1f6f17e05b42b1e6a30c34ac577c165a0f0e80d8aadb4af7fc233e78698"
+   },
+   {
+    "path": "qa/installer.part-023",
+    "bytes": 4194304,
+    "sha256": "3ab4aacc979359f7b232fb9ce58493b2cf41f636f57f88a1a6ef11c6b9e8389e"
+   },
+   {
+    "path": "qa/installer.part-024",
+    "bytes": 4194304,
+    "sha256": "1790573bcbde7f5b2d33986237499ca9bde0dd243cfaa3028064ac3bb9e9ed7a"
+   },
+   {
+    "path": "qa/installer.part-025",
+    "bytes": 4194304,
+    "sha256": "d21ea590aed0c1eede9e0a297b824719a94ad4f6dbe22018d517ce92ab44ad14"
+   },
+   {
+    "path": "qa/installer.part-026",
+    "bytes": 4194304,
+    "sha256": "e6f39dde3970645fe2f26c334a0e50025ddaf93548b7a0a7bfde2c5637939796"
+   },
+   {
+    "path": "qa/installer.part-027",
+    "bytes": 4194304,
+    "sha256": "884dabee08e21d0d30e7a1e8f9d42b1282eebd1029bd4af05f8addc1807334b8"
+   },
+   {
+    "path": "qa/installer.part-028",
+    "bytes": 4194304,
+    "sha256": "86defde896a5504cef8087edf333b59dbfcaed86afcd9473f5005a17826abf17"
+   },
+   {
+    "path": "qa/installer.part-029",
+    "bytes": 4194304,
+    "sha256": "dde775be953dc0abb31b9b8a79f0165963655216f4dea3ff3656e1133817ec17"
+   },
+   {
+    "path": "qa/installer.part-030",
+    "bytes": 4194304,
+    "sha256": "0f9e2df5fe90ecbcf3ed74ac610dd9aa347f967c996ddf33fe9096120a26583f"
+   },
+   {
+    "path": "qa/installer.part-031",
+    "bytes": 4194304,
+    "sha256": "2ec9d585b0f7033dbd49b433df41ce5e7b954b1411a300f6568b53ab08676817"
+   },
+   {
+    "path": "qa/installer.part-032",
+    "bytes": 4194304,
+    "sha256": "f4084aba749484f50a31e4c40ab794736f836ba4ab37fdffd5cfff1c29050d71"
+   },
+   {
+    "path": "qa/installer.part-033",
+    "bytes": 4194304,
+    "sha256": "b2e19c6198136bb998e0fcf00f558597ff01a5a12eb7c25cdd30735d6aebe7a1"
+   },
+   {
+    "path": "qa/installer.part-034",
+    "bytes": 4194304,
+    "sha256": "75e80a707736b21dce6b0599124f175aa38b741fe2b59305b407d0794f47353d"
+   },
+   {
+    "path": "qa/installer.part-035",
+    "bytes": 4194304,
+    "sha256": "35c8d7e61189e0f87e26bba80389637f7a77fd92e177f3342d0e1a0653fadd80"
+   },
+   {
+    "path": "qa/installer.part-036",
+    "bytes": 4194304,
+    "sha256": "b5f1c7c39c522da255c925bd81f5c04086135a5d24f47d859fff5885f921611e"
+   },
+   {
+    "path": "qa/installer.part-037",
+    "bytes": 4194304,
+    "sha256": "ab3b1c8ab1fe676e10988911e75b22ecdc96269edc5da5131f6177daa584a6df"
+   },
+   {
+    "path": "qa/installer.part-038",
+    "bytes": 4194304,
+    "sha256": "f511d14243807edb23a2b592aca85234c7891d14c12a6c4d879e527b31ceb501"
+   },
+   {
+    "path": "qa/installer.part-039",
+    "bytes": 2588308,
+    "sha256": "32cc00d66d0666374af1a9bd388d3c7e37398cf58f430e6a960b0d80c01db51a"
+   }
+  ]
+ },
+ "runner": {
+  "path": "qa/Runner161.zip",
+  "bytes": 114236,
+  "sha256": "e7ff22d46e32df752e92d65d7b23317dd3ebe7a4458a6cf161d69effbe88b5f5"
+ },
+ "helpers": [
+  {
+   "path": "qa/Run_Exact_Windows161.cjs",
+   "bytes": 7907,
+   "sha256": "4512149358fff9645d53ae90a684a11cd7ba6652845875f672aec782094677e4"
+  }
+ ]
+}
