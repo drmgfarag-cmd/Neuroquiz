@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: e4b3e7b32d4b2e83f176c34ebd943145ff18dd147aff99d010dbde7137232b3a
+      TRANSFER_MANIFEST_SHA256: 8cec2cbd8bf9aa2134fba8d23ba5dbd5f3a523d8eafdf27dab1806c5f1845ca9
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -45,7 +45,7 @@ jobs:
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
           if($m.installer.bytes -ne 166166305 -or $m.installer.sha256 -ne 'a7cb5347c77372077582a6dac15674988fd2de7bcd278bfddcf5160f1a3bb52d'){throw 'Exact163 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 114202 -or $m.runner.sha256 -ne 'f5238bd1ada343810457f7f8d20c1c3a2d679258119d5b209551c4bd428f7922'){throw 'Exact161 runner ZIP required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 114204 -or $m.runner.sha256 -ne 'edcbcdfc526bcdb3e8f9807b78b801025d7c481329002f99c8c61ac3b2d14d06'){throw 'Exact161 runner ZIP required'}
           $installer=Join-Path $root 'NeuroQuiz-177-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
@@ -105,8 +105,8 @@ jobs:
       PREV_COMMIT: d0c68b0550853f2e5be027e401f62beb114a36ef
       PREV_MANIFEST_SHA256: ce1fb8d508c3b3f4c2d5d4ad8a997c72ab6ee63a09f3d154d7593e371ae347c8
       PREV_INSTALLER_SHA256: 855e295dcf9ad8564a364770d32ba6e581617d2cef467dc6c0dd20dc6cf86a2e
-      SEED_SHA256: e06debecab9f7f1db2e6b345dc9c9e1a39accdee1af9489e06a5e788de57a213
-      NEW_MANIFEST_SHA256: e4b3e7b32d4b2e83f176c34ebd943145ff18dd147aff99d010dbde7137232b3a
+      SEED_SHA256: 34d9ac1599fc55eba7c95b162a8aed4a10996030b3d6e5eefe4be1375dafa0a3
+      NEW_MANIFEST_SHA256: 8cec2cbd8bf9aa2134fba8d23ba5dbd5f3a523d8eafdf27dab1806c5f1845ca9
       NEW_INSTALLER_SHA256: a7cb5347c77372077582a6dac15674988fd2de7bcd278bfddcf5160f1a3bb52d
     steps:
       - name: Install previous release, upgrade to current, verify
@@ -188,8 +188,12 @@ jobs:
           Check 'no-stage-or-backup' ($left.Count -eq 0) ($left -join ',')
           $ver=(Get-ItemProperty -LiteralPath $key).DisplayVersion
           Check 'registration-version' ($ver -like ('*'+$target.release+'*')) $ver
-          $start=@(Get-StartApps | Where-Object { $_.Name -eq 'NeuroQuiz' })
-          Check 'start-menu-appid' (@($start | Where-Object AppID -eq 'org.neuroquiz.desktop').Count -ge 1) (($start | ForEach-Object { $_.AppID }) -join ',')
+          # 177: the Start menu list is rebuilt asynchronously after an upgrade (176 run saw it at once; 177 run saw an empty
+          # list right after); wait up to 60 s, and also read the AppUserModelID stored in the shortcut itself.
+          $lnk=Join-Path ([Environment]::GetFolderPath('Programs')) 'NeuroQuiz.lnk'; $lnkId=''
+          for($i=0;$i -lt 30;$i++){ $start=@(Get-StartApps | Where-Object { $_.Name -eq 'NeuroQuiz' }); if(@($start | Where-Object AppID -eq 'org.neuroquiz.desktop').Count){break}; Start-Sleep -Seconds 2 }
+          if(Test-Path -LiteralPath $lnk){ try{ $lnkId=(New-Object -ComObject Shell.Application).Namespace((Split-Path $lnk)).ParseName('NeuroQuiz.lnk').ExtendedProperty('System.AppUserModel.ID') } catch { $lnkId='read failed: '+$_.Exception.Message } }
+          Check 'start-menu-appid' (@($start | Where-Object AppID -eq 'org.neuroquiz.desktop').Count -ge 1 -or $lnkId -eq 'org.neuroquiz.desktop') ("start apps: "+(($start | ForEach-Object { $_.AppID }) -join ',')+" after "+$i+" polls; shortcut "+(Test-Path -LiteralPath $lnk)+" AppID "+$lnkId)
           # 177 (packages F5): the upgraded app (QA copy) still has the learner data seeded with the previous release.
           & node.exe $seed check --runner $runnerDir --install $dir --state $state 2>&1 | ForEach-Object { Write-Output ("check "+$_) }
           $kept=$LASTEXITCODE

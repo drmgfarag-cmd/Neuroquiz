@@ -52,7 +52,10 @@ async function main() {
   const cases = require(path.join(runner, 'Windows_Cases161.cjs'));
   const { TITLE, STEMS, route, text, button } = cases;
   const exe = path.join(install, 'NeuroQuiz.exe'); assert(fs.existsSync(exe), 'NeuroQuiz.exe not installed');
-  const exeSha = H(exe);
+  // 177 (builder): the stock Electron exe can be byte-identical across releases (branding needs resedit), so the upgrade
+  // is proven by the app files' own version (resources/app/package.json), not by the exe hash.
+  const appPkg = path.join(install, 'resources', 'app', 'package.json');
+  const exeSha = fs.existsSync(appPkg) ? 'app:' + JSON.parse(fs.readFileSync(appPkg, 'utf8')).version + ':' + H(appPkg) : H(exe);
   const qa = qaExe(exe);
   const drop = () => { try { fs.unlinkSync(qa); } catch {} };
   process.once('exit', drop);
@@ -124,7 +127,7 @@ async function main() {
       console.log(JSON.stringify({ seeded: { appVersion: version, sessionId: id, counts: db.counts } }));
     } else {
       const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-      assert.notEqual(state.seededWith.releaseExeSha256, exeSha, 'the installed exe did not change: no upgrade happened');
+      assert.notEqual(state.seededWith.releaseExeSha256, exeSha, 'the installed app did not change: no upgrade happened');
       const db = await dump(page);
       const session = db.sessions.find(s => s.id === state.sessionId);
       assert.deepEqual(session, state.session, 'the finished test changed across the upgrade');
