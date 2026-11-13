@@ -1,0 +1,55 @@
+name: NeuroQuiz 180 Android emulator QA
+# QA-only branch: never merge, never touch main. Runs the synthetic acceptance suite on CI emulators.
+on:
+  push:
+    branches: [qa/android180-emulator]
+permissions:
+  contents: read
+concurrency:
+  group: android180-emulator
+  cancel-in-progress: false
+jobs:
+  emulator:
+    if: github.repository == 'drmgfarag-cmd/Neuroquiz' || github.repository == 'drmgfarag-cmd/neuroquiz'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      ANDROID_AVD_HOME: /home/runner/.android/avd
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 33
+            profile: pixel_6
+          - api: 30
+            profile: pixel_c
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          mkdir -p /home/runner/.android/avd
+      - name: Run acceptance suite
+        uses: reactivecircus/android-emulator-runner@v2.34.0
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: ${{ matrix.profile }}
+          ram-size: 4096M
+          disk-size: 6G
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: bash qa/run180.sh
+      # 178 (audit-177 scope finding 2): the complete raw observations are kept with the run (synthetic fixtures only).
+      - name: Keep raw evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android180-emulator-api${{ matrix.api }}
+          path: qa/evidence/
+          if-no-files-found: error
+          retention-days: 90
