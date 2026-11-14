@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      TRANSFER_MANIFEST_SHA256: 130507af25c96e0099efc33d17460cade87d6c97201a95e70f2c2480ccd1e97c
+      TRANSFER_MANIFEST_SHA256: 2e129b8bfc7dfe02c03ed5a245cefd16ed40840c6e4991113aa62098f68c9884
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       NPM_CONFIG_FETCH_TIMEOUT: '60000'
       NPM_CONFIG_FETCH_RETRIES: '0'
@@ -44,8 +44,8 @@ jobs:
           if((Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:TRANSFER_MANIFEST_SHA256){throw 'Transfer manifest SHA differs'}
           $m=Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
           if($m.format -ne 'neuroquiz-public-exact-transfer161-v1' -or $m.installer.parts.Count -ne 40){throw 'Exact transfer schema and40 parts required'}
-          if($m.installer.bytes -ne 166493115 -or $m.installer.sha256 -ne '046c359f0cbe2c5e5808a23853cc8c039f46785b6c8925017431dd1c6e683a97'){throw 'Exact163 installer required'}
-          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 114215 -or $m.runner.sha256 -ne 'f6fc4fe11302d14d2bc7c5a28f9366a44c74b88a07be177274cb7cf972ac1858'){throw 'Exact161 runner ZIP required'}
+          if($m.installer.bytes -ne 166530568 -or $m.installer.sha256 -ne '9b99392733bd2614eca0ce50534d8ce74514f93a5ee53aa988e2b9344383e4a5'){throw 'Exact163 installer required'}
+          if($m.runner.path -ne 'qa/Runner161.zip' -or $m.runner.bytes -ne 114277 -or $m.runner.sha256 -ne '6412ec0b2bf88a8006db894a022c9dd9b32b3e86d083175fdd28b473addc8210'){throw 'Exact161 runner ZIP required'}
           $installer=Join-Path $root 'NeuroQuiz-181-Windows-x64-Setup-Unsigned.exe'
           $stream=[IO.File]::Open($installer,[IO.FileMode]::CreateNew)
           try{
@@ -106,7 +106,7 @@ jobs:
       PREV_MANIFEST_SHA256: e3cb8904fa9605a75c54d3a559a26a9c359f937655ab8f17dbd3e97111443731
       PREV_INSTALLER_SHA256: e2513bb525d960c59881e57bddaef0a5ca97641aec0e8c104b08105a7af637fe
       SEED_SHA256: fd533d27f16402710ace07edd9d7e3e1b240c4e2185aa66d195fb8f67f1a93e3
-      NEW_MANIFEST_SHA256: 99600323f07553fa3ad086784e129a7609b696bbdfe0a8924153b4f7fe41a245
+      NEW_MANIFEST_SHA256: 2e129b8bfc7dfe02c03ed5a245cefd16ed40840c6e4991113aa62098f68c9884
       NEW_INSTALLER_SHA256: 9b99392733bd2614eca0ce50534d8ce74514f93a5ee53aa988e2b9344383e4a5
     steps:
       - name: Install previous release, upgrade to current, verify
