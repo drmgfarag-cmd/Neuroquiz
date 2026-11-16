@@ -7,8 +7,8 @@
 set -u
 cd "$(dirname "$0")"
 APK=NeuroQuiz-183-Android.apk; TEST=NeuroQuiz-Android-Supervisor-Emulator183.apk
-echo "73155fb5bf06faac09d3e2d0567e29da6814dd760afeea6c8d69ddcab8861aa3  $APK" | sha256sum -c - || exit 2
-echo "6e8193e8552ab4507437daa5d0eadfd54558d77afcfe1c3559fdce83222f9c3e  $TEST" | sha256sum -c - || exit 2
+echo "ebae4c36d80e6d31187801f1ba2e50bb5c87c208fb3cc25e5b4386107a450791  $APK" | sha256sum -c - || exit 2
+echo "dc8b5489ac82c0c66cfb6fb748bb7477ac6ede20548ea15c00b669c4f9ee1588  $TEST" | sha256sum -c - || exit 2
 mkdir -p evidence
 adb wait-for-device
 SDK=$(adb shell getprop ro.build.version.sdk | tr -d '\r'); echo "sdk $SDK"
@@ -23,8 +23,8 @@ for pkg in org.neuroquiz.app org.neuroquiz.supervisor156; do
   path=$(adb shell pm path $pkg | tr -d '\r' | sed -n 's/^package://p' | head -1)
   echo "installed $pkg $(adb shell sha256sum "$path" | cut -d' ' -f1)" | tee -a evidence/device.txt
 done
-grep -q "installed org.neuroquiz.app 73155fb5bf06faac09d3e2d0567e29da6814dd760afeea6c8d69ddcab8861aa3" evidence/device.txt || { echo "installed app differs from the pinned APK"; exit 2; }
-grep -q "installed org.neuroquiz.supervisor156 6e8193e8552ab4507437daa5d0eadfd54558d77afcfe1c3559fdce83222f9c3e" evidence/device.txt || { echo "installed test APK differs from the pinned one"; exit 2; }
+grep -q "installed org.neuroquiz.app ebae4c36d80e6d31187801f1ba2e50bb5c87c208fb3cc25e5b4386107a450791" evidence/device.txt || { echo "installed app differs from the pinned APK"; exit 2; }
+grep -q "installed org.neuroquiz.supervisor156 dc8b5489ac82c0c66cfb6fb748bb7477ac6ede20548ea15c00b669c4f9ee1588" evidence/device.txt || { echo "installed test APK differs from the pinned one"; exit 2; }
 adb logcat -c || true
 adb logcat -v threadtime > evidence/logcat.txt 2>&1 &
 LOG=$!
